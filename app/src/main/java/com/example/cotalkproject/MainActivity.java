@@ -1,11 +1,11 @@
 package com.example.cotalkproject;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -13,6 +13,7 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.example.cotalkproject.ui.contacts.ContactsFragment;
 import com.example.cotalkproject.ui.home.HomeFragment;
+import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.profile.ProfileFragment;
 import com.example.cotalkproject.util.UiUtil;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -31,6 +32,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (CoTalkApp.getInstance().getPrefs().getCurrentUserId() <= 0) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 

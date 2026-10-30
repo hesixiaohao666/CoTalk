@@ -1,8 +1,10 @@
 package com.example.cotalkproject.util;
 
 import android.app.Activity;
+import android.graphics.Rect;
 import android.view.View;
 import android.view.Window;
+import android.widget.ScrollView;
 
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -11,7 +13,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 /**
- * 统一处理 #66CCFF 顶栏、浅色状态栏图标和 edge-to-edge 边距。
+ * 统一处理 #66CCFF 顶栏、浅色状态栏图标、edge-to-edge 边距和输入法避让。
  */
 public final class UiUtil {
 
@@ -27,17 +29,74 @@ public final class UiUtil {
     }
 
     /**
-     * 左右/底部交给根布局，顶部交给标题栏，让蓝色标题栏覆盖状态栏区域。
+     * 左右交给根布局，顶部交给标题栏，让蓝色标题栏覆盖状态栏区域。
+     * 底部不额外 padding，交给系统手势区域。
      */
     public static void applyEdgeToEdgeInsets(View root, View titleBar) {
+        applyInsets(root, titleBar, null, false);
+    }
+
+    /**
+     * 无标题栏页面（登录页）的左右/顶部边距。
+     */
+    public static void applyPageInsets(View root) {
+        applyInsets(root, null, null, false);
+    }
+
+    /**
+     * 无标题栏 + 输入法避让（登录页）。
+     * 键盘弹出时给根布局补 IME 高度，并把焦点输入框滚到可见区域。
+     */
+    public static void applyPageInsetsWithIme(View root) {
+        ScrollView scrollView = root instanceof ScrollView ? (ScrollView) root : null;
+        applyInsets(root, null, scrollView, true);
+    }
+
+    /**
+     * 有标题栏 + 输入法避让（注册页、聊天页后续可复用）。
+     */
+    public static void applyEdgeToEdgeInsetsWithIme(View root, View titleBar, ScrollView scrollView) {
+        applyInsets(root, titleBar, scrollView, true);
+    }
+
+    private static void applyInsets(View root, View titleBar, ScrollView scrollView, boolean imeAware) {
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            view.setPadding(bars.left, 0, bars.right, 0);
+            int top = titleBar == null ? bars.top : 0;
+            int bottom = 0;
+            if (imeAware) {
+                bottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            }
+
+            view.setPadding(bars.left, top, bars.right, bottom);
             if (titleBar != null) {
                 titleBar.setPadding(0, bars.top, 0, 0);
+            }
+            if (imeAware && scrollView != null && bottom > 0) {
+                scrollFocusedIntoView(scrollView);
             }
             return insets;
         });
         ViewCompat.requestApplyInsets(root);
+    }
+
+    private static void scrollFocusedIntoView(ScrollView scrollView) {
+        // 等键盘动画/布局稳定后再滚动，避免滚到一半又被键盘顶回去。
+        scrollView.postDelayed(() -> {
+            View focus = scrollView.findFocus();
+            if (focus == null) {
+                return;
+            }
+            Rect rect = new Rect();
+            focus.getDrawingRect(rect);
+            scrollView.offsetDescendantRectToMyCoords(focus, rect);
+
+            int visibleBottom = scrollView.getHeight() - scrollView.getPaddingBottom();
+            int margin = (int) (16 * scrollView.getResources().getDisplayMetrics().density);
+            int delta = rect.bottom - visibleBottom + margin;
+            if (delta > 0) {
+                scrollView.smoothScrollTo(0, scrollView.getScrollY() + delta);
+            }
+        }, 120L);
     }
 }
