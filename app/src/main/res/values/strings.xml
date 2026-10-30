@@ -69,5 +69,26 @@
     <string name="reset_success">本地账号已重置</string>
     <string name="open_settings">设置（本地账号）</string>
 
+    <string name="profile_local_account">本地账号：%1$s</string>
+    <string name="signature_empty">这个人很懒，什么都没留下</string>
+    <string name="edit_profile">编辑资料</string>
+    <string name="edit_profile_placeholder">编辑资料将在 Step 9 实现</string>
+    <string name="profile_section_account">本地账号与设置</string>
+    <string name="profile_settings_entry">设置</string>
+    <string name="profile_about_entry">关于 CoTalk</string>
+    <string name="profile_note">本地账号仅保存在本机，聊天身份为临时游客</string>
+
+    <string name="about_title">关于 CoTalk</string>
+    <string name="about_description">CoTalk 是一款基于 Android + Java 的局域网多人聊天应用。</string>
+    <string name="about_version">版本 1.0</string>
+    <string name="about_tech_title">技术栈</string>
+    <string name="about_tech_body">Android Java / SQLite / TCP Socket / Java Swing</string>
+    <string name="about_identity_title">身份说明</string>
+    <string name="about_identity_body">本地账号只保存在本机；每次连接服务器由服务端分配临时内部 UUID，界面只展示昵称。</string>
+    <string name="about_ai_title">AI 群友</string>
+    <string name="about_ai_body">“大肥鱼”为后续版本预留，当前版本只保留服务端接口与配置。</string>
+    <string name="about_author_title">作者</string>
+    <string name="about_author_placeholder">何似小浩</string>
+
     <string name="test">【(TEST)测试】</string>
 </resources>

@@ -11,10 +11,12 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.example.cotalkproject.ui.about.AboutActivity;
 import com.example.cotalkproject.ui.contacts.ContactsFragment;
 import com.example.cotalkproject.ui.home.HomeFragment;
 import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.profile.ProfileFragment;
+import com.example.cotalkproject.ui.settings.SettingsActivity;
 import com.example.cotalkproject.util.UiUtil;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
@@ -50,6 +52,11 @@ public class MainActivity extends AppCompatActivity {
 
         titleView = findViewById(R.id.tv_title);
         BottomNavigationView navigation = findViewById(R.id.navigation_bar);
+
+        findViewById(R.id.btn_action_settings).setOnClickListener(v ->
+                startActivity(new Intent(this, SettingsActivity.class)));
+        findViewById(R.id.btn_action_about).setOnClickListener(v ->
+                startActivity(new Intent(this, AboutActivity.class)));
 
         restoreFragments(savedInstanceState);
 
@@ -126,5 +133,13 @@ public class MainActivity extends AppCompatActivity {
         tx.commit();
 
         titleView.setText(titleRes);
+
+        // “我的”页右上角显示设置/关于入口；其他 Tab 隐藏。
+        boolean isProfile = itemId == R.id.navigation_profile;
+        findViewById(R.id.ll_actions).setVisibility(isProfile ? View.VISIBLE : View.GONE);
+        findViewById(R.id.btn_action_settings).setVisibility(
+                isProfile ? View.VISIBLE : View.GONE);
+        findViewById(R.id.btn_action_about).setVisibility(
+                isProfile ? View.VISIBLE : View.GONE);
     }
 }
