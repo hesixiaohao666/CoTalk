@@ -2,7 +2,28 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Brand -->
     <color name="blue_ty">#FF66CCFF</color>
+    <color name="blue_dark">#FF33B5E5</color>
     <color name="blue_light">#FF2563EB</color>
+
+    <!-- Surfaces and text -->
+    <color name="bg_page">#FFF5F5F5</color>
+    <color name="text_primary">#FF000000</color>
+    <color name="text_secondary">#FF666666</color>
+    <color name="text_hint">#FF999999</color>
+    <color name="divider">#FFE5E5E5</color>
     <color name="grey">#FF999999</color>
+
+    <!-- States -->
+    <color name="danger">#FFE53935</color>
+    <color name="online">#FF4CAF50</color>
+    <color name="offline">#FFBDBDBD</color>
+
+    <!-- Chat -->
+    <color name="bubble_self">#FF66CCFF</color>
+    <color name="bubble_other">#FFFFFFFF</color>
+    <color name="bubble_system">#FFE0E0E0</color>
+    <color name="input_bg">#FFF5F5F5</color>
 </resources>

@@ -5,32 +5,44 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black"
+    android:background="@color/bg_page"
     tools:context=".MainActivity">
 
-    <androidx.appcompat.widget.Toolbar
+    <include
         android:id="@+id/title_bar"
+        layout="@layout/layout_title_bar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_title_bar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <FrameLayout
+        android:id="@+id/fragment_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/bg_page"
+        app:layout_constraintBottom_toTopOf="@id/navigation_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/title_bar" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/navigation_bar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:minHeight="64dp"
         android:background="@drawable/bg_navigation_bar"
         app:elevation="8dp"
         app:itemActiveIndicatorStyle="@null"
         app:itemIconSize="28dp"
-        app:itemIconTint="@null"
-        app:itemPaddingBottom="16dp"
-        app:itemPaddingTop="16dp"
+        app:itemIconTint="@color/nav_item_color"
+        app:itemPaddingBottom="8dp"
+        app:itemPaddingTop="8dp"
         app:itemRippleColor="@null"
         app:itemTextAppearanceActive="@style/NavigationTextActive"
         app:itemTextAppearanceInactive="@style/NavigationTextInactive"
+        app:itemTextColor="@color/nav_item_color"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
