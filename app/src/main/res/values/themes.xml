@@ -1,0 +1,21 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.CoTalkProject" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    </style>
+
+    <style name="Theme.CoTalkProject" parent="Base.Theme.CoTalkProject" />
+
+    <!-- 导航栏选中时的文字样式 -->
+    <style name="NavigationTextActive" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 导航栏未选中时的文字样式 -->
+    <style name="NavigationTextInactive" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+</resources>

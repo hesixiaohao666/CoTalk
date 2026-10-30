@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <item
+        android:id="@+id/navigation_home"
+        android:icon="@drawable/ic_home"
+        android:title="@string/navigation_home"/>
+
+    <item
+        android:id="@+id/navigation_contacts"
+        android:icon="@drawable/ic_contacts"
+        android:title="@string/navigation_contacts"/>
+
+    <item
+        android:id="@+id/navigation_profile"
+        android:icon="@drawable/ic_profile"
+        android:title="@string/navigation_profile"/>
+
+</menu>

@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">CoTalk</string>
+
+    <string name="navigation_home">首页</string>
+    <string name="navigation_contacts">联系人</string>
+    <string name="navigation_profile">我的</string>
+
+
+    <string name="test">【(TEST)测试】</string>
+</resources>
