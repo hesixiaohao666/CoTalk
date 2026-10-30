@@ -4,6 +4,7 @@ import android.app.Application;
 
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.Prefs;
+import com.example.cotalkproject.net.SessionManager;
 
 public class CoTalkApp extends Application {
 
@@ -11,6 +12,7 @@ public class CoTalkApp extends Application {
 
     private AppDatabase database;
     private Prefs prefs;
+    private SessionManager sessionManager;
 
     @Override
     public void onCreate() {
@@ -18,6 +20,7 @@ public class CoTalkApp extends Application {
         instance = this;
         database = AppDatabase.getInstance(this);
         prefs = new Prefs(this);
+        sessionManager = new SessionManager(database);
     }
 
     public static CoTalkApp getInstance() {
@@ -30,5 +33,9 @@ public class CoTalkApp extends Application {
 
     public Prefs getPrefs() {
         return prefs;
+    }
+
+    public SessionManager getSessionManager() {
+        return sessionManager;
     }
 }

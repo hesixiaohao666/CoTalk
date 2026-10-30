@@ -90,5 +90,34 @@
     <string name="about_author_title">作者</string>
     <string name="about_author_placeholder">何似小浩</string>
 
+    <string name="home_empty_rooms">还没有房间\n去联系人添加服务器</string>
+    <string name="home_no_message">暂无消息</string>
+    <string name="server_online">在线</string>
+    <string name="server_offline">离线</string>
+    <string name="action_connect">连接</string>
+    <string name="action_disconnect">断开</string>
+    <string name="action_remove">移除</string>
+    <string name="contacts_add_server">添加服务器</string>
+    <string name="hint_host">服务器 IP / 主机名</string>
+    <string name="hint_port">4700</string>
+    <string name="default_server_host">10.0.2.2</string>
+    <string name="connect_and_join">连接并加入</string>
+    <string name="server_hint">模拟器访问电脑用 10.0.2.2；真机填电脑局域网 IP</string>
+    <string name="my_servers">我的服务器</string>
+    <string name="online_members">在线成员</string>
+    <string name="no_saved_servers">还没有保存的服务器</string>
+    <string name="no_cached_members">暂无成员缓存</string>
+    <string name="connect_success">已加入房间</string>
+    <string name="connect_failed">连接失败：%1$s</string>
+    <string name="input_host_required">请输入服务器 IP 或主机名</string>
+    <string name="input_port_invalid">请输入有效端口（1–65535）</string>
+    <string name="switch_server_title">切换服务器？</string>
+    <string name="switch_server_message">连接新服务器将断开当前服务器，是否继续？</string>
+    <string name="remove_server_title">移除房间？</string>
+    <string name="remove_server_message">将删除本机保存的会话、消息和成员缓存，不影响服务器数据。</string>
+    <string name="me_suffix">（我）</string>
+    <string name="chat_placeholder">聊天功能将在 Step 6 实现\n房间：%1$s</string>
+    <string name="chat_title_default">聊天</string>
+
     <string name="test">【(TEST)测试】</string>
 </resources>

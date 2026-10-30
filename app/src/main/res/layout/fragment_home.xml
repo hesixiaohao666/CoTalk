@@ -4,13 +4,22 @@
     android:layout_height="match_parent"
     android:background="@color/bg_page">
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_sessions"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:padding="12dp" />
+
     <LinearLayout
+        android:id="@+id/layout_empty"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="24dp"
+        android:visibility="gone">
 
         <ImageView
             android:layout_width="56dp"
@@ -25,7 +34,7 @@
             android:layout_marginTop="12dp"
             android:gravity="center"
             android:lineSpacingExtra="6dp"
-            android:text="@string/home_placeholder"
+            android:text="@string/home_empty_rooms"
             android:textColor="@color/text_hint"
             android:textSize="16sp" />
     </LinearLayout>
