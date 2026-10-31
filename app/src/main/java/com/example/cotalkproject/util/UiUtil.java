@@ -59,6 +59,39 @@ public final class UiUtil {
         applyInsets(root, titleBar, scrollView, true);
     }
 
+    /**
+     * 有标题栏 + 输入法避让，但没有可滚动容器（聊天页输入栏）。
+     */
+    public static void applyEdgeToEdgeInsetsWithIme(View root, View titleBar) {
+        applyInsets(root, titleBar, null, true);
+    }
+
+    /**
+     * 聊天页：键盘弹出时给根布局补 IME 高度；键盘收起时给输入栏补系统手势栏高度，
+     * 避免输入框被小白条遮挡。
+     */
+    public static void applyChatInsets(View root, View titleBar, View inputBar) {
+        final int baseBottom = inputBar.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+
+            view.setPadding(bars.left, 0, bars.right, ime.bottom);
+            if (titleBar != null) {
+                titleBar.setPadding(0, bars.top, 0, 0);
+            }
+            int extraBottom = ime.bottom > 0 ? 0 : bars.bottom;
+            inputBar.setPaddingRelative(
+                    inputBar.getPaddingStart(),
+                    inputBar.getPaddingTop(),
+                    inputBar.getPaddingEnd(),
+                    baseBottom + extraBottom
+            );
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
+    }
+
     private static void applyInsets(View root, View titleBar, ScrollView scrollView, boolean imeAware) {
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());

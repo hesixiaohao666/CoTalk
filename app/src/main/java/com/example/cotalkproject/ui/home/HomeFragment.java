@@ -63,6 +63,14 @@ public class HomeFragment extends Fragment implements SessionManager.Listener {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        if (sessionManager != null) {
+            loadSessions();
+        }
+    }
+
+    @Override
     public void onStop() {
         sessionManager.removeListener(this);
         super.onStop();

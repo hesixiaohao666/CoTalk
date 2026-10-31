@@ -118,6 +118,20 @@
     <string name="me_suffix">（我）</string>
     <string name="chat_placeholder">聊天功能将在 Step 6 实现\n房间：%1$s</string>
     <string name="chat_title_default">聊天</string>
+    <string name="message_hint">输入消息…</string>
+    <string name="message_copied">消息已复制</string>
+    <string name="message_sending">发送中…</string>
+    <string name="message_failed">发送失败，点击重试</string>
+    <string name="message_empty">还没有消息，来打个招呼吧</string>
+    <string name="history_loading">加载中…</string>
+    <string name="history_no_more">没有更多了</string>
+    <string name="offline_banner">当前离线，仅显示本地历史</string>
+    <string name="connection_banner">连接已断开：%1$s</string>
+    <string name="member_default">成员</string>
+    <string name="message_too_long">消息最多 500 字</string>
+    <string name="send_offline">当前离线，无法发送</string>
+    <string name="send_failed">发送失败</string>
+    <string name="send_timeout">发送超时，点击重试</string>
 
     <string name="test">【(TEST)测试】</string>
 </resources>

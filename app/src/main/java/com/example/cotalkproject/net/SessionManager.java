@@ -41,6 +41,18 @@ public class SessionManager {
         void onError(String message);
     }
 
+    public interface ChatListener {
+        void onChatFrame(JSONObject frame);
+
+        void onChatDisconnected(String reason);
+    }
+
+    public interface SendCallback {
+        void onSuccess();
+
+        void onError(String message);
+    }
+
     private final AppDatabase database;
     private final LocalUserDao localUserDao;
     private final SessionDao sessionDao;
@@ -55,6 +67,8 @@ public class SessionManager {
     private volatile long activeSessionId = -1;
     private volatile String selfUserId = "";
     private volatile boolean connecting;
+    private volatile ChatListener chatListener;
+    private volatile long openChatSessionId = -1;
 
     public SessionManager(AppDatabase database) {
         this.database = database;
@@ -71,6 +85,53 @@ public class SessionManager {
 
     public void removeListener(Listener listener) {
         listeners.remove(listener);
+    }
+
+    public void setChatListener(ChatListener listener) {
+        chatListener = listener;
+    }
+
+    public void clearChatListener(ChatListener listener) {
+        if (chatListener == listener) {
+            chatListener = null;
+        }
+    }
+
+    public void setOpenChatSession(long sessionId) {
+        openChatSessionId = sessionId;
+    }
+
+    public void sendFrame(JSONObject frame, SendCallback callback) {
+        ServerConnection current = connection;
+        if (current == null || !current.isConnected()) {
+            if (callback != null) {
+                callback.onError("未连接服务器");
+            }
+            return;
+        }
+        database.execute(() -> {
+            try {
+                current.send(frame);
+                if (callback != null) {
+                    database.runOnMain(callback::onSuccess);
+                }
+            } catch (Exception e) {
+                String message = e.getMessage() == null ? "发送失败" : e.getMessage();
+                if (callback != null) {
+                    database.runOnMain(() -> callback.onError(message));
+                }
+            }
+        });
+    }
+
+    public void updateLocalSummary(long sessionId,
+                                   String preview,
+                                   long time,
+                                   long seq) {
+        database.execute(() -> {
+            sessionDao.updateLastMessage(sessionId, preview, time, seq, false);
+            database.runOnMain(this::notifySessionsChanged);
+        });
     }
 
     public void connect(String host, int port, ConnectCallback callback) {
@@ -196,6 +257,7 @@ public class SessionManager {
         if (old != null) {
             old.close();
         }
+        notifyChatDisconnected("已断开连接");
 
         database.execute(() -> {
             if (sessionId > 0) {
@@ -270,13 +332,20 @@ public class SessionManager {
                     : sender + ": " + content;
             long ts = data.optLong("ts", System.currentTimeMillis());
             long seq = data.optLong("seq", 0);
-            // 系统提示更新摘要，但不计入未读。
-            boolean incrementUnread = !system;
+            // 系统提示更新摘要；聊天页打开时也不计未读。
+            boolean incrementUnread = !system && openChatSessionId != sessionId;
             database.execute(() -> {
                 sessionDao.updateLastMessage(
                         sessionId, preview, ts, seq, incrementUnread);
                 database.runOnMain(this::notifySessionsChanged);
             });
+            notifyChatFrame(frame);
+            return;
+        }
+
+        if (Protocol.MESSAGE_ACK.equals(type)
+                || Protocol.HISTORY_RES.equals(type)) {
+            notifyChatFrame(frame);
             return;
         }
 
@@ -292,6 +361,7 @@ public class SessionManager {
                 sessionDao.updateLastMessage(sessionId, content, ts, 0, false);
                 database.runOnMain(this::notifySessionsChanged);
             });
+            notifyChatFrame(frame);
             return;
         }
 
@@ -299,6 +369,7 @@ public class SessionManager {
             JSONObject data = frame.optJSONObject("data");
             String message = data == null ? "服务器错误" : data.optString("message", "服务器错误");
             notifyConnectionError(message);
+            notifyChatFrame(frame);
         }
     }
 
@@ -322,6 +393,7 @@ public class SessionManager {
                     notifyMembersChanged(sessionId);
                 }
                 notifyConnectionError("连接已断开：" + reason);
+                notifyChatDisconnected(reason);
             });
         });
     }
@@ -369,6 +441,20 @@ public class SessionManager {
                 listener.onConnectionError(message);
             }
         });
+    }
+
+    private void notifyChatFrame(JSONObject frame) {
+        ChatListener listener = chatListener;
+        if (listener != null) {
+            mainHandler.post(() -> listener.onChatFrame(frame));
+        }
+    }
+
+    private void notifyChatDisconnected(String reason) {
+        ChatListener listener = chatListener;
+        if (listener != null) {
+            mainHandler.post(() -> listener.onChatDisconnected(reason));
+        }
     }
 
     public boolean isActive(long sessionId) {

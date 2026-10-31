@@ -1,0 +1,132 @@
+package com.example.cotalkproject.data;
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
+import com.example.cotalkproject.model.Message;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 本地消息 DAO：乐观发送、ack 更新、历史合并。
+ */
+public class MessageDao {
+
+    private static final String TABLE = "t_message";
+
+    private final AppDatabase helper;
+
+    public MessageDao(AppDatabase helper) {
+        this.helper = helper;
+    }
+
+    public long insert(Message message) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        return db.insert(TABLE, null, toValues(message));
+    }
+
+    public long insertOrIgnore(Message message) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        return db.insertWithOnConflict(
+                TABLE, null, toValues(message),
+                SQLiteDatabase.CONFLICT_IGNORE);
+    }
+
+    public List<Message> queryAll(long sessionId) {
+        SQLiteDatabase db = helper.getReadableDatabase();
+        List<Message> messages = new ArrayList<>();
+        try (Cursor cursor = db.query(
+                TABLE,
+                null,
+                "session_id = ?",
+                new String[]{String.valueOf(sessionId)},
+                null,
+                null,
+                // 以时间为主排序；服务器重启导致 seq 不连续时也不会打乱时间顺序。
+                "timestamp ASC, CASE WHEN seq = 0 THEN 1 ELSE 0 END ASC, "
+                        + "seq ASC, _id ASC")) {
+            while (cursor.moveToNext()) {
+                messages.add(map(cursor));
+            }
+        }
+        return messages;
+    }
+
+    public int updateStatus(long sessionId,
+                            String clientMsgId,
+                            int status,
+                            String msgId,
+                            long seq) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("status", status);
+        if (msgId != null && !msgId.isEmpty()) {
+            values.put("msg_id", msgId);
+        }
+        if (seq > 0) {
+            values.put("seq", seq);
+        }
+        try {
+            return db.update(
+                    TABLE,
+                    values,
+                    "session_id = ? AND client_msg_id = ?",
+                    new String[]{String.valueOf(sessionId), clientMsgId}
+            );
+        } catch (android.database.sqlite.SQLiteConstraintException e) {
+            // 历史同步先插入了同 msgId 的记录：删掉乐观副本，保留历史记录。
+            db.delete(TABLE,
+                    "session_id = ? AND client_msg_id = ?",
+                    new String[]{String.valueOf(sessionId), clientMsgId});
+            return 0;
+        }
+    }
+
+    public void clearSession(long sessionId) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.delete(TABLE, "session_id = ?", new String[]{String.valueOf(sessionId)});
+    }
+
+    public void deleteAll() {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.delete(TABLE, null, null);
+    }
+
+    private ContentValues toValues(Message message) {
+        ContentValues values = new ContentValues();
+        values.put("session_id", message.sessionId);
+        values.put("msg_id", message.msgId);
+        values.put("client_msg_id", message.clientMsgId);
+        values.put("seq", message.seq);
+        values.put("sender_id", message.senderId);
+        values.put("sender_name", message.senderName);
+        values.put("sender_avatar_version", message.senderAvatarVersion);
+        values.put("content", message.content);
+        values.put("msg_type", message.msgType);
+        values.put("timestamp", message.timestamp);
+        values.put("is_self", message.isSelf ? 1 : 0);
+        values.put("status", message.status);
+        return values;
+    }
+
+    private Message map(Cursor cursor) {
+        Message message = new Message();
+        message.id = cursor.getLong(cursor.getColumnIndexOrThrow("_id"));
+        message.sessionId = cursor.getLong(cursor.getColumnIndexOrThrow("session_id"));
+        message.msgId = cursor.getString(cursor.getColumnIndexOrThrow("msg_id"));
+        message.clientMsgId = cursor.getString(cursor.getColumnIndexOrThrow("client_msg_id"));
+        message.seq = cursor.getLong(cursor.getColumnIndexOrThrow("seq"));
+        message.senderId = cursor.getString(cursor.getColumnIndexOrThrow("sender_id"));
+        message.senderName = cursor.getString(cursor.getColumnIndexOrThrow("sender_name"));
+        message.senderAvatarVersion = cursor.getInt(
+                cursor.getColumnIndexOrThrow("sender_avatar_version"));
+        message.content = cursor.getString(cursor.getColumnIndexOrThrow("content"));
+        message.msgType = cursor.getString(cursor.getColumnIndexOrThrow("msg_type"));
+        message.timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("timestamp"));
+        message.isSelf = cursor.getInt(cursor.getColumnIndexOrThrow("is_self")) == 1;
+        message.status = cursor.getInt(cursor.getColumnIndexOrThrow("status"));
+        return message;
+    }
+}
