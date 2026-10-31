@@ -45,6 +45,8 @@ public class SessionManager {
         void onChatFrame(JSONObject frame);
 
         void onChatDisconnected(String reason);
+
+        void onChatReconnected();
     }
 
     public interface SendCallback {
@@ -69,6 +71,15 @@ public class SessionManager {
     private volatile boolean connecting;
     private volatile ChatListener chatListener;
     private volatile long openChatSessionId = -1;
+
+    private static final long[] RECONNECT_DELAYS =
+            {2000L, 4000L, 8000L, 15000L, 30000L};
+    private volatile boolean shouldReconnect;
+    private volatile int reconnectAttempt;
+    private volatile String reconnectHost = "";
+    private volatile int reconnectPort;
+    private volatile long reconnectSessionId = -1;
+    private final Runnable reconnectTask = this::runReconnect;
 
     public SessionManager(AppDatabase database) {
         this.database = database;
@@ -135,8 +146,21 @@ public class SessionManager {
     }
 
     public void connect(String host, int port, ConnectCallback callback) {
+        shouldReconnect = false;
+        cancelReconnect();
+        startConnect(host, port, callback, false);
+    }
+
+    private void startConnect(String host,
+                              int port,
+                              ConnectCallback callback,
+                              boolean reconnect) {
         if (connecting) {
-            callback.onError("正在连接，请稍候");
+            if (callback != null) {
+                callback.onError("正在连接，请稍候");
+            } else if (reconnect) {
+                scheduleReconnect();
+            }
             return;
         }
         connecting = true;
@@ -148,9 +172,10 @@ public class SessionManager {
             if (user == null) {
                 connecting = false;
                 database.runOnMain(() -> {
-                    callback.onError("本地账号不存在");
+                    if (callback != null) {
+                        callback.onError("本地账号不存在");
+                    }
                     notifySessionsChanged();
-                    notifyConnectionError("本地账号不存在");
                 });
                 return;
             }
@@ -219,12 +244,22 @@ public class SessionManager {
                 activeSessionId = session.id;
                 connection = conn;
                 connecting = false;
+                shouldReconnect = true;
+                reconnectHost = host;
+                reconnectPort = port;
+                reconnectSessionId = session.id;
+                reconnectAttempt = 0;
                 conn.start();
 
                 database.runOnMain(() -> {
-                    callback.onSuccess(session);
+                    if (callback != null) {
+                        callback.onSuccess(session);
+                    }
                     notifySessionsChanged();
                     notifyMembersChanged(session.id);
+                    if (reconnect) {
+                        notifyChatReconnected();
+                    }
                 });
             } catch (Exception e) {
                 conn.close();
@@ -238,15 +273,24 @@ public class SessionManager {
                 String message = e.getMessage() == null
                         ? "连接服务器失败"
                         : e.getMessage();
-                database.runOnMain(() -> {
-                    callback.onError(message);
-                    notifySessionsChanged();
-                });
+                if (reconnect && shouldReconnect) {
+                    scheduleReconnect();
+                    database.runOnMain(this::notifySessionsChanged);
+                } else {
+                    database.runOnMain(() -> {
+                        if (callback != null) {
+                            callback.onError(message);
+                        }
+                        notifySessionsChanged();
+                    });
+                }
             }
         });
     }
 
     public void disconnect() {
+        shouldReconnect = false;
+        cancelReconnect();
         connectGeneration.incrementAndGet();
         ServerConnection old = connection;
         long sessionId = activeSessionId;
@@ -275,6 +319,10 @@ public class SessionManager {
     public void removeSession(long sessionId) {
         if (activeSessionId == sessionId) {
             disconnect();
+        }
+        if (reconnectSessionId == sessionId) {
+            shouldReconnect = false;
+            cancelReconnect();
         }
         database.execute(() -> {
             sessionDao.delete(sessionId);
@@ -383,6 +431,12 @@ public class SessionManager {
         selfUserId = "";
         connecting = false;
 
+        boolean canReconnect = shouldReconnect && sessionId > 0;
+        if (canReconnect) {
+            reconnectSessionId = sessionId;
+        }
+        String suffix = canReconnect ? "，正在重连…" : "";
+
         database.execute(() -> {
             if (sessionId > 0) {
                 memberDao.markAllOffline(sessionId);
@@ -392,10 +446,14 @@ public class SessionManager {
                 if (sessionId > 0) {
                     notifyMembersChanged(sessionId);
                 }
-                notifyConnectionError("连接已断开：" + reason);
-                notifyChatDisconnected(reason);
+                notifyConnectionError("连接已断开：" + reason + suffix);
+                notifyChatDisconnected(reason + suffix);
             });
         });
+
+        if (canReconnect) {
+            scheduleReconnect();
+        }
     }
 
     private List<Member> parseMembers(JSONArray array, long sessionId) {
@@ -455,6 +513,38 @@ public class SessionManager {
         if (listener != null) {
             mainHandler.post(() -> listener.onChatDisconnected(reason));
         }
+    }
+
+    private void notifyChatReconnected() {
+        ChatListener listener = chatListener;
+        if (listener != null) {
+            mainHandler.post(listener::onChatReconnected);
+        }
+    }
+
+    private void scheduleReconnect() {
+        if (!shouldReconnect || reconnectSessionId <= 0 || reconnectHost.isEmpty()) {
+            return;
+        }
+        int index = Math.min(reconnectAttempt, RECONNECT_DELAYS.length - 1);
+        long delay = RECONNECT_DELAYS[index];
+        reconnectAttempt++;
+        mainHandler.removeCallbacks(reconnectTask);
+        mainHandler.postDelayed(reconnectTask, delay);
+        notifySessionsChanged();
+    }
+
+    private void runReconnect() {
+        if (!shouldReconnect || reconnectSessionId <= 0) {
+            return;
+        }
+        startConnect(reconnectHost, reconnectPort, null, true);
+    }
+
+    private void cancelReconnect() {
+        mainHandler.removeCallbacks(reconnectTask);
+        reconnectAttempt = 0;
+        reconnectSessionId = -1;
     }
 
     public boolean isActive(long sessionId) {

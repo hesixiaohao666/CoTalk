@@ -557,4 +557,15 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         loadingHistory = false;
         tvHistoryHint.setVisibility(View.GONE);
     }
+
+    @Override
+    public void onChatReconnected() {
+        hideBanner();
+        btnSend.setEnabled(true);
+        loadingHistory = false;
+        tvHistoryHint.setVisibility(View.GONE);
+        loadLocalMessages(true, -1);
+        requestHistory(null, "history-latest", true);
+        markRead();
+    }
 }
