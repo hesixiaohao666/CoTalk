@@ -10,6 +10,7 @@ import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Session;
+import com.example.cotalkproject.util.ImageUtil;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -55,12 +56,18 @@ public class SessionManager {
         void onError(String message);
     }
 
+    public interface AvatarListener {
+        void onAvatarFrame(JSONObject frame);
+    }
+
     private final AppDatabase database;
     private final LocalUserDao localUserDao;
     private final SessionDao sessionDao;
     private final MemberDao memberDao;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<AvatarListener> avatarListeners =
+            new CopyOnWriteArrayList<>();
     private final AtomicLong connectGeneration = new AtomicLong();
     // 连接/join 会阻塞最多数秒，不能占用单线程的数据库队列。
     private final ExecutorService connectExecutor = Executors.newSingleThreadExecutor();
@@ -68,6 +75,7 @@ public class SessionManager {
     private volatile ServerConnection connection;
     private volatile long activeSessionId = -1;
     private volatile String selfUserId = "";
+    private volatile int selfAvatarVersion;
     private volatile boolean connecting;
     private volatile ChatListener chatListener;
     private volatile long openChatSessionId = -1;
@@ -96,6 +104,16 @@ public class SessionManager {
 
     public void removeListener(Listener listener) {
         listeners.remove(listener);
+    }
+
+    public void addAvatarListener(AvatarListener listener) {
+        if (listener != null && !avatarListeners.contains(listener)) {
+            avatarListeners.add(listener);
+        }
+    }
+
+    public void removeAvatarListener(AvatarListener listener) {
+        avatarListeners.remove(listener);
     }
 
     public void setChatListener(ChatListener listener) {
@@ -196,7 +214,11 @@ public class SessionManager {
                     });
 
             try {
-                JSONObject joinOk = conn.connectAndJoin(user.nickname, user.clientTag);
+                String avatarData = user.avatarPath == null
+                        ? ""
+                        : ImageUtil.fileToDataUri(user.avatarPath);
+                JSONObject joinOk = conn.connectAndJoin(
+                        user.nickname, user.clientTag, avatarData);
                 if (generation != connectGeneration.get()) {
                     conn.close();
                     return;
@@ -241,6 +263,7 @@ public class SessionManager {
                 memberDao.replaceAll(session.id, members);
 
                 selfUserId = self == null ? "" : self.optString("id", "");
+                selfAvatarVersion = self == null ? 0 : self.optInt("avatarVersion", 0);
                 activeSessionId = session.id;
                 connection = conn;
                 connecting = false;
@@ -359,6 +382,12 @@ public class SessionManager {
             JSONObject data = frame.optJSONObject("data");
             JSONArray membersArray = data == null ? null : data.optJSONArray("members");
             List<Member> members = parseMembers(membersArray, sessionId);
+            for (Member member : members) {
+                if (!selfUserId.isEmpty() && selfUserId.equals(member.userId)) {
+                    selfAvatarVersion = member.avatarVersion;
+                    break;
+                }
+            }
             database.execute(() -> {
                 memberDao.replaceAll(sessionId, members);
                 database.runOnMain(() -> notifyMembersChanged(sessionId));
@@ -394,6 +423,11 @@ public class SessionManager {
         if (Protocol.MESSAGE_ACK.equals(type)
                 || Protocol.HISTORY_RES.equals(type)) {
             notifyChatFrame(frame);
+            return;
+        }
+
+        if (Protocol.AVATAR_RES.equals(type)) {
+            notifyAvatarFrame(frame);
             return;
         }
 
@@ -522,6 +556,14 @@ public class SessionManager {
         }
     }
 
+    private void notifyAvatarFrame(JSONObject frame) {
+        mainHandler.post(() -> {
+            for (AvatarListener listener : avatarListeners) {
+                listener.onAvatarFrame(frame);
+            }
+        });
+    }
+
     private void scheduleReconnect() {
         if (!shouldReconnect || reconnectSessionId <= 0 || reconnectHost.isEmpty()) {
             return;
@@ -561,5 +603,9 @@ public class SessionManager {
 
     public String getSelfUserId() {
         return selfUserId;
+    }
+
+    public int getSelfAvatarVersion() {
+        return selfAvatarVersion;
     }
 }

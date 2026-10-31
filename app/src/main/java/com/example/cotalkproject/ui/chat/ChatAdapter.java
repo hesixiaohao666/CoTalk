@@ -16,7 +16,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.model.Message;
-import com.example.cotalkproject.util.AvatarUtil;
+import com.example.cotalkproject.ui.widget.AvatarView;
+import com.example.cotalkproject.util.AvatarLoader;
 import com.example.cotalkproject.util.TimeUtil;
 
 import java.util.ArrayList;
@@ -34,9 +35,15 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     private static final long TIME_GAP_MS = 5 * 60 * 1000L;
 
     private final List<Message> messages = new ArrayList<>();
+    private final long sessionId;
+    private final AvatarLoader avatarLoader;
     private final OnRetryListener retryListener;
 
-    public ChatAdapter(OnRetryListener retryListener) {
+    public ChatAdapter(long sessionId,
+                       AvatarLoader avatarLoader,
+                       OnRetryListener retryListener) {
+        this.sessionId = sessionId;
+        this.avatarLoader = avatarLoader;
         this.retryListener = retryListener;
     }
 
@@ -89,7 +96,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
         if (holder instanceof SelfHolder) {
             SelfHolder self = (SelfHolder) holder;
-            AvatarUtil.bindInitial(self.tvAvatar, message.senderName);
+            bindAvatar(self.tvAvatar, message);
             self.tvContent.setText(message.content);
 
             if (message.status == Message.STATUS_SENDING) {
@@ -115,7 +122,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             bindCopy(self.tvContent, message.content);
         } else if (holder instanceof OtherHolder) {
             OtherHolder other = (OtherHolder) holder;
-            AvatarUtil.bindInitial(other.tvAvatar, message.senderName);
+            bindAvatar(other.tvAvatar, message);
             other.tvName.setText(TextUtils.isEmpty(message.senderName)
                     ? other.itemView.getContext().getString(R.string.member_default)
                     : message.senderName);
@@ -126,6 +133,26 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             system.tvContent.setText(message.content);
             bindCopy(system.tvContent, message.content);
         }
+    }
+
+    private void bindAvatar(AvatarView avatar, Message message) {
+        avatar.setAvatar(message.senderName, null);
+        String token = message.msgId != null ? message.msgId : message.clientMsgId;
+        avatar.setTag(token);
+        if (avatarLoader == null || message.senderId == null) {
+            return;
+        }
+        avatarLoader.load(
+                sessionId,
+                message.senderId,
+                message.senderAvatarVersion,
+                message.senderName,
+                bitmap -> {
+                    if (token != null && token.equals(avatar.getTag())) {
+                        avatar.setAvatar(message.senderName, bitmap);
+                    }
+                }
+        );
     }
 
     private void bindTime(BaseHolder holder, Message message, int position) {
@@ -172,7 +199,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
     static class SelfHolder extends BaseHolder {
         final TextView tvContent;
-        final TextView tvAvatar;
+        final AvatarView tvAvatar;
         final TextView tvStatus;
 
         SelfHolder(@NonNull View itemView) {
@@ -185,7 +212,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
     static class OtherHolder extends BaseHolder {
         final TextView tvContent;
-        final TextView tvAvatar;
+        final AvatarView tvAvatar;
         final TextView tvName;
 
         OtherHolder(@NonNull View itemView) {

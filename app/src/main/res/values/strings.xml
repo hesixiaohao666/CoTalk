@@ -73,6 +73,15 @@
     <string name="signature_empty">这个人很懒，什么都没留下</string>
     <string name="edit_profile">编辑资料</string>
     <string name="edit_profile_placeholder">编辑资料将在 Step 9 实现</string>
+    <string name="edit_profile_title">编辑资料</string>
+    <string name="change_avatar">从相册选择头像</string>
+    <string name="label_signature">个性签名</string>
+    <string name="hint_signature">最多 40 个字</string>
+    <string name="save">保存</string>
+    <string name="avatar_updated">头像已更新</string>
+    <string name="avatar_save_failed">头像保存失败</string>
+    <string name="profile_saved">资料已保存</string>
+    <string name="signature_too_long">个性签名最多 40 个字</string>
     <string name="profile_section_account">本地账号与设置</string>
     <string name="profile_settings_entry">设置</string>
     <string name="profile_about_entry">关于 CoTalk</string>

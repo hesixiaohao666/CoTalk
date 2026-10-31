@@ -100,7 +100,8 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                 confirmRemove(session);
             }
         });
-        memberAdapter = new MemberAdapter();
+        memberAdapter = new MemberAdapter(
+                CoTalkApp.getInstance().getAvatarLoader());
         rvServers.setAdapter(serverAdapter);
         rvMembers.setAdapter(memberAdapter);
 
@@ -250,6 +251,7 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                 if (!isAdded() || getView() == null) {
                     return;
                 }
+                memberAdapter.setSessionId(sessionId);
                 memberAdapter.setMembers(members);
                 memberAdapter.setSelfUserId(sessionManager.isActive(sessionId)
                         ? sessionManager.getSelfUserId()

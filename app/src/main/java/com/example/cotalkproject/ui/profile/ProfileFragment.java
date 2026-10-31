@@ -1,13 +1,13 @@
 package com.example.cotalkproject.ui.profile;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -20,11 +20,12 @@ import com.example.cotalkproject.data.LocalUserDao;
 import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.ui.about.AboutActivity;
 import com.example.cotalkproject.ui.settings.SettingsActivity;
-import com.example.cotalkproject.util.AvatarUtil;
+import com.example.cotalkproject.ui.widget.AvatarView;
+import com.example.cotalkproject.util.ImageUtil;
 
 public class ProfileFragment extends Fragment {
 
-    private TextView tvAvatar;
+    private AvatarView tvAvatar;
     private TextView tvNickname;
     private TextView tvLocalAccount;
     private TextView tvSignature;
@@ -49,9 +50,7 @@ public class ProfileFragment extends Fragment {
         userDao = new LocalUserDao(CoTalkApp.getInstance().getDatabase());
 
         view.findViewById(R.id.btn_edit_profile).setOnClickListener(v ->
-                Toast.makeText(requireContext(),
-                        R.string.edit_profile_placeholder,
-                        Toast.LENGTH_SHORT).show());
+                startActivity(new Intent(requireContext(), EditProfileActivity.class)));
 
         view.findViewById(R.id.tv_settings_entry).setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), SettingsActivity.class)));
@@ -75,13 +74,14 @@ public class ProfileFragment extends Fragment {
                     return;
                 }
                 if (user == null) {
-                    AvatarUtil.bindInitial(tvAvatar, "?");
+                    tvAvatar.setAvatar("?", null);
                     tvNickname.setText("—");
                     tvLocalAccount.setText("");
                     tvSignature.setText(R.string.signature_empty);
                     return;
                 }
-                AvatarUtil.bindInitial(tvAvatar, user.nickname);
+                Bitmap avatar = ImageUtil.loadBitmap(user.avatarPath);
+                tvAvatar.setAvatar(user.nickname, avatar);
                 tvNickname.setText(user.nickname);
                 tvLocalAccount.setText(getString(
                         R.string.profile_local_account, user.username));

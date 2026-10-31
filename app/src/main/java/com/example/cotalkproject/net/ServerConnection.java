@@ -41,7 +41,9 @@ public class ServerConnection {
     /**
      * 同步连接并完成 join，返回 join_ok 帧。调用方应在 IO 线程执行。
      */
-    public JSONObject connectAndJoin(String nickname, String clientTag) throws Exception {
+    public JSONObject connectAndJoin(String nickname,
+                                     String clientTag,
+                                     String avatarData) throws Exception {
         socket = new Socket();
         socket.connect(new InetSocketAddress(host, port), 8000);
         socket.setTcpNoDelay(true);
@@ -55,6 +57,9 @@ public class ServerConnection {
         JSONObject joinData = new JSONObject();
         joinData.put("nickname", nickname);
         joinData.put("clientTag", clientTag);
+        if (avatarData != null && !avatarData.isEmpty()) {
+            joinData.put("avatar", avatarData);
+        }
         JSONObject joinFrame = Protocol.frame(Protocol.JOIN, joinData);
         joinFrame.put("reqId", "join-" + System.currentTimeMillis());
         send(joinFrame);

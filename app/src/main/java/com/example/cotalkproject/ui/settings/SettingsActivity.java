@@ -15,6 +15,7 @@ import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.ui.login.RegisterActivity;
+import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.UiUtil;
 
 public class SettingsActivity extends AppCompatActivity {
@@ -54,6 +55,7 @@ public class SettingsActivity extends AppCompatActivity {
         Prefs prefs = CoTalkApp.getInstance().getPrefs();
         database.execute(() -> {
             database.clearAllLocalData();
+            ImageUtil.deleteLocalAvatar(this, 1);
             prefs.logout();
             prefs.clearRemembered();
             database.runOnMain(() -> {

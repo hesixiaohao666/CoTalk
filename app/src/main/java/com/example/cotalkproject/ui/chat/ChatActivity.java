@@ -125,7 +125,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         layoutManager = new LinearLayoutManager(this);
         layoutManager.setStackFromEnd(true);
         rvMessages.setLayoutManager(layoutManager);
-        adapter = new ChatAdapter(this::retryMessage);
+        adapter = new ChatAdapter(
+                sessionId,
+                CoTalkApp.getInstance().getAvatarLoader(),
+                this::retryMessage);
         rvMessages.setAdapter(adapter);
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -259,7 +262,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.clientMsgId = clientMsgId;
         message.senderId = sessionManager.getSelfUserId();
         message.senderName = selfNickname;
-        message.senderAvatarVersion = 0;
+        message.senderAvatarVersion = sessionManager.getSelfAvatarVersion();
         message.content = content;
         message.msgType = "text";
         message.timestamp = System.currentTimeMillis();

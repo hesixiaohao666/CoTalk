@@ -11,7 +11,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.model.Member;
-import com.example.cotalkproject.util.AvatarUtil;
+import com.example.cotalkproject.ui.widget.AvatarView;
+import com.example.cotalkproject.util.AvatarLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +20,17 @@ import java.util.List;
 public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder> {
 
     private final List<Member> members = new ArrayList<>();
+    private final AvatarLoader avatarLoader;
+    private long sessionId;
     private String selfUserId = "";
+
+    public MemberAdapter(AvatarLoader avatarLoader) {
+        this.avatarLoader = avatarLoader;
+    }
+
+    public void setSessionId(long sessionId) {
+        this.sessionId = sessionId;
+    }
 
     public void setMembers(List<Member> newMembers) {
         members.clear();
@@ -45,7 +56,7 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Member member = members.get(position);
-        AvatarUtil.bindInitial(holder.tvAvatar, member.nickname);
+        bindAvatar(holder.tvAvatar, member);
         holder.tvName.setText(member.nickname);
 
         boolean self = !TextUtils.isEmpty(selfUserId)
@@ -56,13 +67,33 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
                 : R.drawable.bg_status_offline);
     }
 
+    private void bindAvatar(AvatarView avatar, Member member) {
+        avatar.setAvatar(member.nickname, null);
+        String token = member.userId + "|" + member.avatarVersion;
+        avatar.setTag(token);
+        if (avatarLoader == null || member.userId == null) {
+            return;
+        }
+        avatarLoader.load(
+                sessionId,
+                member.userId,
+                member.avatarVersion,
+                member.nickname,
+                bitmap -> {
+                    if (token.equals(avatar.getTag())) {
+                        avatar.setAvatar(member.nickname, bitmap);
+                    }
+                }
+        );
+    }
+
     @Override
     public int getItemCount() {
         return members.size();
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        final TextView tvAvatar;
+        final AvatarView tvAvatar;
         final TextView tvName;
         final TextView tvMe;
         final View vStatus;
