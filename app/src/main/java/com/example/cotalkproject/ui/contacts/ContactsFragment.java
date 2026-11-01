@@ -76,8 +76,6 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
         tvServersEmpty = view.findViewById(R.id.tv_servers_empty);
         tvMembersEmpty = view.findViewById(R.id.tv_members_empty);
 
-        etHost.setText(R.string.default_server_host);
-
         sessionManager = CoTalkApp.getInstance().getSessionManager();
         prefs = CoTalkApp.getInstance().getPrefs();
         sessionDao = new SessionDao(CoTalkApp.getInstance().getDatabase());
