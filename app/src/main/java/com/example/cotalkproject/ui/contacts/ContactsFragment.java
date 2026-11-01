@@ -170,6 +170,11 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
     }
 
     private void confirmAndConnect(String host, int port, String authKey) {
+        confirmAndConnect(host, port, authKey, true);
+    }
+
+    private void confirmAndConnect(String host, int port, String authKey,
+                                   boolean allowAuthPrompt) {
         if (TextUtils.isEmpty(authKey)) {
             Toast.makeText(requireContext(), R.string.input_auth_key_required,
                     Toast.LENGTH_SHORT).show();
@@ -186,14 +191,16 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                     .setMessage(R.string.switch_server_message)
                     .setNegativeButton(R.string.cancel, null)
                     .setPositiveButton(R.string.confirm,
-                            (dialog, which) -> doConnect(host, port, authKey))
+                            (dialog, which) -> doConnect(
+                                    host, port, authKey, allowAuthPrompt))
                     .show();
             return;
         }
-        doConnect(host, port, authKey);
+        doConnect(host, port, authKey, allowAuthPrompt);
     }
 
-    private void doConnect(String host, int port, String authKey) {
+    private void doConnect(String host, int port, String authKey,
+                           boolean allowAuthPrompt) {
         btnConnect.setEnabled(false);
         sessionManager.connect(host, port, authKey,
                 new SessionManager.ConnectCallback() {
@@ -220,6 +227,31 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                     }
 
                     @Override
+                    public void onAuthKeyError(String message) {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        btnConnect.setEnabled(true);
+                        boolean remembered = cbRememberKey.isChecked()
+                                || !prefs.getServerAuthKey(host, port).isEmpty();
+                        prefs.clearServerAuthKey(host, port);
+                        etAuthKey.setText("");
+                        if (allowAuthPrompt && remembered) {
+                            cbRememberKey.setChecked(true);
+                            Toast.makeText(requireContext(),
+                                    R.string.auth_key_retry_hint,
+                                    Toast.LENGTH_SHORT).show();
+                            promptForAuthKey(host, port, true);
+                        } else {
+                            cbRememberKey.setChecked(false);
+                            Toast.makeText(requireContext(),
+                                    getString(R.string.connect_failed, message),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                        loadSessions();
+                    }
+
+                    @Override
                     public void onError(String message) {
                         if (!isAdded()) {
                             return;
@@ -234,6 +266,10 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
     }
 
     private void promptForAuthKey(String host, int port) {
+        promptForAuthKey(host, port, false);
+    }
+
+    private void promptForAuthKey(String host, int port, boolean afterFailure) {
         EditText input = new EditText(requireContext());
         input.setHint(R.string.hint_auth_key);
         input.setInputType(InputType.TYPE_CLASS_TEXT
@@ -246,14 +282,30 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.server_key_title)
-                .setMessage(getString(R.string.server_key_message,
+                .setTitle(afterFailure
+                        ? R.string.auth_key_retry_title
+                        : R.string.server_key_title)
+                .setMessage(afterFailure
+                        ? getString(R.string.auth_key_retry_message,
+                        host + ":" + port)
+                        : getString(R.string.server_key_message,
                         host + ":" + port))
                 .setView(container)
-                .setNegativeButton(R.string.cancel, null)
+                .setNegativeButton(R.string.cancel, (dialog, which) -> {
+                    cbRememberKey.setChecked(false);
+                    prefs.clearServerAuthKey(host, port);
+                    etAuthKey.setText("");
+                    if (afterFailure) {
+                        Toast.makeText(requireContext(),
+                                R.string.auth_key_remember_cancelled,
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
                 .setPositiveButton(R.string.confirm, (dialog, which) -> {
                     String key = input.getText().toString().trim();
                     if (key.isEmpty()) {
+                        cbRememberKey.setChecked(false);
+                        prefs.clearServerAuthKey(host, port);
                         Toast.makeText(requireContext(),
                                 R.string.input_auth_key_required,
                                 Toast.LENGTH_SHORT).show();
@@ -262,7 +314,7 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                     etHost.setText(host);
                     etPort.setText(String.valueOf(port));
                     etAuthKey.setText(key);
-                    confirmAndConnect(host, port, key);
+                    confirmAndConnect(host, port, key, !afterFailure);
                 })
                 .show();
     }

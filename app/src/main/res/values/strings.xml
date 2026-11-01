@@ -134,6 +134,10 @@
     <string name="auth_key_save_failed">连接密钥加密保存失败</string>
     <string name="server_key_title">输入连接密钥</string>
     <string name="server_key_message">服务器 %1$s 需要连接密钥</string>
+    <string name="auth_key_retry_title">密钥验证失败</string>
+    <string name="auth_key_retry_message">服务器 %1$s 拒绝已保存的密钥，请输入新密钥</string>
+    <string name="auth_key_retry_hint">连接密钥错误，请重新输入</string>
+    <string name="auth_key_remember_cancelled">已取消记住密钥</string>
     <string name="connect_and_join">连接并加入</string>
     <string name="server_hint">模拟器访问电脑用 10.0.2.2；真机填电脑局域网 IP</string>
     <string name="my_servers">我的服务器</string>
