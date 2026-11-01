@@ -1,5 +1,7 @@
 package com.example.cotalkproject.net;
 
+import android.util.Base64;
+
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -13,6 +15,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 单个服务器的 TCP 连接：join、NDJSON 收发与心跳。
@@ -43,7 +48,10 @@ public class ServerConnection {
      */
     public JSONObject connectAndJoin(String nickname,
                                      String clientTag,
-                                     String avatarData) throws Exception {
+                                     String avatarData,
+                                     String authKey,
+                                     int clientVersionCode,
+                                     String clientVersionName) throws Exception {
         socket = new Socket();
         socket.connect(new InetSocketAddress(host, port), 8000);
         socket.setTcpNoDelay(true);
@@ -53,6 +61,8 @@ public class ServerConnection {
                 socket.getInputStream(), StandardCharsets.UTF_8));
         writer = new BufferedWriter(new OutputStreamWriter(
                 socket.getOutputStream(), StandardCharsets.UTF_8));
+
+        handshake(authKey, clientVersionCode, clientVersionName);
 
         JSONObject joinData = new JSONObject();
         joinData.put("nickname", nickname);
@@ -86,6 +96,71 @@ public class ServerConnection {
 
         socket.setSoTimeout(0);
         return response;
+    }
+
+    private void handshake(String authKey,
+                           int clientVersionCode,
+                           String clientVersionName) throws Exception {
+        JSONObject helloData = new JSONObject();
+        helloData.put("clientVersionCode", clientVersionCode);
+        helloData.put("clientVersionName", clientVersionName);
+
+        String reqId = "hello-" + System.currentTimeMillis();
+        JSONObject hello = Protocol.frame(Protocol.HELLO, helloData);
+        hello.put("reqId", reqId);
+        send(hello);
+
+        JSONObject challenge = readFrame();
+        throwIfError(challenge);
+        if (!Protocol.AUTH_CHALLENGE.equals(challenge.optString("type", ""))) {
+            throw new IOException("服务器未返回密钥挑战");
+        }
+
+        JSONObject challengeData = challenge.optJSONObject("data");
+        String nonceBase64 = challengeData == null
+                ? ""
+                : challengeData.optString("nonce", "");
+        if (nonceBase64.isEmpty()) {
+            throw new IOException("服务器密钥挑战为空");
+        }
+
+        byte[] nonce = Base64.decode(nonceBase64, Base64.NO_WRAP);
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(
+                authKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        String proof = Base64.encodeToString(
+                mac.doFinal(nonce), Base64.NO_WRAP);
+
+        JSONObject authData = new JSONObject();
+        authData.put("proof", proof);
+        JSONObject auth = Protocol.frame(Protocol.AUTH_RESPONSE, authData);
+        auth.put("reqId", reqId);
+        send(auth);
+
+        JSONObject ok = readFrame();
+        throwIfError(ok);
+        if (!Protocol.HELLO_OK.equals(ok.optString("type", ""))) {
+            throw new IOException("服务器未确认密钥验证");
+        }
+    }
+
+    private JSONObject readFrame() throws Exception {
+        String line = reader.readLine();
+        if (line == null) {
+            throw new IOException("服务器关闭了连接");
+        }
+        return new JSONObject(line);
+    }
+
+    private void throwIfError(JSONObject frame) throws IOException {
+        if (!Protocol.ERROR.equals(frame.optString("type", ""))) {
+            return;
+        }
+        JSONObject data = frame.optJSONObject("data");
+        String message = data == null
+                ? "服务器拒绝连接"
+                : data.optString("message", "服务器拒绝连接");
+        throw new IOException(message);
     }
 
     /**
