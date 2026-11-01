@@ -126,6 +126,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             other.tvName.setText(TextUtils.isEmpty(message.senderName)
                     ? other.itemView.getContext().getString(R.string.member_default)
                     : message.senderName);
+            other.tvNameAi.setVisibility("ai".equals(message.msgType)
+                    ? View.VISIBLE : View.GONE);
             other.tvContent.setText(message.content);
             bindCopy(other.tvContent, message.content);
         } else if (holder instanceof SystemHolder) {
@@ -214,12 +216,14 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         final TextView tvContent;
         final AvatarView tvAvatar;
         final TextView tvName;
+        final TextView tvNameAi;
 
         OtherHolder(@NonNull View itemView) {
             super(itemView);
             tvContent = itemView.findViewById(R.id.tv_content);
             tvAvatar = itemView.findViewById(R.id.tv_avatar);
             tvName = itemView.findViewById(R.id.tv_name);
+            tvNameAi = itemView.findViewById(R.id.tv_name_ai);
         }
     }
 

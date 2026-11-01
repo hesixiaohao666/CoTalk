@@ -30,6 +30,7 @@ import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.model.Message;
+import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.Protocol;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.util.UiUtil;
@@ -64,6 +65,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private TextView tvBanner;
     private TextView tvEmpty;
     private TextView tvHistoryHint;
+    private TextView tvTitle;
 
     private AppDatabase database;
     private MessageDao messageDao;
@@ -112,8 +114,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (TextUtils.isEmpty(roomName)) {
             roomName = getString(R.string.chat_title_default);
         }
-        TextView title = findViewById(R.id.tv_title);
-        title.setText(roomName);
+        tvTitle = findViewById(R.id.tv_title);
+        tvTitle.setText(roomName);
 
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
@@ -157,6 +159,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         });
 
         loadSelfNickname();
+        loadSessionTitle();
         loadLocalMessages(true, -1);
         markRead();
     }
@@ -166,6 +169,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         super.onStart();
         sessionManager.setChatListener(this);
         sessionManager.setOpenChatSession(sessionId);
+        loadSessionTitle();
         if (sessionManager.isActive(sessionId)) {
             hideBanner();
             btnSend.setEnabled(true);
@@ -213,6 +217,23 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 String nickname = user.nickname;
                 database.runOnMain(() -> selfNickname = nickname);
             }
+        });
+    }
+
+    private void loadSessionTitle() {
+        database.execute(() -> {
+            Session session = sessionDao.getById(sessionId);
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (session != null && !TextUtils.isEmpty(session.displayName())) {
+                    roomName = session.displayName();
+                }
+                tvTitle.setText(session != null && session.aiEnabled
+                        ? getString(R.string.chat_title_ai_format, roomName)
+                        : roomName);
+            });
         });
     }
 
@@ -602,6 +623,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         btnSend.setEnabled(true);
         loadingHistory = false;
         tvHistoryHint.setVisibility(View.GONE);
+        loadSessionTitle();
         loadLocalMessages(true, -1);
         if (!historyCleared() && adapter.getItemCount() == 0) {
             requestHistory(null, "history-latest", true);

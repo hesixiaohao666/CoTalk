@@ -112,7 +112,7 @@
     <string name="about_identity_title">隐私与身份</string>
     <string name="about_identity_body">您的账号信息仅保存在本机。连接服务器时由服务端分配临时内部 UUID，界面将全程仅展示您的昵称，保障隐私安全。</string>
     <string name="about_ai_title">AI群友</string>
-    <string name="about_ai_body">“大肥鱼”AI群友功能正在开发中。\n当前版本已预留服务端接口与配置，敬请期待。</string>
+    <string name="about_ai_body">“大肥鱼”是服务端可选的 AI 群友，仅在被 @ 时回复，由服务端 DeepSeek 接口驱动。\nAI 未启用或未配置 API Key 时不会出现在房间中。</string>
     <string name="about_author_title">作者</string>
     <string name="about_author_placeholder">何似小浩</string>
 
@@ -153,6 +153,9 @@
     <string name="remove_server_title">移除房间？</string>
     <string name="remove_server_message">将删除本机保存的会话、消息和成员缓存，不影响服务器数据。</string>
     <string name="me_suffix">（我）</string>
+    <string name="ai_badge">AI</string>
+    <string name="server_supports_ai">支持 AI</string>
+    <string name="chat_title_ai_format">%1$s  ·  AI</string>
     <string name="chat_title_default">聊天</string>
     <string name="message_hint">输入消息…</string>
     <string name="message_copied">消息已复制</string>

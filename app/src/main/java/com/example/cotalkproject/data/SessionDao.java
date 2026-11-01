@@ -29,7 +29,8 @@ public class SessionDao {
                           long lastSeq,
                           String lastMessage,
                           long lastTime,
-                          long lastConnected) {
+                          long lastConnected,
+                          boolean aiEnabled) {
         SQLiteDatabase db = helper.getWritableDatabase();
         Session existing = getByHostPort(host, port);
 
@@ -39,6 +40,7 @@ public class SessionDao {
         values.put("room_name", roomName);
         values.put("announcement", announcement);
         values.put("last_connected", lastConnected);
+        values.put("ai_enabled", aiEnabled ? 1 : 0);
 
         if (existing == null) {
             values.put("last_seq", lastSeq);
@@ -145,6 +147,7 @@ public class SessionDao {
         session.lastTime = cursor.getLong(cursor.getColumnIndexOrThrow("last_time"));
         session.unread = cursor.getInt(cursor.getColumnIndexOrThrow("unread"));
         session.lastConnected = cursor.getLong(cursor.getColumnIndexOrThrow("last_connected"));
+        session.aiEnabled = cursor.getInt(cursor.getColumnIndexOrThrow("ai_enabled")) == 1;
         return session;
     }
 }

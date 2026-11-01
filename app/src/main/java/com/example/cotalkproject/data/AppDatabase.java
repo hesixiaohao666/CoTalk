@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 public class AppDatabase extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "cotalk.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
 
     private static volatile AppDatabase instance;
 
@@ -84,6 +84,7 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "last_time INTEGER, "
                 + "unread INTEGER NOT NULL DEFAULT 0, "
                 + "last_connected INTEGER, "
+                + "ai_enabled INTEGER NOT NULL DEFAULT 0, "
                 + "UNIQUE(host, port)"
                 + ")");
 
@@ -114,6 +115,7 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "nickname TEXT NOT NULL, "
                 + "avatar_version INTEGER NOT NULL DEFAULT 0, "
                 + "online INTEGER NOT NULL DEFAULT 1, "
+                + "is_ai INTEGER NOT NULL DEFAULT 0, "
                 + "last_seen INTEGER, "
                 + "PRIMARY KEY(session_id, user_id), "
                 + "FOREIGN KEY(session_id) REFERENCES t_session(id) ON DELETE CASCADE"
@@ -122,7 +124,12 @@ public class AppDatabase extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(@NonNull SQLiteDatabase db, int oldVersion, int newVersion) {
-        // v1 为初始版本；后续 Step 需要变更表结构时在这里做迁移。
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "ai_enabled INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_member ADD COLUMN "
+                    + "is_ai INTEGER NOT NULL DEFAULT 0");
+        }
     }
 
     /**
