@@ -15,8 +15,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 单个服务器的 TCP 连接。Step 5 先做 join/member_list/心跳，
- * 重连在 Step 7 完善。
+ * 单个服务器的 TCP 连接：join、NDJSON 收发与心跳。
+ * 重连策略由 SessionManager 统一管理。
  */
 public class ServerConnection {
 

@@ -192,6 +192,15 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         for (Runnable runnable : pendingTimeouts.values()) {
             handler.removeCallbacks(runnable);
         }
+        if (!pendingTimeouts.isEmpty()) {
+            String[] pendingIds = pendingTimeouts.keySet().toArray(new String[0]);
+            database.execute(() -> {
+                for (String clientMsgId : pendingIds) {
+                    messageDao.updateStatus(sessionId, clientMsgId,
+                            Message.STATUS_FAILED, null, 0);
+                }
+            });
+        }
         pendingTimeouts.clear();
         super.onDestroy();
     }

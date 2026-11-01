@@ -12,7 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 客户端 SQLite。Step 1 先建好四张表；会话/消息/成员在后续 Step 使用。
+ * 客户端 SQLite：本地账号、会话、消息与成员缓存。
  */
 public class AppDatabase extends SQLiteOpenHelper {
 

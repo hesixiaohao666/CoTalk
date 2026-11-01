@@ -26,8 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 单活动连接管理器：负责连接、join、成员/消息摘要更新和会话列表通知。
- * Step 7 会在此基础上加重连。
+ * 单活动连接管理器：连接、加入、成员/消息缓存、自动重连与聊天帧分发。
  */
 public class SessionManager {
 
@@ -404,7 +403,11 @@ public class SessionManager {
         database.execute(() -> {
             List<Session> sessions = sessionDao.queryAll();
             for (Session session : sessions) {
-                prefs.markHistoryCleared(session.id, session.lastSeq);
+                long clearSeq = session.lastSeq;
+                for (Message message : messageDao.queryAll(session.id)) {
+                    clearSeq = Math.max(clearSeq, message.seq);
+                }
+                prefs.markHistoryCleared(session.id, clearSeq);
             }
             messageDao.deleteAll();
             sessionDao.clearSummaries();
