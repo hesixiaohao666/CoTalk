@@ -43,6 +43,13 @@ public class SessionManager {
         void onSuccess(Session session);
 
         void onError(String message);
+
+        /**
+         * 服务端返回密钥错误（3001）。默认仍按普通错误处理。
+         */
+        default void onAuthKeyError(String message) {
+            onError(message);
+        }
     }
 
     public interface ChatListener {
@@ -311,13 +318,23 @@ public class SessionManager {
                 String message = e.getMessage() == null
                         ? "连接服务器失败"
                         : e.getMessage();
-                if (reconnect && shouldReconnect) {
+                boolean authKeyError = e instanceof AuthKeyException;
+                if (reconnect && shouldReconnect && !authKeyError) {
                     scheduleReconnect();
                     database.runOnMain(this::notifySessionsChanged);
                 } else {
+                    if (authKeyError && reconnect) {
+                        shouldReconnect = false;
+                    }
                     database.runOnMain(() -> {
                         if (callback != null) {
-                            callback.onError(message);
+                            if (authKeyError) {
+                                callback.onAuthKeyError(message);
+                            } else {
+                                callback.onError(message);
+                            }
+                        } else if (authKeyError && reconnect) {
+                            notifyConnectionError("连接密钥错误，请重新连接");
                         }
                         notifySessionsChanged();
                     });

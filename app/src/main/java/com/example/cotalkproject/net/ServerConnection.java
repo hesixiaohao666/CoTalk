@@ -86,9 +86,7 @@ public class ServerConnection {
         JSONObject response = new JSONObject(line);
         String type = response.optString("type", "");
         if (Protocol.ERROR.equals(type)) {
-            JSONObject data = response.optJSONObject("data");
-            String message = data == null ? "加入失败" : data.optString("message", "加入失败");
-            throw new IOException(message);
+            throwServerError(response, "加入失败");
         }
         if (!Protocol.JOIN_OK.equals(type)) {
             throw new IOException("服务器返回异常：" + type);
@@ -156,10 +154,18 @@ public class ServerConnection {
         if (!Protocol.ERROR.equals(frame.optString("type", ""))) {
             return;
         }
+        throwServerError(frame, "服务器拒绝连接");
+    }
+
+    private void throwServerError(JSONObject frame, String fallback) throws IOException {
         JSONObject data = frame.optJSONObject("data");
         String message = data == null
-                ? "服务器拒绝连接"
-                : data.optString("message", "服务器拒绝连接");
+                ? fallback
+                : data.optString("message", fallback);
+        int code = data == null ? 0 : data.optInt("code", 0);
+        if (code == Protocol.ERR_AUTH_FAILED) {
+            throw new AuthKeyException(message);
+        }
         throw new IOException(message);
     }
 
