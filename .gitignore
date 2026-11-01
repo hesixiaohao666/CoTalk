@@ -1,15 +1,38 @@
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+.idea/
 .DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
 local.properties
+
+# Release/build artifacts
+/app/release/
+*.apk
+*.aab
+*.hprof
+
+# Signing and local secrets
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+keystore.properties
+signing.properties
+secrets.properties
+.env
+.env.*
+
+# Local data and logs
+*.log
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+# OS files
+Thumbs.db
