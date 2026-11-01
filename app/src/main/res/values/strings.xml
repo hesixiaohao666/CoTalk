@@ -112,7 +112,7 @@
     <string name="about_identity_title">隐私与身份</string>
     <string name="about_identity_body">您的账号信息仅保存在本机。连接服务器时由服务端分配临时内部 UUID，界面将全程仅展示您的昵称，保障隐私安全。</string>
     <string name="about_ai_title">AI群友</string>
-    <string name="about_ai_body">“大肥鱼”是服务端可选的 AI 群友，仅在被 @ 时回复，由服务端 DeepSeek 接口驱动。\nAI 未启用或未配置 API Key 时不会出现在房间中。</string>
+    <string name="about_ai_body">“大肥鱼”是服务端可选的 AI 群友，由服务端 DeepSeek 接口驱动。\n被 @ 时必定回复；未被 @ 的提及由 AI 判断是否参与。\nAI 未启用或未配置 API Key 时不会出现在房间中。</string>
     <string name="about_author_title">作者</string>
     <string name="about_author_placeholder">何似小浩</string>
 
@@ -126,7 +126,6 @@
     <string name="contacts_add_server">添加服务器</string>
     <string name="hint_host">服务器 IP / 主机名</string>
     <string name="hint_port">4700</string>
-    <string name="default_server_host">10.0.2.2</string>
     <string name="auth_key">连接密钥</string>
     <string name="hint_auth_key">由服务器管理员提供</string>
     <string name="remember_auth_key">记住密钥（本机加密）</string>
@@ -139,7 +138,6 @@
     <string name="auth_key_retry_hint">连接密钥错误，请重新输入</string>
     <string name="auth_key_remember_cancelled">已取消记住密钥</string>
     <string name="connect_and_join">连接并加入</string>
-    <string name="server_hint">模拟器访问电脑用 10.0.2.2；真机填电脑局域网 IP</string>
     <string name="my_servers">我的服务器</string>
     <string name="online_members">在线成员</string>
     <string name="no_saved_servers">还没有保存的服务器</string>
