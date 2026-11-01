@@ -124,7 +124,9 @@
     <string name="action_disconnect">断开</string>
     <string name="action_remove">移除</string>
     <string name="contacts_add_server">添加服务器</string>
-    <string name="hint_host">服务器 IP / 主机名</string>
+    <string name="label_server_ip">服务器IP</string>
+    <string name="label_server_port">端口号</string>
+    <string name="hint_host">服务器IP / 主机名</string>
     <string name="hint_port">4700</string>
     <string name="auth_key">连接密钥</string>
     <string name="hint_auth_key">由服务器管理员提供</string>
