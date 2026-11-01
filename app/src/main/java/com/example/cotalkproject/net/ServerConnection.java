@@ -57,6 +57,10 @@ public class ServerConnection {
         JSONObject joinData = new JSONObject();
         joinData.put("nickname", nickname);
         joinData.put("clientTag", clientTag);
+        if (socket.getLocalAddress() != null) {
+            joinData.put("clientIp",
+                    socket.getLocalAddress().getHostAddress());
+        }
         if (avatarData != null && !avatarData.isEmpty()) {
             joinData.put("avatar", avatarData);
         }

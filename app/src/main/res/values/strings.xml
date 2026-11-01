@@ -60,6 +60,24 @@
 
     <string name="settings_title">设置</string>
     <string name="settings_local_account">本地账号</string>
+    <string name="settings_general">通用</string>
+    <string name="settings_data">数据</string>
+    <string name="settings_account">账号</string>
+    <string name="settings_other">其他</string>
+    <string name="auto_reconnect">自动重连</string>
+    <string name="message_notify">消息提示</string>
+    <string name="clear_history">清除聊天记录</string>
+    <string name="remove_all_servers">移除所有服务器</string>
+    <string name="logout">退出登录</string>
+    <string name="about_app">关于 CoTalk</string>
+    <string name="clear_history_confirm">将清空本机所有聊天记录和未读数，服务器数据不受影响。</string>
+    <string name="clear_history_done">聊天记录已清除</string>
+    <string name="remove_all_servers_confirm">将断开当前连接并删除本机所有服务器、消息和成员缓存，服务器数据不受影响。</string>
+    <string name="remove_all_servers_done">已移除所有服务器</string>
+    <string name="logout_confirm">退出后需要重新登录本地账号，已保存的聊天记录会保留。</string>
+    <string name="logout_done">已退出登录</string>
+    <string name="reset_password_hint">输入本地账号密码确认</string>
+    <string name="reset_password_wrong">密码错误，未重置</string>
     <string name="reset_local_account">重置本地账号</string>
     <string name="reset_local_account_desc">清空本机的账号、会话、消息和头像。服务器上的共享历史不受影响。</string>
     <string name="reset_confirm_title">确认重置本地账号？</string>

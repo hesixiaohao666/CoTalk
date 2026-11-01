@@ -22,7 +22,7 @@ public class CoTalkApp extends Application {
         instance = this;
         database = AppDatabase.getInstance(this);
         prefs = new Prefs(this);
-        sessionManager = new SessionManager(database);
+        sessionManager = new SessionManager(database, prefs);
         avatarLoader = new AvatarLoader(this, sessionManager);
     }
 

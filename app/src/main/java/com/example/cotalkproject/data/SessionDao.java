@@ -116,6 +116,12 @@ public class SessionDao {
         );
     }
 
+    public void clearSummaries() {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.execSQL("UPDATE t_session SET last_message = NULL, last_time = 0, "
+                + "last_read_seq = 0, unread = 0");
+    }
+
     public void delete(long sessionId) {
         SQLiteDatabase db = helper.getWritableDatabase();
         db.delete(TABLE, "id = ?", new String[]{String.valueOf(sessionId)});

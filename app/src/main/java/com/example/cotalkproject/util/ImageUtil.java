@@ -117,6 +117,39 @@ public final class ImageUtil {
         }
     }
 
+    public static void deleteRemoteAvatarCache(Context context) {
+        File root = new File(context.getFilesDir(), "avatars");
+        File[] files = root.listFiles();
+        if (files == null) {
+            return;
+        }
+        for (File file : files) {
+            if (file.isDirectory()) {
+                deleteRecursively(file);
+            }
+        }
+    }
+
+    public static void deleteAllAvatarCache(Context context) {
+        deleteRecursively(new File(context.getFilesDir(), "avatars"));
+    }
+
+    private static void deleteRecursively(File file) {
+        if (file == null || !file.exists()) {
+            return;
+        }
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursively(child);
+                }
+            }
+        }
+        //noinspection ResultOfMethodCallIgnored
+        file.delete();
+    }
+
     private static Bitmap decodeSampled(Context context, Uri uri) throws IOException {
         ContentResolver resolver = context.getContentResolver();
         BitmapFactory.Options bounds = new BitmapFactory.Options();

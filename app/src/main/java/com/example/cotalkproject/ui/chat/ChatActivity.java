@@ -2,9 +2,13 @@ package com.example.cotalkproject.ui.chat;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -90,6 +94,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             finish();
             return;
         }
+        historyHasMore = !historyCleared();
 
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_chat);
@@ -164,7 +169,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (sessionManager.isActive(sessionId)) {
             hideBanner();
             btnSend.setEnabled(true);
-            requestHistory(null, "history-latest", true);
+            if (!historyCleared() && adapter.getItemCount() == 0) {
+                requestHistory(null, "history-latest", true);
+            }
         } else {
             showBanner(getString(R.string.offline_banner));
             btnSend.setEnabled(false);
@@ -399,6 +406,21 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.isSelf = false;
         message.status = Message.STATUS_SENT;
 
+        if (CoTalkApp.getInstance().getPrefs().isMessageNotify()) {
+            Vibrator vibrator;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                VibratorManager manager = (VibratorManager)
+                        getSystemService(VIBRATOR_MANAGER_SERVICE);
+                vibrator = manager == null ? null : manager.getDefaultVibrator();
+            } else {
+                vibrator = getSystemService(Vibrator.class);
+            }
+            if (vibrator != null && vibrator.hasVibrator()) {
+                vibrator.vibrate(VibrationEffect.createOneShot(
+                        40, VibrationEffect.DEFAULT_AMPLITUDE));
+            }
+        }
+
         boolean scroll = atBottom;
         database.execute(() -> {
             messageDao.insertOrIgnore(message);
@@ -417,6 +439,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         boolean hasMore = data.optBoolean("hasMore", false);
         int keepPosition = adapter.getItemCount();
 
+        long clearSeq = CoTalkApp.getInstance().getPrefs()
+                .getHistoryClearSeq(sessionId);
         database.execute(() -> {
             if (array != null) {
                 for (int i = 0; i < array.length(); i++) {
@@ -425,7 +449,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                         continue;
                     }
                     String msgId = object.optString("msgId", "");
-                    if (msgId.isEmpty()) {
+                    long seq = object.optLong("seq", 0);
+                    if (msgId.isEmpty()
+                            || (clearSeq >= 0 && seq <= clearSeq)) {
                         continue;
                     }
                     Message message = new Message();
@@ -486,7 +512,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     }
 
     private void loadOlder() {
-        if (loadingHistory || !historyHasMore
+        if (loadingHistory || !historyHasMore || historyCleared()
                 || !sessionManager.isActive(sessionId)) {
             return;
         }
@@ -568,7 +594,14 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         loadingHistory = false;
         tvHistoryHint.setVisibility(View.GONE);
         loadLocalMessages(true, -1);
-        requestHistory(null, "history-latest", true);
+        if (!historyCleared() && adapter.getItemCount() == 0) {
+            requestHistory(null, "history-latest", true);
+        }
         markRead();
+    }
+
+    private boolean historyCleared() {
+        return CoTalkApp.getInstance().getPrefs()
+                .getHistoryClearSeq(sessionId) >= 0;
     }
 }

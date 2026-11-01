@@ -15,6 +15,9 @@ public class Prefs {
     private static final String KEY_USERNAME = "remembered_username";
     private static final String KEY_PASSWORD = "remembered_password";
     private static final String KEY_CURRENT_USER = "current_user_id";
+    private static final String KEY_AUTO_RECONNECT = "auto_reconnect";
+    private static final String KEY_MESSAGE_NOTIFY = "message_notify";
+    private static final String KEY_HISTORY_CLEAR_PREFIX = "history_clear_seq_";
 
     private final SharedPreferences preferences;
 
@@ -86,5 +89,37 @@ public class Prefs {
 
     public void logout() {
         preferences.edit().putLong(KEY_CURRENT_USER, 0L).apply();
+    }
+
+    public boolean isAutoReconnect() {
+        return preferences.getBoolean(KEY_AUTO_RECONNECT, true);
+    }
+
+    public void setAutoReconnect(boolean enabled) {
+        preferences.edit().putBoolean(KEY_AUTO_RECONNECT, enabled).apply();
+    }
+
+    public boolean isMessageNotify() {
+        return preferences.getBoolean(KEY_MESSAGE_NOTIFY, true);
+    }
+
+    public void setMessageNotify(boolean enabled) {
+        preferences.edit().putBoolean(KEY_MESSAGE_NOTIFY, enabled).apply();
+    }
+
+    public void markHistoryCleared(long sessionId, long sequence) {
+        preferences.edit()
+                .putLong(KEY_HISTORY_CLEAR_PREFIX + sessionId, Math.max(0L, sequence))
+                .apply();
+    }
+
+    public long getHistoryClearSeq(long sessionId) {
+        return preferences.getLong(KEY_HISTORY_CLEAR_PREFIX + sessionId, -1L);
+    }
+
+    public void clearHistoryMarker(long sessionId) {
+        preferences.edit()
+                .remove(KEY_HISTORY_CLEAR_PREFIX + sessionId)
+                .apply();
     }
 }

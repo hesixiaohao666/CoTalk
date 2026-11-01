@@ -6,9 +6,12 @@ import android.os.Looper;
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.LocalUserDao;
 import com.example.cotalkproject.data.MemberDao;
+import com.example.cotalkproject.data.MessageDao;
+import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.model.Member;
+import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.util.ImageUtil;
 
@@ -61,9 +64,11 @@ public class SessionManager {
     }
 
     private final AppDatabase database;
+    private final Prefs prefs;
     private final LocalUserDao localUserDao;
     private final SessionDao sessionDao;
     private final MemberDao memberDao;
+    private final MessageDao messageDao;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<AvatarListener> avatarListeners =
@@ -89,11 +94,13 @@ public class SessionManager {
     private volatile long reconnectSessionId = -1;
     private final Runnable reconnectTask = this::runReconnect;
 
-    public SessionManager(AppDatabase database) {
+    public SessionManager(AppDatabase database, Prefs prefs) {
         this.database = database;
+        this.prefs = prefs;
         this.localUserDao = new LocalUserDao(database);
         this.sessionDao = new SessionDao(database);
         this.memberDao = new MemberDao(database);
+        this.messageDao = new MessageDao(database);
     }
 
     public void addListener(Listener listener) {
@@ -261,6 +268,7 @@ public class SessionManager {
 
                 List<Member> members = parseMembers(membersArray, session.id);
                 memberDao.replaceAll(session.id, members);
+                persistRecent(recent, session.id);
 
                 selfUserId = self == null ? "" : self.optString("id", "");
                 selfAvatarVersion = self == null ? 0 : self.optInt("avatarVersion", 0);
@@ -350,8 +358,102 @@ public class SessionManager {
         database.execute(() -> {
             sessionDao.delete(sessionId);
             memberDao.deleteBySession(sessionId);
+            prefs.clearHistoryMarker(sessionId);
             database.runOnMain(this::notifySessionsChanged);
         });
+    }
+
+    public void removeAllSessions() {
+        shouldReconnect = false;
+        cancelReconnect();
+        connectGeneration.incrementAndGet();
+        ServerConnection old = connection;
+        connection = null;
+        activeSessionId = -1;
+        selfUserId = "";
+        selfAvatarVersion = 0;
+        connecting = false;
+        if (old != null) {
+            old.close();
+        }
+        notifyChatDisconnected("已断开连接");
+
+        database.execute(() -> {
+            List<Session> sessions = sessionDao.queryAll();
+            for (Session session : sessions) {
+                prefs.clearHistoryMarker(session.id);
+            }
+            sessionDao.deleteAll();
+            database.runOnMain(this::notifySessionsChanged);
+        });
+    }
+
+    public void setAutoReconnectEnabled(boolean enabled) {
+        prefs.setAutoReconnect(enabled);
+        if (!enabled) {
+            shouldReconnect = false;
+            cancelReconnect();
+        }
+    }
+
+    public void refreshSessions() {
+        notifySessionsChanged();
+    }
+
+    public void clearAllHistory() {
+        database.execute(() -> {
+            List<Session> sessions = sessionDao.queryAll();
+            for (Session session : sessions) {
+                prefs.markHistoryCleared(session.id, session.lastSeq);
+            }
+            messageDao.deleteAll();
+            sessionDao.clearSummaries();
+            database.runOnMain(this::notifySessionsChanged);
+        });
+    }
+
+    private void persistRecent(JSONArray recent, long sessionId) {
+        if (recent == null) {
+            return;
+        }
+        long clearSeq = prefs.getHistoryClearSeq(sessionId);
+        for (int i = 0; i < recent.length(); i++) {
+            JSONObject object = recent.optJSONObject(i);
+            if (object == null) {
+                continue;
+            }
+            long seq = object.optLong("seq", 0);
+            if (clearSeq >= 0 && seq <= clearSeq) {
+                continue;
+            }
+            Message message = messageFromJson(
+                    object, sessionId, object.optBoolean("self", false));
+            if (message != null) {
+                messageDao.insertOrIgnore(message);
+            }
+        }
+    }
+
+    private Message messageFromJson(JSONObject object,
+                                    long sessionId,
+                                    boolean isSelf) {
+        String msgId = object.optString("msgId", "");
+        if (msgId.isEmpty()) {
+            return null;
+        }
+        Message message = new Message();
+        message.sessionId = sessionId;
+        message.msgId = msgId;
+        message.seq = object.optLong("seq", 0);
+        message.senderId = object.optString("senderId", "");
+        message.senderName = object.optString("senderName", "");
+        message.senderAvatarVersion = object.optInt("senderAvatarVersion", 0);
+        message.content = object.optString("content", "");
+        message.msgType = object.optString("type", "text");
+        message.timestamp = object.optLong("ts", System.currentTimeMillis());
+        message.isSelf = isSelf;
+        message.status = Message.STATUS_SENT;
+        return message;
     }
 
     private void closeActiveOnIo() {
@@ -411,7 +513,11 @@ public class SessionManager {
             long seq = data.optLong("seq", 0);
             // 系统提示更新摘要；聊天页打开时也不计未读。
             boolean incrementUnread = !system && openChatSessionId != sessionId;
+            Message stored = messageFromJson(data, sessionId, false);
             database.execute(() -> {
+                if (stored != null) {
+                    messageDao.insertOrIgnore(stored);
+                }
                 sessionDao.updateLastMessage(
                         sessionId, preview, ts, seq, incrementUnread);
                 database.runOnMain(this::notifySessionsChanged);
@@ -465,7 +571,9 @@ public class SessionManager {
         selfUserId = "";
         connecting = false;
 
-        boolean canReconnect = shouldReconnect && sessionId > 0;
+        boolean canReconnect = shouldReconnect
+                && prefs.isAutoReconnect()
+                && sessionId > 0;
         if (canReconnect) {
             reconnectSessionId = sessionId;
         }

@@ -156,11 +156,14 @@ public class EditProfileActivity extends AppCompatActivity {
             return;
         }
 
-        String path = pendingAvatarPath != null ? pendingAvatarPath : avatarPath;
+        boolean avatarChanged = pendingAvatarPath != null;
+        String path = avatarChanged ? pendingAvatarPath : avatarPath;
         btnSave.setEnabled(false);
         database.execute(() -> {
             userDao.updateProfile(nickname, signature, path);
-            String avatarData = path == null ? "" : ImageUtil.fileToDataUri(path);
+            String avatarData = avatarChanged && path != null
+                    ? ImageUtil.fileToDataUri(path)
+                    : "";
             database.runOnMain(() -> {
                 if (isFinishing() || isDestroyed()) {
                     return;
