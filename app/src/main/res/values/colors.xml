@@ -5,6 +5,7 @@
 
     <!-- Brand -->
     <color name="blue_ty">#FF66CCFF</color>
+    <color name="ic_launcher_background">#FF4499FF</color>
     <color name="blue_dark">#FF33B5E5</color>
     <color name="blue_light">#FF2563EB</color>
 

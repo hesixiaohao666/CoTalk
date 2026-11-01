@@ -40,7 +40,7 @@
     <string name="hide_password">隐藏密码</string>
     <string name="local_account_note">本地账号仅保存在本机\n聊天身份为临时游客</string>
     <string name="register_note">本地账号只用于进入 App 和保存资料，不会上传到服务器</string>
-    <string name="version_name">CoTalk v1.0</string>
+    <string name="version_name">CoTalk v0.1.0(beta)</string>
 
     <string name="error_username_empty">请输入本地账号</string>
     <string name="error_username_format">账号需为 3–16 位字母、数字或下划线</string>
@@ -105,14 +105,14 @@
     <string name="profile_note">本地账号仅保存在本机，聊天身份为临时游客</string>
 
     <string name="about_title">关于 CoTalk</string>
-    <string name="about_description">CoTalk 是一款基于 Android + Java 的局域网多人聊天应用。</string>
-    <string name="about_version">版本 1.0</string>
+    <string name="about_description">CoTalk 是一款基于 Android 与 Java 开发的局域网多人即时聊天应用。</string>
+    <string name="about_version">版本 0.1.0(beta)</string>
     <string name="about_tech_title">技术栈</string>
-    <string name="about_tech_body">Android Java / SQLite / TCP Socket / Java Swing</string>
-    <string name="about_identity_title">身份说明</string>
-    <string name="about_identity_body">本地账号只保存在本机；每次连接服务器由服务端分配临时内部 UUID，界面只展示昵称。</string>
-    <string name="about_ai_title">AI 群友</string>
-    <string name="about_ai_body">“大肥鱼”为后续版本预留，当前版本只保留服务端接口与配置。</string>
+    <string name="about_tech_body">客户端：Android / Java\n服务端：Java Swing\n数据存储：SQLite\n网络通信：TCP Socket</string>
+    <string name="about_identity_title">隐私与身份</string>
+    <string name="about_identity_body">您的账号信息仅保存在本机。连接服务器时由服务端分配临时内部 UUID，界面将全程仅展示您的昵称，保障隐私安全。</string>
+    <string name="about_ai_title">AI群友</string>
+    <string name="about_ai_body">“大肥鱼”AI群友功能正在开发中。\n当前版本已预留服务端接口与配置，敬请期待。</string>
     <string name="about_author_title">作者</string>
     <string name="about_author_placeholder">何似小浩</string>
 
