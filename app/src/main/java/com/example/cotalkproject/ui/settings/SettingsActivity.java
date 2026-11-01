@@ -14,6 +14,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
+import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
@@ -54,6 +55,10 @@ public class SettingsActivity extends AppCompatActivity {
         btnBack.setOnClickListener(v -> finish());
         TextView title = findViewById(R.id.tv_title);
         title.setText(R.string.settings_title);
+
+        TextView version = findViewById(R.id.tv_version);
+        version.setText(getString(
+                R.string.version_format, BuildConfig.VERSION_NAME));
 
         database = CoTalkApp.getInstance().getDatabase();
         userDao = new LocalUserDao(database);

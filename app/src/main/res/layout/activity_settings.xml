@@ -227,11 +227,11 @@
             </LinearLayout>
 
             <TextView
+                android:id="@+id/tv_version"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:gravity="center"
-                android:text="@string/version_name"
                 android:textColor="@color/text_hint"
                 android:textSize="12sp" />
         </LinearLayout>

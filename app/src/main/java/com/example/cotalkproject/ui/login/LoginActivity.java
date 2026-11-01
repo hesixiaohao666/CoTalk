@@ -16,6 +16,7 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.MainActivity;
 import com.example.cotalkproject.R;
@@ -53,6 +54,9 @@ public class LoginActivity extends AppCompatActivity {
 
         UiUtil.applyLightSystemBars(this);
         UiUtil.applyPageInsetsWithIme(findViewById(R.id.login_root));
+
+        TextView versionView = findViewById(R.id.tv_version);
+        versionView.setText(getString(R.string.version_format, BuildConfig.VERSION_NAME));
 
         etUsername = findViewById(R.id.et_username);
         etPassword = findViewById(R.id.et_password);
