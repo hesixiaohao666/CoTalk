@@ -1,12 +1,15 @@
 package com.example.cotalkproject.ui.contacts;
 
 import android.os.Bundle;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +24,7 @@ import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.MemberDao;
+import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Session;
@@ -33,6 +37,8 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
 
     private EditText etHost;
     private EditText etPort;
+    private EditText etAuthKey;
+    private CheckBox cbRememberKey;
     private Button btnConnect;
     private RecyclerView rvServers;
     private RecyclerView rvMembers;
@@ -44,6 +50,7 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
     private SessionDao sessionDao;
     private MemberDao memberDao;
     private SessionManager sessionManager;
+    private Prefs prefs;
 
     private long selectedSessionId = -1;
 
@@ -61,6 +68,8 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
 
         etHost = view.findViewById(R.id.et_host);
         etPort = view.findViewById(R.id.et_port);
+        etAuthKey = view.findViewById(R.id.et_auth_key);
+        cbRememberKey = view.findViewById(R.id.cb_remember_key);
         btnConnect = view.findViewById(R.id.btn_connect_server);
         rvServers = view.findViewById(R.id.rv_servers);
         rvMembers = view.findViewById(R.id.rv_members);
@@ -70,6 +79,7 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
         etHost.setText(R.string.default_server_host);
 
         sessionManager = CoTalkApp.getInstance().getSessionManager();
+        prefs = CoTalkApp.getInstance().getPrefs();
         sessionDao = new SessionDao(CoTalkApp.getInstance().getDatabase());
         memberDao = new MemberDao(CoTalkApp.getInstance().getDatabase());
 
@@ -79,12 +89,23 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
             @Override
             public void onSelect(Session session) {
                 selectedSessionId = session.id;
+                etHost.setText(session.host);
+                etPort.setText(String.valueOf(session.port));
+                String savedKey = prefs.getServerAuthKey(session.host, session.port);
+                if (!savedKey.isEmpty()) {
+                    etAuthKey.setText(savedKey);
+                }
                 loadMembers();
             }
 
             @Override
             public void onConnect(Session session) {
-                confirmAndConnect(session.host, session.port);
+                String savedKey = prefs.getServerAuthKey(session.host, session.port);
+                if (!savedKey.isEmpty()) {
+                    confirmAndConnect(session.host, session.port, savedKey);
+                } else {
+                    promptForAuthKey(session.host, session.port);
+                }
             }
 
             @Override
@@ -125,7 +146,13 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                         Toast.LENGTH_SHORT).show();
                 return;
             }
-            confirmAndConnect(host, port);
+            String authKey = etAuthKey.getText().toString().trim();
+            if (authKey.isEmpty()) {
+                Toast.makeText(requireContext(), R.string.input_auth_key_required,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            confirmAndConnect(host, port, authKey);
         });
     }
 
@@ -142,7 +169,12 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
         super.onStop();
     }
 
-    private void confirmAndConnect(String host, int port) {
+    private void confirmAndConnect(String host, int port, String authKey) {
+        if (TextUtils.isEmpty(authKey)) {
+            Toast.makeText(requireContext(), R.string.input_auth_key_required,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (sessionManager.isConnecting()) {
             Toast.makeText(requireContext(), "正在连接，请稍候",
                     Toast.LENGTH_SHORT).show();
@@ -154,41 +186,85 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                     .setMessage(R.string.switch_server_message)
                     .setNegativeButton(R.string.cancel, null)
                     .setPositiveButton(R.string.confirm,
-                            (dialog, which) -> doConnect(host, port))
+                            (dialog, which) -> doConnect(host, port, authKey))
                     .show();
             return;
         }
-        doConnect(host, port);
+        doConnect(host, port, authKey);
     }
 
-    private void doConnect(String host, int port) {
+    private void doConnect(String host, int port, String authKey) {
         btnConnect.setEnabled(false);
-        sessionManager.connect(host, port, new SessionManager.ConnectCallback() {
-            @Override
-            public void onSuccess(Session session) {
-                if (!isAdded()) {
-                    return;
-                }
-                btnConnect.setEnabled(true);
-                selectedSessionId = session.id;
-                Toast.makeText(requireContext(), R.string.connect_success,
-                        Toast.LENGTH_SHORT).show();
-                loadSessions();
-                loadMembers();
-            }
+        sessionManager.connect(host, port, authKey,
+                new SessionManager.ConnectCallback() {
+                    @Override
+                    public void onSuccess(Session session) {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        btnConnect.setEnabled(true);
+                        selectedSessionId = session.id;
+                        if (cbRememberKey.isChecked()) {
+                            if (!prefs.saveServerAuthKey(host, port, authKey)) {
+                                Toast.makeText(requireContext(),
+                                        R.string.auth_key_save_failed,
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            prefs.clearServerAuthKey(host, port);
+                        }
+                        Toast.makeText(requireContext(), R.string.connect_success,
+                                Toast.LENGTH_SHORT).show();
+                        loadSessions();
+                        loadMembers();
+                    }
 
-            @Override
-            public void onError(String message) {
-                if (!isAdded()) {
-                    return;
-                }
-                btnConnect.setEnabled(true);
-                Toast.makeText(requireContext(),
-                        getString(R.string.connect_failed, message),
-                        Toast.LENGTH_LONG).show();
-                loadSessions();
-            }
-        });
+                    @Override
+                    public void onError(String message) {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        btnConnect.setEnabled(true);
+                        Toast.makeText(requireContext(),
+                                getString(R.string.connect_failed, message),
+                                Toast.LENGTH_LONG).show();
+                        loadSessions();
+                    }
+                });
+    }
+
+    private void promptForAuthKey(String host, int port) {
+        EditText input = new EditText(requireContext());
+        input.setHint(R.string.hint_auth_key);
+        input.setInputType(InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        LinearLayout container = new LinearLayout(requireContext());
+        container.setPadding(padding, padding / 2, padding, 0);
+        container.addView(input, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.server_key_title)
+                .setMessage(getString(R.string.server_key_message,
+                        host + ":" + port))
+                .setView(container)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.confirm, (dialog, which) -> {
+                    String key = input.getText().toString().trim();
+                    if (key.isEmpty()) {
+                        Toast.makeText(requireContext(),
+                                R.string.input_auth_key_required,
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    etHost.setText(host);
+                    etPort.setText(String.valueOf(port));
+                    etAuthKey.setText(key);
+                    confirmAndConnect(host, port, key);
+                })
+                .show();
     }
 
     private void confirmRemove(Session session) {

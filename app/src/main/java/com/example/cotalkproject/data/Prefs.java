@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 
 import com.example.cotalkproject.util.SecurityUtil;
 
+import java.util.Locale;
+
 /**
  * 记住密码、当前登录用户等轻量偏好。
  */
@@ -18,6 +20,7 @@ public class Prefs {
     private static final String KEY_AUTO_RECONNECT = "auto_reconnect";
     private static final String KEY_MESSAGE_NOTIFY = "message_notify";
     private static final String KEY_HISTORY_CLEAR_PREFIX = "history_clear_seq_";
+    private static final String KEY_SERVER_AUTH_PREFIX = "server_auth_";
 
     private final SharedPreferences preferences;
 
@@ -121,5 +124,42 @@ public class Prefs {
         preferences.edit()
                 .remove(KEY_HISTORY_CLEAR_PREFIX + sessionId)
                 .apply();
+    }
+
+    public boolean saveServerAuthKey(String host, int port, String authKey) {
+        String encrypted = SecurityUtil.encrypt(authKey);
+        if (encrypted == null) {
+            return false;
+        }
+        preferences.edit()
+                .putString(serverAuthKeyName(host, port), encrypted)
+                .apply();
+        return true;
+    }
+
+    public String getServerAuthKey(String host, int port) {
+        String encrypted = preferences.getString(serverAuthKeyName(host, port), "");
+        if (encrypted == null || encrypted.isEmpty()) {
+            return "";
+        }
+        String key = SecurityUtil.decrypt(encrypted);
+        if (key == null) {
+            clearServerAuthKey(host, port);
+            return "";
+        }
+        return key;
+    }
+
+    public void clearServerAuthKey(String host, int port) {
+        preferences.edit()
+                .remove(serverAuthKeyName(host, port))
+                .apply();
+    }
+
+    private String serverAuthKeyName(String host, int port) {
+        String safeHost = host == null
+                ? ""
+                : host.trim().toLowerCase(Locale.ROOT);
+        return KEY_SERVER_AUTH_PREFIX + safeHost + "_" + port;
     }
 }

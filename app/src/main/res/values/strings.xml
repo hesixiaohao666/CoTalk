@@ -127,6 +127,13 @@
     <string name="hint_host">服务器 IP / 主机名</string>
     <string name="hint_port">4700</string>
     <string name="default_server_host">10.0.2.2</string>
+    <string name="auth_key">连接密钥</string>
+    <string name="hint_auth_key">由服务器管理员提供</string>
+    <string name="remember_auth_key">记住密钥（本机加密）</string>
+    <string name="input_auth_key_required">请输入连接密钥</string>
+    <string name="auth_key_save_failed">连接密钥加密保存失败</string>
+    <string name="server_key_title">输入连接密钥</string>
+    <string name="server_key_message">服务器 %1$s 需要连接密钥</string>
     <string name="connect_and_join">连接并加入</string>
     <string name="server_hint">模拟器访问电脑用 10.0.2.2；真机填电脑局域网 IP</string>
     <string name="my_servers">我的服务器</string>

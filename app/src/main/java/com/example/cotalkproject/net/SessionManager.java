@@ -3,6 +3,7 @@ package com.example.cotalkproject.net;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.LocalUserDao;
 import com.example.cotalkproject.data.MemberDao;
@@ -90,6 +91,7 @@ public class SessionManager {
     private volatile int reconnectAttempt;
     private volatile String reconnectHost = "";
     private volatile int reconnectPort;
+    private volatile String reconnectAuthKey = "";
     private volatile long reconnectSessionId = -1;
     private final Runnable reconnectTask = this::runReconnect;
 
@@ -169,14 +171,17 @@ public class SessionManager {
         });
     }
 
-    public void connect(String host, int port, ConnectCallback callback) {
+    public void connect(String host, int port, String authKey,
+                        ConnectCallback callback) {
         shouldReconnect = false;
         cancelReconnect();
-        startConnect(host, port, callback, false);
+        startConnect(host, port, authKey == null ? "" : authKey,
+                callback, false);
     }
 
     private void startConnect(String host,
                               int port,
+                              String authKey,
                               ConnectCallback callback,
                               boolean reconnect) {
         if (connecting) {
@@ -224,7 +229,9 @@ public class SessionManager {
                         ? ""
                         : ImageUtil.fileToDataUri(user.avatarPath);
                 JSONObject joinOk = conn.connectAndJoin(
-                        user.nickname, user.clientTag, avatarData);
+                        user.nickname, user.clientTag, avatarData,
+                        authKey, BuildConfig.VERSION_CODE,
+                        BuildConfig.VERSION_NAME);
                 if (generation != connectGeneration.get()) {
                     conn.close();
                     return;
@@ -277,6 +284,7 @@ public class SessionManager {
                 shouldReconnect = true;
                 reconnectHost = host;
                 reconnectPort = port;
+                reconnectAuthKey = authKey;
                 reconnectSessionId = session.id;
                 reconnectAttempt = 0;
                 conn.start();
@@ -691,7 +699,7 @@ public class SessionManager {
         if (!shouldReconnect || reconnectSessionId <= 0) {
             return;
         }
-        startConnect(reconnectHost, reconnectPort, null, true);
+        startConnect(reconnectHost, reconnectPort, reconnectAuthKey, null, true);
     }
 
     private void cancelReconnect() {
