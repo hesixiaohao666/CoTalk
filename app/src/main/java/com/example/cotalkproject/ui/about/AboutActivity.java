@@ -7,6 +7,7 @@ import android.widget.TextView;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.util.UiUtil;
 
@@ -29,5 +30,9 @@ public class AboutActivity extends AppCompatActivity {
         btnBack.setOnClickListener(v -> finish());
         TextView title = findViewById(R.id.tv_title);
         title.setText(R.string.about_title);
+
+        TextView version = findViewById(R.id.tv_version);
+        version.setText(getString(
+                R.string.about_version_format, BuildConfig.VERSION_NAME));
     }
 }
