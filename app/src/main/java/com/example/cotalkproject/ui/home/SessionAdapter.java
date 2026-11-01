@@ -58,6 +58,8 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
 
         AvatarUtil.bindInitial(holder.tvAvatar, session.displayName());
         holder.tvRoomName.setText(session.displayName());
+        holder.tvAiBadge.setVisibility(session.aiEnabled
+                ? View.VISIBLE : View.GONE);
         holder.tvEndpoint.setText(session.endpoint());
         holder.tvLastMessage.setText(TextUtils.isEmpty(session.lastMessage)
                 ? context.getString(R.string.home_no_message)
@@ -95,6 +97,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
     static class ViewHolder extends RecyclerView.ViewHolder {
         final TextView tvAvatar;
         final TextView tvRoomName;
+        final TextView tvAiBadge;
         final TextView tvEndpoint;
         final TextView tvLastMessage;
         final TextView tvTime;
@@ -105,6 +108,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
             super(itemView);
             tvAvatar = itemView.findViewById(R.id.tv_session_avatar);
             tvRoomName = itemView.findViewById(R.id.tv_room_name);
+            tvAiBadge = itemView.findViewById(R.id.tv_ai_badge);
             tvEndpoint = itemView.findViewById(R.id.tv_endpoint);
             tvLastMessage = itemView.findViewById(R.id.tv_last_message);
             tvTime = itemView.findViewById(R.id.tv_time);

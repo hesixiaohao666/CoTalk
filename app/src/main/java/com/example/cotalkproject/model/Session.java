@@ -16,6 +16,7 @@ public class Session {
     public long lastTime;
     public int unread;
     public long lastConnected;
+    public boolean aiEnabled;
 
     public String endpoint() {
         return host + ":" + port;

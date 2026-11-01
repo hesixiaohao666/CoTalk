@@ -10,5 +10,6 @@ public class Member {
     public String nickname;
     public int avatarVersion;
     public boolean online;
+    public boolean ai;
     public long lastSeen;
 }

@@ -250,6 +250,7 @@ public class SessionManager {
                 }
                 JSONObject room = data.optJSONObject("room");
                 JSONObject self = data.optJSONObject("self");
+                JSONObject server = data.optJSONObject("server");
                 JSONArray membersArray = data.optJSONArray("members");
                 JSONArray recent = data.optJSONArray("recent");
 
@@ -272,9 +273,12 @@ public class SessionManager {
                     }
                 }
 
+                boolean aiEnabled = server != null
+                        && server.optBoolean("aiEnabled", false);
                 Session session = sessionDao.upsert(
                         host, port, roomName, announcement, lastSeq,
-                        lastMessage, lastTime, System.currentTimeMillis());
+                        lastMessage, lastTime, System.currentTimeMillis(),
+                        aiEnabled);
                 if (session == null) {
                     throw new IllegalStateException("保存会话失败");
                 }
@@ -642,6 +646,7 @@ public class SessionManager {
             member.nickname = object.optString("nickname", "");
             member.avatarVersion = object.optInt("avatarVersion", 0);
             member.online = true;
+            member.ai = object.optBoolean("ai", false);
             members.add(member);
         }
         return members;
