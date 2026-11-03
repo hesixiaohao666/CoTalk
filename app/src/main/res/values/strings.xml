@@ -63,13 +63,11 @@
     <string name="settings_general">通用</string>
     <string name="settings_data">数据</string>
     <string name="settings_account">账号</string>
-    <string name="settings_other">其他</string>
     <string name="auto_reconnect">自动重连</string>
     <string name="message_notify">消息提示</string>
     <string name="clear_history">清除聊天记录</string>
     <string name="remove_all_servers">移除所有服务器</string>
     <string name="logout">退出登录</string>
-    <string name="about_app">关于 CoTalk</string>
     <string name="clear_history_confirm">将清空本机所有聊天记录和未读数，服务器数据不受影响。</string>
     <string name="clear_history_done">聊天记录已清除</string>
     <string name="remove_all_servers_confirm">将断开当前连接并删除本机所有服务器、消息和成员缓存，服务器数据不受影响。</string>
@@ -112,7 +110,7 @@
     <string name="about_identity_title">隐私与安全</string>
     <string name="about_identity_body">您的账号信息完全保存在本机。连接服务器时，将由服务端分配临时的内部 UUID，界面将全程仅展示您的昵称，保障您的隐私安全。</string>
     <string name="about_ai_title">AI 功能</string>
-    <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 群友，由服务端 AI 接口驱动。\n- 被 @ 时必定回复；\n- 未被 @ 时，由 AI 智能判断是否参与聊天；\n- 若服务端未启用或未配置 API Key，AI 群友将不会出现在房间中。</string>
+    <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 群友，由服务端 AI 接口驱动。\n- 被 @ 时必定回复；\n- 提到关键词时大概率参与；\n- 其他消息也可能随机参与；\n- 若服务端未启用或未配置 API Key，AI 群友将不会出现在房间中。</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_placeholder">作者：何似小浩\n\nGitHub 开源仓库：\n - CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk \n - CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server </string>
 
@@ -143,7 +141,6 @@
     <string name="my_servers">我的服务器</string>
     <string name="online_members">在线成员</string>
     <string name="no_saved_servers">还没有保存的服务器</string>
-    <string name="no_cached_members">暂无成员缓存</string>
     <string name="connect_success">已加入房间</string>
     <string name="connect_failed">连接失败：%1$s</string>
     <string name="input_host_required">请输入服务器 IP 或主机名</string>
@@ -174,6 +171,7 @@
     <string name="server_info_offline_members">当前离线，无法获取在线成员</string>
     <string name="server_info_no_members">暂无在线成员</string>
     <string name="message_hint">输入消息…</string>
+    <string name="chat_mention_format">@%1$s </string>
     <string name="message_copied">消息已复制</string>
     <string name="message_sending">发送中…</string>
     <string name="message_failed">发送失败，点击重试</string>

@@ -23,14 +23,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
-import com.example.cotalkproject.data.MemberDao;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
-import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
 
-import java.util.Collections;
 import java.util.List;
 
 public class ContactsFragment extends Fragment implements SessionManager.Listener {
@@ -41,14 +38,10 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
     private CheckBox cbRememberKey;
     private Button btnConnect;
     private RecyclerView rvServers;
-    private RecyclerView rvMembers;
     private TextView tvServersEmpty;
-    private TextView tvMembersEmpty;
 
     private ServerAdapter serverAdapter;
-    private MemberAdapter memberAdapter;
     private SessionDao sessionDao;
-    private MemberDao memberDao;
     private SessionManager sessionManager;
     private Prefs prefs;
 
@@ -72,17 +65,13 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
         cbRememberKey = view.findViewById(R.id.cb_remember_key);
         btnConnect = view.findViewById(R.id.btn_connect_server);
         rvServers = view.findViewById(R.id.rv_servers);
-        rvMembers = view.findViewById(R.id.rv_members);
         tvServersEmpty = view.findViewById(R.id.tv_servers_empty);
-        tvMembersEmpty = view.findViewById(R.id.tv_members_empty);
 
         sessionManager = CoTalkApp.getInstance().getSessionManager();
         prefs = CoTalkApp.getInstance().getPrefs();
         sessionDao = new SessionDao(CoTalkApp.getInstance().getDatabase());
-        memberDao = new MemberDao(CoTalkApp.getInstance().getDatabase());
 
         rvServers.setLayoutManager(new LinearLayoutManager(requireContext()));
-        rvMembers.setLayoutManager(new LinearLayoutManager(requireContext()));
         serverAdapter = new ServerAdapter(sessionManager, new ServerAdapter.Listener() {
             @Override
             public void onSelect(Session session) {
@@ -93,7 +82,6 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                 if (!savedKey.isEmpty()) {
                     etAuthKey.setText(savedKey);
                 }
-                loadMembers();
             }
 
             @Override
@@ -119,10 +107,7 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                 confirmRemove(session);
             }
         });
-        memberAdapter = new MemberAdapter(
-                CoTalkApp.getInstance().getAvatarLoader());
         rvServers.setAdapter(serverAdapter);
-        rvMembers.setAdapter(memberAdapter);
 
         btnConnect.setOnClickListener(v -> {
             String host = etHost.getText().toString().trim();
@@ -221,7 +206,6 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                         Toast.makeText(requireContext(), R.string.connect_success,
                                 Toast.LENGTH_SHORT).show();
                         loadSessions();
-                        loadMembers();
                     }
 
                     @Override
@@ -355,36 +339,6 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                         selectedSessionId = -1;
                     }
                 }
-                loadMembers();
-            });
-        });
-    }
-
-    private void loadMembers() {
-        long sessionId = selectedSessionId;
-        if (sessionId <= 0) {
-            memberAdapter.setMembers(Collections.emptyList());
-            memberAdapter.setSelfUserId("");
-            tvMembersEmpty.setVisibility(View.VISIBLE);
-            rvMembers.setVisibility(View.GONE);
-            return;
-        }
-
-        AppDatabase database = CoTalkApp.getInstance().getDatabase();
-        database.execute(() -> {
-            List<Member> members = memberDao.queryBySession(sessionId);
-            database.runOnMain(() -> {
-                if (!isAdded() || getView() == null) {
-                    return;
-                }
-                memberAdapter.setSessionId(sessionId);
-                memberAdapter.setMembers(members);
-                memberAdapter.setSelfUserId(sessionManager.isActive(sessionId)
-                        ? sessionManager.getSelfUserId()
-                        : "");
-                boolean empty = members.isEmpty();
-                tvMembersEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
-                rvMembers.setVisibility(empty ? View.GONE : View.VISIBLE);
             });
         });
     }
@@ -405,9 +359,7 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
 
     @Override
     public void onMembersChanged(long sessionId) {
-        if (sessionId == selectedSessionId) {
-            loadMembers();
-        }
+        // 在线成员改由房间信息页展示。
     }
 
     @Override
