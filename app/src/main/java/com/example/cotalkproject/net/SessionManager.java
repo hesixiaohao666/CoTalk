@@ -275,10 +275,16 @@ public class SessionManager {
 
                 boolean aiEnabled = server != null
                         && server.optBoolean("aiEnabled", false);
+                String serverVersionName = server == null
+                        ? ""
+                        : server.optString("versionName", "");
+                int serverVersionCode = server == null
+                        ? 0
+                        : server.optInt("versionCode", 0);
                 Session session = sessionDao.upsert(
                         host, port, roomName, announcement, lastSeq,
                         lastMessage, lastTime, System.currentTimeMillis(),
-                        aiEnabled);
+                        aiEnabled, serverVersionName, serverVersionCode);
                 if (session == null) {
                     throw new IllegalStateException("保存会话失败");
                 }

@@ -33,6 +33,7 @@ import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.Protocol;
 import com.example.cotalkproject.net.SessionManager;
+import com.example.cotalkproject.ui.serverinfo.ServerInfoActivity;
 import com.example.cotalkproject.util.UiUtil;
 
 import org.json.JSONArray;
@@ -116,6 +117,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         }
         tvTitle = findViewById(R.id.tv_title);
         tvTitle.setText(roomName);
+
+        View actions = findViewById(R.id.ll_actions);
+        View serverInfoButton = findViewById(R.id.btn_action_server_info);
+        actions.setVisibility(View.VISIBLE);
+        serverInfoButton.setVisibility(View.VISIBLE);
+        serverInfoButton.setOnClickListener(v -> startActivity(
+                ServerInfoActivity.createIntent(this, sessionId)));
 
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);

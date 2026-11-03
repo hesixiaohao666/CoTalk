@@ -30,7 +30,9 @@ public class SessionDao {
                           String lastMessage,
                           long lastTime,
                           long lastConnected,
-                          boolean aiEnabled) {
+                          boolean aiEnabled,
+                          String serverVersionName,
+                          int serverVersionCode) {
         SQLiteDatabase db = helper.getWritableDatabase();
         Session existing = getByHostPort(host, port);
 
@@ -41,6 +43,9 @@ public class SessionDao {
         values.put("announcement", announcement);
         values.put("last_connected", lastConnected);
         values.put("ai_enabled", aiEnabled ? 1 : 0);
+        values.put("server_version_name",
+                serverVersionName == null ? "" : serverVersionName);
+        values.put("server_version_code", Math.max(0, serverVersionCode));
 
         if (existing == null) {
             values.put("last_seq", lastSeq);
@@ -148,6 +153,10 @@ public class SessionDao {
         session.unread = cursor.getInt(cursor.getColumnIndexOrThrow("unread"));
         session.lastConnected = cursor.getLong(cursor.getColumnIndexOrThrow("last_connected"));
         session.aiEnabled = cursor.getInt(cursor.getColumnIndexOrThrow("ai_enabled")) == 1;
+        session.serverVersionName = cursor.getString(
+                cursor.getColumnIndexOrThrow("server_version_name"));
+        session.serverVersionCode = cursor.getInt(
+                cursor.getColumnIndexOrThrow("server_version_code"));
         return session;
     }
 }
