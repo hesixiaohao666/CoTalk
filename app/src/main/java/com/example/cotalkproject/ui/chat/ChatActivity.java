@@ -9,9 +9,11 @@ import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.text.Editable;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -143,7 +145,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         adapter = new ChatAdapter(
                 sessionId,
                 CoTalkApp.getInstance().getAvatarLoader(),
-                this::retryMessage);
+                this::retryMessage,
+                this::insertMention);
         rvMessages.setAdapter(adapter);
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -283,6 +286,31 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (sessionId > 0) {
             database.execute(() -> sessionDao.markRead(sessionId));
         }
+    }
+
+    private void insertMention(String nickname) {
+        String name = TextUtils.isEmpty(nickname)
+                ? getString(R.string.member_default)
+                : nickname;
+        String mention = getString(R.string.chat_mention_format, name);
+        Editable editable = etMessage.getText();
+        int start = etMessage.getSelectionStart();
+        if (start < 0) {
+            start = editable.length();
+        }
+        boolean needSpace = start > 0
+                && !Character.isWhitespace(editable.charAt(start - 1));
+        String insertion = (needSpace ? " " : "") + mention;
+        editable.insert(start, insertion);
+        etMessage.setSelection(start + insertion.length());
+        etMessage.requestFocus();
+        etMessage.post(() -> {
+            InputMethodManager manager = (InputMethodManager)
+                    getSystemService(INPUT_METHOD_SERVICE);
+            if (manager != null) {
+                manager.showSoftInput(etMessage, InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
     }
 
     private void sendMessage() {

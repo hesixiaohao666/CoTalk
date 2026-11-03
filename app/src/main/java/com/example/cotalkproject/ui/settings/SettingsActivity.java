@@ -23,7 +23,6 @@ import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.net.SessionManager;
-import com.example.cotalkproject.ui.about.AboutActivity;
 import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.login.RegisterActivity;
 import com.example.cotalkproject.util.ImageUtil;
@@ -80,8 +79,6 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.btn_remove_all_servers).setOnClickListener(v -> confirmRemoveAllServers());
         findViewById(R.id.btn_reset_account).setOnClickListener(v -> showResetDialog());
         findViewById(R.id.btn_logout).setOnClickListener(v -> confirmLogout());
-        findViewById(R.id.btn_about_entry).setOnClickListener(v ->
-                startActivity(new Intent(this, AboutActivity.class)));
     }
 
     private void confirmClearHistory() {

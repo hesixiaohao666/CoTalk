@@ -29,6 +29,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         void onRetry(Message message);
     }
 
+    public interface OnAvatarLongClickListener {
+        void onAvatarLongClick(String nickname);
+    }
+
     private static final int TYPE_OTHER = 0;
     private static final int TYPE_SELF = 1;
     private static final int TYPE_SYSTEM = 2;
@@ -38,13 +42,16 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     private final long sessionId;
     private final AvatarLoader avatarLoader;
     private final OnRetryListener retryListener;
+    private final OnAvatarLongClickListener avatarLongClickListener;
 
     public ChatAdapter(long sessionId,
                        AvatarLoader avatarLoader,
-                       OnRetryListener retryListener) {
+                       OnRetryListener retryListener,
+                       OnAvatarLongClickListener avatarLongClickListener) {
         this.sessionId = sessionId;
         this.avatarLoader = avatarLoader;
         this.retryListener = retryListener;
+        this.avatarLongClickListener = avatarLongClickListener;
     }
 
     public void setMessages(List<Message> newMessages) {
@@ -122,13 +129,21 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             bindCopy(self.tvContent, message.content);
         } else if (holder instanceof OtherHolder) {
             OtherHolder other = (OtherHolder) holder;
-            bindAvatar(other.tvAvatar, message);
-            other.tvName.setText(TextUtils.isEmpty(message.senderName)
+            String senderName = TextUtils.isEmpty(message.senderName)
                     ? other.itemView.getContext().getString(R.string.member_default)
-                    : message.senderName);
+                    : message.senderName;
+            bindAvatar(other.tvAvatar, message);
+            other.tvName.setText(senderName);
             other.tvNameAi.setVisibility("ai".equals(message.msgType)
                     ? View.VISIBLE : View.GONE);
             other.tvContent.setText(message.content);
+            other.tvAvatar.setOnLongClickListener(v -> {
+                if (avatarLongClickListener != null) {
+                    avatarLongClickListener.onAvatarLongClick(senderName);
+                    return true;
+                }
+                return false;
+            });
             bindCopy(other.tvContent, message.content);
         } else if (holder instanceof SystemHolder) {
             SystemHolder system = (SystemHolder) holder;

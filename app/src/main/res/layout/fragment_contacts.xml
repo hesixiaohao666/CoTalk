@@ -181,31 +181,5 @@
             android:nestedScrollingEnabled="false"
             android:overScrollMode="never" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/online_members"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/tv_members_empty"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center"
-            android:padding="16dp"
-            android:text="@string/no_cached_members"
-            android:textColor="@color/text_hint"
-            android:textSize="14sp" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_members"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"
-            android:overScrollMode="never" />
-
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
