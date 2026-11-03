@@ -17,6 +17,8 @@ public class Session {
     public int unread;
     public long lastConnected;
     public boolean aiEnabled;
+    public String serverVersionName = "";
+    public int serverVersionCode;
 
     public String endpoint() {
         return host + ":" + port;
