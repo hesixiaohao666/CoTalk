@@ -109,12 +109,12 @@
     <string name="about_version_format">版本 %1$s</string>
     <string name="about_tech_title">技术栈</string>
     <string name="about_tech_body">客户端：Android / Java\n服务端：Java Swing\n数据存储：SQLite\n网络通信：TCP Socket</string>
-    <string name="about_identity_title">隐私与身份</string>
-    <string name="about_identity_body">您的账号信息仅保存在本机。连接服务器时由服务端分配临时内部 UUID，界面将全程仅展示您的昵称，保障隐私安全。</string>
-    <string name="about_ai_title">AI群友</string>
-    <string name="about_ai_body">“大肥鱼”是服务端可选的 AI 群友，由服务端 DeepSeek 接口驱动。\n被 @ 时必定回复；未被 @ 的提及由 AI 判断是否参与。\nAI 未启用或未配置 API Key 时不会出现在房间中。</string>
-    <string name="about_author_title">作者</string>
-    <string name="about_author_placeholder">何似小浩</string>
+    <string name="about_identity_title">隐私与安全</string>
+    <string name="about_identity_body">您的账号信息完全保存在本机。连接服务器时，将由服务端分配临时的内部 UUID，界面将全程仅展示您的昵称，保障您的隐私安全。</string>
+    <string name="about_ai_title">AI 功能</string>
+    <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 群友，由服务端 AI 接口驱动。\n- 被 @ 时必定回复；\n- 未被 @ 时，由 AI 智能判断是否参与聊天；\n- 若服务端未启用或未配置 API Key，AI 群友将不会出现在房间中。</string>
+    <string name="about_author_title">开发信息</string>
+    <string name="about_author_placeholder">作者：何似小浩\n\nGitHub 开源仓库：\n - CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk \n - CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server </string>
 
     <string name="home_empty_rooms">还没有房间\n去联系人添加服务器</string>
     <string name="home_no_message">暂无消息</string>
