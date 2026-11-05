@@ -11,11 +11,13 @@ import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,6 +31,7 @@ import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.LocalUserDao;
 import com.example.cotalkproject.data.MessageDao;
+import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.model.Message;
@@ -65,6 +68,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private LinearLayoutManager layoutManager;
     private EditText etMessage;
     private Button btnSend;
+    private ImageButton btnVoice;
+    private ImageButton btnKeyboard;
+    private ImageButton btnEmoji;
+    private ImageButton btnMore;
+    private TextView btnHoldVoice;
+    private View llEmptyActions;
     private TextView tvBanner;
     private TextView tvEmpty;
     private TextView tvHistoryHint;
@@ -74,6 +83,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private MessageDao messageDao;
     private SessionDao sessionDao;
     private SessionManager sessionManager;
+    private Prefs prefs;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, Runnable> pendingTimeouts = new HashMap<>();
@@ -82,6 +92,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private boolean historyHasMore = true;
     private boolean loadingHistory;
     private boolean atBottom = true;
+    private boolean voiceMode;
+    private Runnable draftSaveRunnable;
 
     public static Intent createIntent(Context context, long sessionId, String roomName) {
         Intent intent = new Intent(context, ChatActivity.class);
@@ -130,9 +142,18 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
+        btnVoice = findViewById(R.id.btn_voice);
+        btnKeyboard = findViewById(R.id.btn_keyboard);
+        btnEmoji = findViewById(R.id.btn_emoji);
+        btnMore = findViewById(R.id.btn_more);
+        btnHoldVoice = findViewById(R.id.btn_hold_voice);
+        llEmptyActions = findViewById(R.id.ll_empty_actions);
         tvBanner = findViewById(R.id.tv_connection_banner);
         tvEmpty = findViewById(R.id.tv_chat_empty);
         tvHistoryHint = findViewById(R.id.tv_history_hint);
+
+        prefs = CoTalkApp.getInstance().getPrefs();
+        setupComposer();
 
         database = CoTalkApp.getInstance().getDatabase();
         messageDao = new MessageDao(database);
@@ -175,6 +196,112 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         markRead();
     }
 
+    private void setupComposer() {
+        etMessage.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start,
+                                          int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start,
+                                      int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateComposerState();
+                scheduleDraftSave();
+            }
+        });
+
+        btnVoice.setOnClickListener(v -> enterVoiceMode());
+        btnKeyboard.setOnClickListener(v -> exitVoiceMode());
+        btnHoldVoice.setOnClickListener(v -> Toast.makeText(
+                this, R.string.voice_not_implemented, Toast.LENGTH_SHORT).show());
+
+        String draft = prefs.getDraft(sessionId);
+        if (!TextUtils.isEmpty(draft)) {
+            etMessage.setText(draft);
+            etMessage.setSelection(draft.length());
+        }
+        updateComposerState();
+    }
+
+    private void updateComposerState() {
+        if (voiceMode) {
+            return;
+        }
+        boolean hasText = etMessage != null
+                && !TextUtils.isEmpty(etMessage.getText());
+        etMessage.setVisibility(View.VISIBLE);
+        btnHoldVoice.setVisibility(View.GONE);
+        btnKeyboard.setVisibility(View.GONE);
+        btnVoice.setVisibility(View.VISIBLE);
+        llEmptyActions.setVisibility(hasText ? View.GONE : View.VISIBLE);
+        btnSend.setVisibility(hasText ? View.VISIBLE : View.GONE);
+    }
+
+    private void enterVoiceMode() {
+        voiceMode = true;
+        hideKeyboard();
+        etMessage.setVisibility(View.GONE);
+        btnHoldVoice.setVisibility(View.VISIBLE);
+        btnVoice.setVisibility(View.GONE);
+        btnKeyboard.setVisibility(View.VISIBLE);
+        llEmptyActions.setVisibility(View.GONE);
+        btnSend.setVisibility(View.GONE);
+    }
+
+    private void exitVoiceMode() {
+        voiceMode = false;
+        updateComposerState();
+        etMessage.requestFocus();
+        etMessage.post(() -> {
+            InputMethodManager manager = (InputMethodManager)
+                    getSystemService(INPUT_METHOD_SERVICE);
+            if (manager != null) {
+                manager.showSoftInput(etMessage,
+                        InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
+    }
+
+    private void hideKeyboard() {
+        InputMethodManager manager = (InputMethodManager)
+                getSystemService(INPUT_METHOD_SERVICE);
+        if (manager != null) {
+            manager.hideSoftInputFromWindow(etMessage.getWindowToken(), 0);
+        }
+    }
+
+    private void scheduleDraftSave() {
+        if (draftSaveRunnable != null) {
+            handler.removeCallbacks(draftSaveRunnable);
+        }
+        draftSaveRunnable = () -> {
+            draftSaveRunnable = null;
+            prefs.setDraft(sessionId, etMessage.getText().toString());
+        };
+        handler.postDelayed(draftSaveRunnable, 300);
+    }
+
+    private void saveDraftNow() {
+        if (draftSaveRunnable != null) {
+            handler.removeCallbacks(draftSaveRunnable);
+            draftSaveRunnable = null;
+        }
+        prefs.setDraft(sessionId, etMessage.getText().toString());
+    }
+
+    private void clearDraftNow() {
+        if (draftSaveRunnable != null) {
+            handler.removeCallbacks(draftSaveRunnable);
+            draftSaveRunnable = null;
+        }
+        prefs.clearDraft(sessionId);
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -196,6 +323,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     @Override
     protected void onStop() {
+        if (etMessage != null) {
+            saveDraftNow();
+        }
         sessionManager.setOpenChatSession(-1);
         markRead();
         super.onStop();
@@ -204,6 +334,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     @Override
     protected void onDestroy() {
         sessionManager.clearChatListener(this);
+        if (draftSaveRunnable != null) {
+            handler.removeCallbacks(draftSaveRunnable);
+            draftSaveRunnable = null;
+        }
         for (Runnable runnable : pendingTimeouts.values()) {
             handler.removeCallbacks(runnable);
         }
@@ -343,6 +477,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.status = Message.STATUS_SENDING;
 
         etMessage.setText("");
+        clearDraftNow();
         pendingPreviews.put(clientMsgId, content);
 
         database.execute(() -> {
