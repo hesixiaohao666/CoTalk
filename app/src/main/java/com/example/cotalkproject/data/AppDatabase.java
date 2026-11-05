@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 public class AppDatabase extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "cotalk.db";
-    private static final int DB_VERSION = 3;
+    private static final int DB_VERSION = 4;
 
     private static volatile AppDatabase instance;
 
@@ -104,6 +104,12 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "timestamp INTEGER NOT NULL, "
                 + "is_self INTEGER NOT NULL DEFAULT 0, "
                 + "status INTEGER NOT NULL DEFAULT 1, "
+                + "file_id TEXT, "
+                + "file_name TEXT, "
+                + "file_mime TEXT, "
+                + "file_size INTEGER NOT NULL DEFAULT 0, "
+                + "file_expired INTEGER NOT NULL DEFAULT 0, "
+                + "local_path TEXT, "
                 + "FOREIGN KEY(session_id) REFERENCES t_session(id) ON DELETE CASCADE"
                 + ")");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_message_session_seq "
@@ -137,6 +143,16 @@ public class AppDatabase extends SQLiteOpenHelper {
                     + "server_version_name TEXT NOT NULL DEFAULT ''");
             db.execSQL("ALTER TABLE t_session ADD COLUMN "
                     + "server_version_code INTEGER NOT NULL DEFAULT 0");
+        }
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE t_message ADD COLUMN file_id TEXT");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN file_name TEXT");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN file_mime TEXT");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "file_size INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "file_expired INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN local_path TEXT");
         }
     }
 
