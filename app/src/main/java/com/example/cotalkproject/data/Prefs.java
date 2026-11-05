@@ -21,6 +21,7 @@ public class Prefs {
     private static final String KEY_MESSAGE_NOTIFY = "message_notify";
     private static final String KEY_HISTORY_CLEAR_PREFIX = "history_clear_seq_";
     private static final String KEY_SERVER_AUTH_PREFIX = "server_auth_";
+    private static final String KEY_DRAFT_PREFIX = "draft_";
 
     private final SharedPreferences preferences;
 
@@ -124,6 +125,39 @@ public class Prefs {
         preferences.edit()
                 .remove(KEY_HISTORY_CLEAR_PREFIX + sessionId)
                 .apply();
+    }
+
+    public void setDraft(long sessionId, String text) {
+        if (text == null || text.isEmpty()) {
+            clearDraft(sessionId);
+            return;
+        }
+        preferences.edit()
+                .putString(KEY_DRAFT_PREFIX + sessionId, text)
+                .apply();
+    }
+
+    public String getDraft(long sessionId) {
+        return preferences.getString(KEY_DRAFT_PREFIX + sessionId, "");
+    }
+
+    public void clearDraft(long sessionId) {
+        preferences.edit()
+                .remove(KEY_DRAFT_PREFIX + sessionId)
+                .apply();
+    }
+
+    /**
+     * 退出或重置本地账号时清理所有会话草稿。
+     */
+    public void clearDrafts() {
+        SharedPreferences.Editor editor = preferences.edit();
+        for (String key : preferences.getAll().keySet()) {
+            if (key.startsWith(KEY_DRAFT_PREFIX)) {
+                editor.remove(key);
+            }
+        }
+        editor.apply();
     }
 
     public boolean saveServerAuthKey(String host, int port, String authKey) {

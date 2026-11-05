@@ -171,6 +171,12 @@
     <string name="server_info_offline_members">当前离线，无法获取在线成员</string>
     <string name="server_info_no_members">暂无在线成员</string>
     <string name="message_hint">输入消息…</string>
+    <string name="chat_voice_button">语音</string>
+    <string name="chat_keyboard_button">键盘</string>
+    <string name="chat_emoji_button">表情</string>
+    <string name="chat_more_button">更多</string>
+    <string name="chat_hold_to_talk">按住 说话</string>
+    <string name="voice_not_implemented">语音功能暂未实装，敬请期待</string>
     <string name="chat_mention_format">@%1$s </string>
     <string name="message_copied">消息已复制</string>
     <string name="message_sending">发送中…</string>

@@ -149,6 +149,7 @@ public class SettingsActivity extends AppCompatActivity {
             ImageUtil.deleteAllAvatarCache(this);
             prefs.logout();
             prefs.clearRemembered();
+            prefs.clearDrafts();
 
             database.runOnMain(() -> {
                 Toast.makeText(this, R.string.reset_success,
@@ -170,6 +171,7 @@ public class SettingsActivity extends AppCompatActivity {
                 .setPositiveButton(R.string.confirm, (dialog, which) -> {
                     sessionManager.disconnect();
                     prefs.logout();
+                    prefs.clearDrafts();
                     Toast.makeText(this, R.string.logout_done,
                             Toast.LENGTH_SHORT).show();
                     Intent intent = new Intent(this, LoginActivity.class);
