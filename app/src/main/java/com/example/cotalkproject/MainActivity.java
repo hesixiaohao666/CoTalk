@@ -2,15 +2,23 @@ package com.example.cotalkproject;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.example.cotalkproject.data.AppDatabase;
+import com.example.cotalkproject.data.Prefs;
+import com.example.cotalkproject.data.SessionDao;
+import com.example.cotalkproject.model.Session;
+import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.about.AboutActivity;
 import com.example.cotalkproject.ui.contacts.ContactsFragment;
 import com.example.cotalkproject.ui.home.HomeFragment;
@@ -25,17 +33,25 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG_HOME = "home";
     private static final String TAG_CONTACTS = "contacts";
     private static final String TAG_PROFILE = "profile";
+    private static final String KEY_AUTO_CONNECT_ATTEMPTED = "auto_connect_attempted";
 
     private Fragment homeFragment;
     private Fragment contactsFragment;
     private Fragment profileFragment;
     private TextView titleView;
+    private SessionDao sessionDao;
+    private Prefs prefs;
+    private SessionManager sessionManager;
+    private boolean autoConnectStarted;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (CoTalkApp.getInstance().getPrefs().getCurrentUserId() <= 0) {
+        CoTalkApp app = CoTalkApp.getInstance();
+        prefs = app.getPrefs();
+        sessionManager = app.getSessionManager();
+        if (prefs.getCurrentUserId() <= 0 || !app.isAuthenticated()) {
             startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
@@ -52,6 +68,9 @@ public class MainActivity extends AppCompatActivity {
 
         titleView = findViewById(R.id.tv_title);
         BottomNavigationView navigation = findViewById(R.id.navigation_bar);
+        sessionDao = new SessionDao(app.getDatabase());
+        autoConnectStarted = savedInstanceState != null
+                && savedInstanceState.getBoolean(KEY_AUTO_CONNECT_ATTEMPTED, false);
 
         findViewById(R.id.btn_action_settings).setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
@@ -70,6 +89,73 @@ public class MainActivity extends AppCompatActivity {
             initialItem = navigation.getSelectedItemId();
         }
         showTab(initialItem);
+        maybeAutoConnect();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(KEY_AUTO_CONNECT_ATTEMPTED, autoConnectStarted);
+    }
+
+    /**
+     * 登录后自动连接最近一次成功连接的服务器；无密钥、失败或超时都不自动重试。
+     */
+    private void maybeAutoConnect() {
+        if (autoConnectStarted) {
+            return;
+        }
+        autoConnectStarted = true;
+        if (sessionManager.isConnecting()
+                || sessionManager.getActiveSessionId() > 0) {
+            return;
+        }
+        AppDatabase database = CoTalkApp.getInstance().getDatabase();
+        database.execute(() -> {
+            Session session = sessionDao.findLatestConnected();
+            if (session == null) {
+                return;
+            }
+            String authKey = prefs.getServerAuthKey(
+                    session.host, session.port);
+            if (TextUtils.isEmpty(authKey)) {
+                return;
+            }
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()
+                        || sessionManager.isConnecting()
+                        || sessionManager.getActiveSessionId() > 0) {
+                    return;
+                }
+                sessionManager.connect(session.host, session.port, authKey,
+                        new SessionManager.ConnectCallback() {
+                            @Override
+                            public void onSuccess(Session connected) {
+                                // 自动连接成功停留在首页，不自动进入聊天。
+                            }
+
+                            @Override
+                            public void onAuthKeyError(String message) {
+                                prefs.clearServerAuthKey(
+                                        session.host, session.port);
+                                if (!isFinishing() && !isDestroyed()) {
+                                    Toast.makeText(MainActivity.this,
+                                            R.string.auto_connect_failed,
+                                            Toast.LENGTH_LONG).show();
+                                }
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                if (!isFinishing() && !isDestroyed()) {
+                                    Toast.makeText(MainActivity.this,
+                                            R.string.auto_connect_failed,
+                                            Toast.LENGTH_LONG).show();
+                                }
+                            }
+                        });
+            });
+        });
     }
 
     private void restoreFragments(Bundle savedInstanceState) {

@@ -14,6 +14,7 @@ public class Prefs {
 
     private static final String NAME = "cotalk_prefs";
     private static final String KEY_REMEMBER = "remember_password";
+    private static final String KEY_AUTO_LOGIN = "auto_login";
     private static final String KEY_USERNAME = "remembered_username";
     private static final String KEY_PASSWORD = "remembered_password";
     private static final String KEY_CURRENT_USER = "current_user_id";
@@ -32,6 +33,14 @@ public class Prefs {
 
     public boolean isRememberPassword() {
         return preferences.getBoolean(KEY_REMEMBER, false);
+    }
+
+    public boolean isAutoLogin() {
+        return preferences.getBoolean(KEY_AUTO_LOGIN, false);
+    }
+
+    public void setAutoLogin(boolean enabled) {
+        preferences.edit().putBoolean(KEY_AUTO_LOGIN, enabled).apply();
     }
 
     public void setRememberPassword(boolean remember) {
@@ -80,6 +89,7 @@ public class Prefs {
                 .remove(KEY_USERNAME)
                 .remove(KEY_PASSWORD)
                 .putBoolean(KEY_REMEMBER, false)
+                .putBoolean(KEY_AUTO_LOGIN, false)
                 .apply();
     }
 

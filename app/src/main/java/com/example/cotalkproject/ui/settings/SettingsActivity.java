@@ -147,8 +147,10 @@ public class SettingsActivity extends AppCompatActivity {
             sessionManager.removeAllSessions();
             database.clearAllLocalData();
             ImageUtil.deleteAllAvatarCache(this);
+            CoTalkApp.getInstance().setAuthenticated(false);
             prefs.logout();
             prefs.clearRemembered();
+            prefs.setAutoLogin(false);
             prefs.clearDrafts();
 
             database.runOnMain(() -> {
@@ -170,7 +172,9 @@ public class SettingsActivity extends AppCompatActivity {
                 .setNegativeButton(R.string.cancel, null)
                 .setPositiveButton(R.string.confirm, (dialog, which) -> {
                     sessionManager.disconnect();
+                    CoTalkApp.getInstance().setAuthenticated(false);
                     prefs.logout();
+                    prefs.setAutoLogin(false);
                     prefs.clearDrafts();
                     Toast.makeText(this, R.string.logout_done,
                             Toast.LENGTH_SHORT).show();
