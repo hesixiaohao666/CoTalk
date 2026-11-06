@@ -73,6 +73,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private ImageButton btnEmoji;
     private ImageButton btnMore;
     private TextView btnHoldVoice;
+    private View inputActions;
     private View llEmptyActions;
     private TextView tvBanner;
     private TextView tvEmpty;
@@ -147,6 +148,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         btnEmoji = findViewById(R.id.btn_emoji);
         btnMore = findViewById(R.id.btn_more);
         btnHoldVoice = findViewById(R.id.btn_hold_voice);
+        inputActions = findViewById(R.id.ll_input_actions);
         llEmptyActions = findViewById(R.id.ll_empty_actions);
         tvBanner = findViewById(R.id.tv_connection_banner);
         tvEmpty = findViewById(R.id.tv_chat_empty);
@@ -238,6 +240,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         btnHoldVoice.setVisibility(View.GONE);
         btnKeyboard.setVisibility(View.GONE);
         btnVoice.setVisibility(View.VISIBLE);
+        inputActions.setVisibility(View.VISIBLE);
         llEmptyActions.setVisibility(hasText ? View.GONE : View.VISIBLE);
         btnSend.setVisibility(hasText ? View.VISIBLE : View.GONE);
     }
@@ -249,6 +252,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         btnHoldVoice.setVisibility(View.VISIBLE);
         btnVoice.setVisibility(View.GONE);
         btnKeyboard.setVisibility(View.VISIBLE);
+        inputActions.setVisibility(View.GONE);
         llEmptyActions.setVisibility(View.GONE);
         btnSend.setVisibility(View.GONE);
     }
