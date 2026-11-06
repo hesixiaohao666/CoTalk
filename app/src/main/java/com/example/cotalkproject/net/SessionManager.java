@@ -264,7 +264,7 @@ public class SessionManager {
                     JSONObject last = recent.optJSONObject(recent.length() - 1);
                     if (last != null) {
                         String sender = last.optString("senderName", "");
-                        String content = last.optString("content", "");
+                        String content = messagePreview(last);
                         boolean system = "system".equals(last.optString("type", "text"));
                         lastMessage = system || sender.isEmpty()
                                 ? content
@@ -488,10 +488,29 @@ public class SessionManager {
         message.senderAvatarVersion = object.optInt("senderAvatarVersion", 0);
         message.content = object.optString("content", "");
         message.msgType = object.optString("type", "text");
+        message.fileId = object.optString("fileId", "");
+        message.fileName = object.optString("fileName", "");
+        message.fileMime = object.optString("fileMime", "");
+        message.fileSize = object.optLong("fileSize", 0);
+        message.fileExpired = object.optBoolean("fileExpired", false);
         message.timestamp = object.optLong("ts", System.currentTimeMillis());
         message.isSelf = isSelf;
         message.status = Message.STATUS_SENT;
         return message;
+    }
+
+    private static String messagePreview(JSONObject object) {
+        String type = object.optString("type", "text");
+        if ("image".equals(type)) {
+            return "[图片]";
+        }
+        if ("emoji".equals(type)) {
+            return "[表情]";
+        }
+        if ("voice".equals(type)) {
+            return "[语音]";
+        }
+        return object.optString("content", "");
     }
 
     private void closeActiveOnIo() {
@@ -541,7 +560,7 @@ public class SessionManager {
             if (data == null || sessionId <= 0) {
                 return;
             }
-            String content = data.optString("content", "");
+            String content = messagePreview(data);
             String sender = data.optString("senderName", "");
             boolean system = "system".equals(data.optString("type", "text"));
             String preview = system || sender.isEmpty()
@@ -565,7 +584,8 @@ public class SessionManager {
         }
 
         if (Protocol.MESSAGE_ACK.equals(type)
-                || Protocol.HISTORY_RES.equals(type)) {
+                || Protocol.HISTORY_RES.equals(type)
+                || Protocol.FILE_RES.equals(type)) {
             notifyChatFrame(frame);
             return;
         }

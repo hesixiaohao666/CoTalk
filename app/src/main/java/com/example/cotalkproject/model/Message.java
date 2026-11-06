@@ -19,6 +19,12 @@ public class Message {
     public int senderAvatarVersion;
     public String content;
     public String msgType = "text";
+    public String fileId;
+    public String fileName;
+    public String fileMime;
+    public long fileSize;
+    public boolean fileExpired;
+    public String localPath;
     public long timestamp;
     public boolean isSelf;
     public int status = STATUS_SENT;

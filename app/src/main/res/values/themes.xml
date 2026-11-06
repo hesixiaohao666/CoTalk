@@ -17,6 +17,11 @@
 
     <style name="Theme.CoTalkProject" parent="Base.Theme.CoTalkProject" />
 
+    <style name="ShapeAppearanceOverlay.CoTalk.Media" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
     <!-- 导航栏选中时的文字样式 -->
     <style name="NavigationTextActive" parent="TextAppearance.Material3.BodySmall">
         <item name="android:textSize">16sp</item>
