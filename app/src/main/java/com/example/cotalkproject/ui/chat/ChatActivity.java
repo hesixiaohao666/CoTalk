@@ -29,6 +29,7 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -313,6 +314,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 closePanels();
                 sendMediaFile(file, "emoji");
             }
+
+            @Override
+            public void onEmojiLongPress(File file) {
+                confirmDeleteEmoji(file);
+            }
         });
         rvEmoji.setLayoutManager(new GridLayoutManager(this, 6));
         rvEmoji.setAdapter(emojiAdapter);
@@ -327,6 +333,23 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             closePanels();
             requestCameraPermission();
         });
+    }
+
+    private void confirmDeleteEmoji(File file) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.chat_emoji_delete_title)
+                .setMessage(R.string.chat_emoji_delete_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.chat_emoji_delete_action,
+                        (dialog, which) -> {
+                            if (emojiStore.delete(file)) {
+                                emojiAdapter.setFiles(emojiStore.list());
+                                Toast.makeText(this,
+                                        R.string.chat_emoji_deleted,
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        })
+                .show();
     }
 
     private void toggleEmojiPanel() {
@@ -468,9 +491,15 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             } catch (IOException e) {
                 deleteCameraTempIfNeeded(uri);
                 String message = e.getMessage();
-                int text = message != null && message.contains("1MB")
-                        ? R.string.chat_image_too_large
-                        : R.string.chat_image_pick_failed;
+                int text;
+                if (message != null && message.contains("1MB")) {
+                    text = R.string.chat_image_too_large;
+                } else if (addEmoji
+                        && EmojiStore.ERROR_LIMIT.equals(message)) {
+                    text = R.string.chat_emoji_limit;
+                } else {
+                    text = R.string.chat_image_pick_failed;
+                }
                 database.runOnMain(() -> Toast.makeText(
                         this, text, Toast.LENGTH_SHORT).show());
             }

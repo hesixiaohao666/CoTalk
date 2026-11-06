@@ -9,13 +9,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
-import java.util.UUID;
 
 /**
- * 本地表情包目录：filesDir/emojis，本期只新增和发送，不做删除。
+ * 本地表情包目录：filesDir/emojis。
  */
 public class EmojiStore {
+
+    public static final int MAX_COUNT = 89;
+    public static final String ERROR_LIMIT = "EMOJI_LIMIT";
 
     private final Context context;
     private final File directory;
@@ -29,13 +30,13 @@ public class EmojiStore {
         if (uri == null) {
             throw new IOException("未选择图片");
         }
+        if (list().size() >= MAX_COUNT) {
+            throw new IOException(ERROR_LIMIT);
+        }
         if (!directory.exists() && !directory.mkdirs()) {
             throw new IOException("无法创建表情包目录");
         }
-        String name = "emoji_" + System.currentTimeMillis() + "_"
-                + UUID.randomUUID().toString().replace("-", "")
-                .substring(0, 6).toLowerCase(Locale.ROOT) + ".jpg";
-        File output = new File(directory, name);
+        File output = ImageUtil.createImageFile(directory, ".jpg");
         try {
             return ImageUtil.compressEmojiToFile(context, uri, output);
         } catch (IOException e) {
@@ -43,6 +44,17 @@ public class EmojiStore {
             output.delete();
             throw e;
         }
+    }
+
+    public boolean delete(File file) {
+        if (file == null) {
+            return false;
+        }
+        File parent = file.getAbsoluteFile().getParentFile();
+        if (parent == null || !parent.equals(directory.getAbsoluteFile())) {
+            return false;
+        }
+        return file.delete();
     }
 
     public List<File> list() {

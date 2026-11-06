@@ -15,7 +15,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.UUID;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 /**
  * 相册头像：采样、居中裁剪、256×256 JPEG、Base64。
@@ -29,6 +31,7 @@ public final class ImageUtil {
     public static final int MAX_CHAT_BYTES = 1024 * 1024;
     private static final int CHAT_MAX_DIMENSION = 1920;
     private static final int EMOJI_MAX_DIMENSION = 512;
+    private static final Object FILE_NAME_LOCK = new Object();
 
     private ImageUtil() {
     }
@@ -74,10 +77,7 @@ public final class ImageUtil {
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("无法创建聊天图片目录");
         }
-        File output = new File(dir, "img_"
-                + System.currentTimeMillis() + "_"
-                + UUID.randomUUID().toString().replace("-", "")
-                .substring(0, 6) + ".jpg");
+        File output = createImageFile(dir, ".jpg");
         try {
             return compressToFile(context, uri, output, CHAT_MAX_DIMENSION);
         } catch (IOException e) {
@@ -85,6 +85,36 @@ public final class ImageUtil {
             output.delete();
             throw e;
         }
+    }
+
+    /**
+     * 统一命名：yyyyMMddHHmmss + 3 位序号，例如 20261106235828012.jpg。
+     * 序号在同一秒内递增；文件先以空文件原子占位，避免并发重名。
+     */
+    public static File createImageFile(File directory, String extension)
+            throws IOException {
+        if (directory == null) {
+            throw new IOException("图片目录无效");
+        }
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new IOException("无法创建图片目录");
+        }
+        String ext = extension == null || extension.isEmpty()
+                ? ".jpg"
+                : (extension.startsWith(".") ? extension : "." + extension);
+        synchronized (FILE_NAME_LOCK) {
+            String timestamp = new SimpleDateFormat(
+                    "yyyyMMddHHmmss", Locale.ROOT).format(new Date());
+            for (int sequence = 1; sequence <= 999; sequence++) {
+                String name = timestamp
+                        + String.format(Locale.ROOT, "%03d", sequence) + ext;
+                File file = new File(directory, name);
+                if (!file.exists() && file.createNewFile()) {
+                    return file;
+                }
+            }
+        }
+        throw new IOException("无法生成图片文件名");
     }
 
     public static File compressEmojiToFile(Context context,
