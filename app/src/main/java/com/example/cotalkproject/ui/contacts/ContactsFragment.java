@@ -27,6 +27,7 @@ import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
+import com.example.cotalkproject.ui.chat.ChatActivity;
 
 import java.util.List;
 
@@ -206,6 +207,8 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                         Toast.makeText(requireContext(), R.string.connect_success,
                                 Toast.LENGTH_SHORT).show();
                         loadSessions();
+                        startActivity(ChatActivity.createIntent(
+                                requireContext(), session.id, session.displayName()));
                     }
 
                     @Override

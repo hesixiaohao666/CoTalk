@@ -87,6 +87,17 @@ public class SessionDao {
         }
     }
 
+    public Session findLatestConnected() {
+        SQLiteDatabase db = helper.getReadableDatabase();
+        try (Cursor cursor = db.query(
+                TABLE, null,
+                "last_connected IS NOT NULL AND last_connected > 0",
+                null, null, null,
+                "last_connected DESC LIMIT 1")) {
+            return cursor.moveToFirst() ? map(cursor) : null;
+        }
+    }
+
     public List<Session> queryAll() {
         SQLiteDatabase db = helper.getReadableDatabase();
         List<Session> sessions = new ArrayList<>();

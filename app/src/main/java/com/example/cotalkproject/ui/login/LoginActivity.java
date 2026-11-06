@@ -37,6 +37,7 @@ public class LoginActivity extends AppCompatActivity {
     private EditText etUsername;
     private EditText etPassword;
     private CheckBox cbRemember;
+    private CheckBox cbAutoLogin;
     private Button btnLogin;
     private ProgressBar pbLogin;
     private TextView tvRegister;
@@ -61,6 +62,7 @@ public class LoginActivity extends AppCompatActivity {
         etUsername = findViewById(R.id.et_username);
         etPassword = findViewById(R.id.et_password);
         cbRemember = findViewById(R.id.cb_remember);
+        cbAutoLogin = findViewById(R.id.cb_auto_login);
         btnLogin = findViewById(R.id.btn_login);
         pbLogin = findViewById(R.id.pb_login);
         tvRegister = findViewById(R.id.tv_register);
@@ -70,12 +72,30 @@ public class LoginActivity extends AppCompatActivity {
         prefs = CoTalkApp.getInstance().getPrefs();
         userDao = new LocalUserDao(database);
 
+        setupLoginOptions();
         restoreRemembered();
+        maybeAutoLogin(savedInstanceState);
 
         btnLogin.setOnClickListener(v -> attemptLogin());
         tvRegister.setOnClickListener(v ->
                 startActivity(new Intent(this, RegisterActivity.class)));
         btnTogglePassword.setOnClickListener(v -> togglePasswordVisibility());
+    }
+
+    private void setupLoginOptions() {
+        cbAutoLogin.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (checked && !cbRemember.isChecked()) {
+                cbRemember.setChecked(true);
+            }
+            if (!checked) {
+                prefs.setAutoLogin(false);
+            }
+        });
+        cbRemember.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (!checked && cbAutoLogin.isChecked()) {
+                cbAutoLogin.setChecked(false);
+            }
+        });
     }
 
     @Override
@@ -85,7 +105,8 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void restoreRemembered() {
-        if (!prefs.isRememberPassword()) {
+        boolean autoLogin = prefs.isAutoLogin();
+        if (!prefs.isRememberPassword() && !autoLogin) {
             return;
         }
         String username = prefs.getRememberedUsername();
@@ -97,6 +118,25 @@ public class LoginActivity extends AppCompatActivity {
             etPassword.setText(password);
         }
         cbRemember.setChecked(true);
+        cbAutoLogin.setChecked(autoLogin);
+        if (autoLogin && TextUtils.isEmpty(password)) {
+            prefs.setAutoLogin(false);
+            cbAutoLogin.setChecked(false);
+        }
+    }
+
+    private void maybeAutoLogin(Bundle savedInstanceState) {
+        if (savedInstanceState != null || !prefs.isAutoLogin()) {
+            return;
+        }
+        String username = prefs.getRememberedUsername();
+        String password = prefs.getRememberedPassword();
+        if (TextUtils.isEmpty(username) || TextUtils.isEmpty(password)) {
+            prefs.setAutoLogin(false);
+            cbAutoLogin.setChecked(false);
+            return;
+        }
+        attemptLogin();
     }
 
     private void loadAccountState() {
@@ -111,7 +151,9 @@ public class LoginActivity extends AppCompatActivity {
                 }
                 if (!accountExists) {
                     prefs.clearRemembered();
+                    prefs.setAutoLogin(false);
                     cbRemember.setChecked(false);
+                    cbAutoLogin.setChecked(false);
                 }
             });
         });
@@ -159,15 +201,22 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void onLoginSuccess(LocalUser user, String password) {
+        CoTalkApp.getInstance().setAuthenticated(true);
         prefs.setCurrentUserId(user.id);
-        if (cbRemember.isChecked()) {
+        boolean remember = cbRemember.isChecked();
+        boolean autoLogin = cbAutoLogin.isChecked() && remember;
+        if (remember) {
             if (!prefs.saveCredentials(user.username, password)) {
                 prefs.clearRemembered();
+                cbRemember.setChecked(false);
+                cbAutoLogin.setChecked(false);
+                autoLogin = false;
                 toast(R.string.error_remember_password);
             }
         } else {
             prefs.clearRemembered();
         }
+        prefs.setAutoLogin(autoLogin);
 
         toast(R.string.login_success);
         startActivity(new Intent(this, MainActivity.class));
@@ -192,6 +241,7 @@ public class LoginActivity extends AppCompatActivity {
         etUsername.setEnabled(!loading);
         etPassword.setEnabled(!loading);
         cbRemember.setEnabled(!loading);
+        cbAutoLogin.setEnabled(!loading);
         btnLogin.setEnabled(!loading);
         tvRegister.setEnabled(!loading);
         btnTogglePassword.setEnabled(!loading);

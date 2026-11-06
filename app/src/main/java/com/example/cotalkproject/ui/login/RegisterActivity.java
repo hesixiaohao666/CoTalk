@@ -164,6 +164,7 @@ public class RegisterActivity extends AppCompatActivity {
                         toast(R.string.error_register_failed);
                         return;
                     }
+                    CoTalkApp.getInstance().setAuthenticated(true);
                     prefs.setCurrentUserId(1);
                     toast(R.string.register_success);
                     Intent intent = new Intent(this, MainActivity.class);
