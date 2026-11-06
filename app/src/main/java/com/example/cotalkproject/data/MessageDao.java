@@ -84,6 +84,72 @@ public class MessageDao {
         }
     }
 
+    public int updateSent(long sessionId,
+                          String clientMsgId,
+                          String msgId,
+                          long seq,
+                          String fileId,
+                          String fileName,
+                          String fileMime,
+                          long fileSize,
+                          boolean fileExpired) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("status", Message.STATUS_SENT);
+        if (msgId != null && !msgId.isEmpty()) {
+            values.put("msg_id", msgId);
+        }
+        if (seq > 0) {
+            values.put("seq", seq);
+        }
+        if (fileId != null && !fileId.isEmpty()) {
+            values.put("file_id", fileId);
+            values.put("file_name", fileName);
+            values.put("file_mime", fileMime);
+            values.put("file_size", fileSize);
+            values.put("file_expired", fileExpired ? 1 : 0);
+        }
+        try {
+            return db.update(
+                    TABLE,
+                    values,
+                    "session_id = ? AND client_msg_id = ?",
+                    new String[]{String.valueOf(sessionId), clientMsgId}
+            );
+        } catch (android.database.sqlite.SQLiteConstraintException e) {
+            db.delete(TABLE,
+                    "session_id = ? AND client_msg_id = ?",
+                    new String[]{String.valueOf(sessionId), clientMsgId});
+            return 0;
+        }
+    }
+
+    public int updateLocalPathByFileId(long sessionId,
+                                       String fileId,
+                                       String localPath) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("local_path", localPath);
+        return db.update(
+                TABLE,
+                values,
+                "session_id = ? AND file_id = ?",
+                new String[]{String.valueOf(sessionId), fileId}
+        );
+    }
+
+    public int markFileExpiredByFileId(long sessionId, String fileId) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("file_expired", 1);
+        return db.update(
+                TABLE,
+                values,
+                "session_id = ? AND file_id = ?",
+                new String[]{String.valueOf(sessionId), fileId}
+        );
+    }
+
     public void clearSession(long sessionId) {
         SQLiteDatabase db = helper.getWritableDatabase();
         db.delete(TABLE, "session_id = ?", new String[]{String.valueOf(sessionId)});
@@ -105,6 +171,12 @@ public class MessageDao {
         values.put("sender_avatar_version", message.senderAvatarVersion);
         values.put("content", message.content);
         values.put("msg_type", message.msgType);
+        values.put("file_id", message.fileId);
+        values.put("file_name", message.fileName);
+        values.put("file_mime", message.fileMime);
+        values.put("file_size", message.fileSize);
+        values.put("file_expired", message.fileExpired ? 1 : 0);
+        values.put("local_path", message.localPath);
         values.put("timestamp", message.timestamp);
         values.put("is_self", message.isSelf ? 1 : 0);
         values.put("status", message.status);
@@ -124,6 +196,13 @@ public class MessageDao {
                 cursor.getColumnIndexOrThrow("sender_avatar_version"));
         message.content = cursor.getString(cursor.getColumnIndexOrThrow("content"));
         message.msgType = cursor.getString(cursor.getColumnIndexOrThrow("msg_type"));
+        message.fileId = cursor.getString(cursor.getColumnIndexOrThrow("file_id"));
+        message.fileName = cursor.getString(cursor.getColumnIndexOrThrow("file_name"));
+        message.fileMime = cursor.getString(cursor.getColumnIndexOrThrow("file_mime"));
+        message.fileSize = cursor.getLong(cursor.getColumnIndexOrThrow("file_size"));
+        message.fileExpired = cursor.getInt(
+                cursor.getColumnIndexOrThrow("file_expired")) == 1;
+        message.localPath = cursor.getString(cursor.getColumnIndexOrThrow("local_path"));
         message.timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("timestamp"));
         message.isSelf = cursor.getInt(cursor.getColumnIndexOrThrow("is_self")) == 1;
         message.status = cursor.getInt(cursor.getColumnIndexOrThrow("status"));

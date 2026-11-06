@@ -19,6 +19,7 @@ import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.ui.widget.AvatarView;
 import com.example.cotalkproject.util.AvatarLoader;
 import com.example.cotalkproject.util.TimeUtil;
+import com.google.android.material.imageview.ShapeableImageView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,13 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         void onAvatarLongClick(String nickname);
     }
 
+    public interface MediaLoader {
+        void loadMedia(Message message,
+                       ShapeableImageView imageView,
+                       TextView placeholder,
+                       boolean emoji);
+    }
+
     private static final int TYPE_OTHER = 0;
     private static final int TYPE_SELF = 1;
     private static final int TYPE_SYSTEM = 2;
@@ -43,15 +51,18 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     private final AvatarLoader avatarLoader;
     private final OnRetryListener retryListener;
     private final OnAvatarLongClickListener avatarLongClickListener;
+    private final MediaLoader mediaLoader;
 
     public ChatAdapter(long sessionId,
                        AvatarLoader avatarLoader,
                        OnRetryListener retryListener,
-                       OnAvatarLongClickListener avatarLongClickListener) {
+                       OnAvatarLongClickListener avatarLongClickListener,
+                       MediaLoader mediaLoader) {
         this.sessionId = sessionId;
         this.avatarLoader = avatarLoader;
         this.retryListener = retryListener;
         this.avatarLongClickListener = avatarLongClickListener;
+        this.mediaLoader = mediaLoader;
     }
 
     public void setMessages(List<Message> newMessages) {
@@ -104,7 +115,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         if (holder instanceof SelfHolder) {
             SelfHolder self = (SelfHolder) holder;
             bindAvatar(self.tvAvatar, message);
-            self.tvContent.setText(message.content);
+            bindContent(self, message);
 
             if (message.status == Message.STATUS_SENDING) {
                 self.tvStatus.setText(R.string.message_sending);
@@ -126,7 +137,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                 self.tvStatus.setVisibility(View.GONE);
                 self.tvStatus.setOnClickListener(null);
             }
-            bindCopy(self.tvContent, message.content);
         } else if (holder instanceof OtherHolder) {
             OtherHolder other = (OtherHolder) holder;
             String senderName = TextUtils.isEmpty(message.senderName)
@@ -136,7 +146,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             other.tvName.setText(senderName);
             other.tvNameAi.setVisibility("ai".equals(message.msgType)
                     ? View.VISIBLE : View.GONE);
-            other.tvContent.setText(message.content);
+            bindContent(other, message);
             other.tvAvatar.setOnLongClickListener(v -> {
                 if (avatarLongClickListener != null) {
                     avatarLongClickListener.onAvatarLongClick(senderName);
@@ -144,12 +154,66 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                 }
                 return false;
             });
-            bindCopy(other.tvContent, message.content);
         } else if (holder instanceof SystemHolder) {
             SystemHolder system = (SystemHolder) holder;
             system.tvContent.setText(message.content);
             bindCopy(system.tvContent, message.content);
         }
+    }
+
+    private void bindContent(ContentHolder holder, Message message) {
+        String type = message.msgType == null ? "text" : message.msgType;
+        holder.ivMedia.setTag(null);
+        holder.ivMedia.setImageDrawable(null);
+        holder.tvContent.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
+
+        if ("image".equals(type) || "emoji".equals(type)) {
+            boolean emoji = "emoji".equals(type);
+            holder.tvContent.setOnLongClickListener(null);
+            holder.ivMedia.setVisibility(View.GONE);
+            if (message.fileExpired) {
+                showPlaceholder(holder.tvContent, R.string.file_expired);
+                return;
+            }
+            holder.ivMedia.setVisibility(View.VISIBLE);
+            holder.ivMedia.setAdjustViewBounds(true);
+            holder.ivMedia.setMaxWidth(dp(holder.itemView, emoji ? 120 : 220));
+            holder.ivMedia.setMaxHeight(dp(holder.itemView, emoji ? 120 : 260));
+            holder.tvContent.setVisibility(View.GONE);
+            if (mediaLoader == null) {
+                holder.ivMedia.setVisibility(View.GONE);
+                showPlaceholder(holder.tvContent, R.string.chat_image_unavailable);
+            } else {
+                mediaLoader.loadMedia(
+                        message, holder.ivMedia, holder.tvContent, emoji);
+            }
+            return;
+        }
+
+        holder.ivMedia.setVisibility(View.GONE);
+        holder.tvContent.setVisibility(View.VISIBLE);
+        if ("voice".equals(type)) {
+            holder.tvContent.setText(R.string.voice_message_placeholder);
+            holder.tvContent.setCompoundDrawablesWithIntrinsicBounds(
+                    R.drawable.ic_play_voice, 0, 0, 0);
+            holder.tvContent.setCompoundDrawablePadding(dp(holder.itemView, 6));
+            holder.tvContent.setOnLongClickListener(null);
+            return;
+        }
+
+        holder.tvContent.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
+        holder.tvContent.setText(message.content);
+        bindCopy(holder.tvContent, message.content);
+    }
+
+    private static void showPlaceholder(TextView view, int textRes) {
+        view.setText(textRes);
+        view.setVisibility(View.VISIBLE);
+        view.setOnLongClickListener(null);
+    }
+
+    private static int dp(View view, int value) {
+        return Math.round(view.getResources().getDisplayMetrics().density * value);
     }
 
     private void bindAvatar(AvatarView avatar, Message message) {
@@ -214,28 +278,35 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         }
     }
 
-    static class SelfHolder extends BaseHolder {
+    static class ContentHolder extends BaseHolder {
         final TextView tvContent;
+        final ShapeableImageView ivMedia;
+
+        ContentHolder(@NonNull View itemView) {
+            super(itemView);
+            tvContent = itemView.findViewById(R.id.tv_content);
+            ivMedia = itemView.findViewById(R.id.iv_media);
+        }
+    }
+
+    static class SelfHolder extends ContentHolder {
         final AvatarView tvAvatar;
         final TextView tvStatus;
 
         SelfHolder(@NonNull View itemView) {
             super(itemView);
-            tvContent = itemView.findViewById(R.id.tv_content);
             tvAvatar = itemView.findViewById(R.id.tv_avatar);
             tvStatus = itemView.findViewById(R.id.tv_status);
         }
     }
 
-    static class OtherHolder extends BaseHolder {
-        final TextView tvContent;
+    static class OtherHolder extends ContentHolder {
         final AvatarView tvAvatar;
         final TextView tvName;
         final TextView tvNameAi;
 
         OtherHolder(@NonNull View itemView) {
             super(itemView);
-            tvContent = itemView.findViewById(R.id.tv_content);
             tvAvatar = itemView.findViewById(R.id.tv_avatar);
             tvName = itemView.findViewById(R.id.tv_name);
             tvNameAi = itemView.findViewById(R.id.tv_name_ai);

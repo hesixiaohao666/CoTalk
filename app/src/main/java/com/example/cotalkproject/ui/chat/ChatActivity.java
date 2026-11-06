@@ -1,7 +1,11 @@
 package com.example.cotalkproject.ui.chat;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -12,6 +16,7 @@ import android.os.VibratorManager;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.util.Base64;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -22,7 +27,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -39,15 +49,23 @@ import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.Protocol;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.serverinfo.ServerInfoActivity;
+import com.example.cotalkproject.util.ChatFileStore;
+import com.example.cotalkproject.util.EmojiStore;
+import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.UiUtil;
+import com.google.android.material.imageview.ShapeableImageView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class ChatActivity extends AppCompatActivity implements SessionManager.ChatListener {
@@ -79,6 +97,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private TextView tvEmpty;
     private TextView tvHistoryHint;
     private TextView tvTitle;
+    private RecyclerView rvEmoji;
+    private View emojiPanel;
+    private View morePanel;
+    private EmojiStore emojiStore;
+    private EmojiAdapter emojiAdapter;
 
     private AppDatabase database;
     private MessageDao messageDao;
@@ -89,6 +112,47 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, Runnable> pendingTimeouts = new HashMap<>();
     private final Map<String, String> pendingPreviews = new HashMap<>();
+    private final Set<String> pendingFileRequests = new HashSet<>();
+    private final Set<String> failedFileRequests = new HashSet<>();
+
+    private File pendingCameraFile;
+    private Uri pendingCameraUri;
+
+    private final ActivityResultLauncher<String> galleryLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.GetContent(),
+                    uri -> {
+                        if (uri != null) {
+                            processPickedImage(uri, false);
+                        }
+                    });
+
+    private final ActivityResultLauncher<String> emojiPickerLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.GetContent(),
+                    uri -> {
+                        if (uri != null) {
+                            processPickedImage(uri, true);
+                        }
+                    });
+
+    private final ActivityResultLauncher<Uri> cameraLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.TakePicture(),
+                    success -> handleCameraResult(success));
+
+    private final ActivityResultLauncher<String> cameraPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    granted -> {
+                        if (granted) {
+                            launchCamera();
+                        } else {
+                            Toast.makeText(this,
+                                    R.string.chat_camera_permission_denied,
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
 
     private boolean historyHasMore = true;
     private boolean loadingHistory;
@@ -153,9 +217,14 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         tvBanner = findViewById(R.id.tv_connection_banner);
         tvEmpty = findViewById(R.id.tv_chat_empty);
         tvHistoryHint = findViewById(R.id.tv_history_hint);
+        rvEmoji = findViewById(R.id.rv_emoji);
+        emojiPanel = findViewById(R.id.emoji_panel);
+        morePanel = findViewById(R.id.more_panel);
 
         prefs = CoTalkApp.getInstance().getPrefs();
+        emojiStore = new EmojiStore(this);
         setupComposer();
+        setupPanels();
 
         database = CoTalkApp.getInstance().getDatabase();
         messageDao = new MessageDao(database);
@@ -169,7 +238,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 sessionId,
                 CoTalkApp.getInstance().getAvatarLoader(),
                 this::retryMessage,
-                this::insertMention);
+                this::insertMention,
+                this::loadMedia);
         rvMessages.setAdapter(adapter);
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -184,6 +254,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         });
 
         btnSend.setOnClickListener(v -> sendMessage());
+        etMessage.setOnClickListener(v -> closePanels());
         etMessage.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendMessage();
@@ -230,12 +301,86 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         updateComposerState();
     }
 
+    private void setupPanels() {
+        emojiAdapter = new EmojiAdapter(new EmojiAdapter.Listener() {
+            @Override
+            public void onAdd() {
+                emojiPickerLauncher.launch("image/*");
+            }
+
+            @Override
+            public void onEmoji(File file) {
+                closePanels();
+                sendMediaFile(file, "emoji");
+            }
+        });
+        rvEmoji.setLayoutManager(new GridLayoutManager(this, 6));
+        rvEmoji.setAdapter(emojiAdapter);
+
+        btnEmoji.setOnClickListener(v -> toggleEmojiPanel());
+        btnMore.setOnClickListener(v -> toggleMorePanel());
+        findViewById(R.id.btn_gallery).setOnClickListener(v -> {
+            closePanels();
+            galleryLauncher.launch("image/*");
+        });
+        findViewById(R.id.btn_camera).setOnClickListener(v -> {
+            closePanels();
+            requestCameraPermission();
+        });
+    }
+
+    private void toggleEmojiPanel() {
+        boolean open = emojiPanel.getVisibility() != View.VISIBLE;
+        closePanels();
+        if (!open) {
+            showKeyboard();
+            return;
+        }
+        hideKeyboard();
+        emojiAdapter.setFiles(emojiStore.list());
+        emojiPanel.setVisibility(View.VISIBLE);
+    }
+
+    private void toggleMorePanel() {
+        boolean open = morePanel.getVisibility() != View.VISIBLE;
+        closePanels();
+        if (!open) {
+            showKeyboard();
+            return;
+        }
+        hideKeyboard();
+        morePanel.setVisibility(View.VISIBLE);
+    }
+
+    private void closePanels() {
+        if (emojiPanel != null) {
+            emojiPanel.setVisibility(View.GONE);
+        }
+        if (morePanel != null) {
+            morePanel.setVisibility(View.GONE);
+        }
+    }
+
+    private void showKeyboard() {
+        etMessage.requestFocus();
+        etMessage.post(() -> {
+            InputMethodManager manager = (InputMethodManager)
+                    getSystemService(INPUT_METHOD_SERVICE);
+            if (manager != null) {
+                manager.showSoftInput(etMessage, InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
+    }
+
     private void updateComposerState() {
         if (voiceMode) {
             return;
         }
         boolean hasText = etMessage != null
                 && !TextUtils.isEmpty(etMessage.getText());
+        if (hasText) {
+            closePanels();
+        }
         etMessage.setVisibility(View.VISIBLE);
         btnHoldVoice.setVisibility(View.GONE);
         btnKeyboard.setVisibility(View.GONE);
@@ -247,6 +392,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     private void enterVoiceMode() {
         voiceMode = true;
+        closePanels();
         hideKeyboard();
         etMessage.setVisibility(View.GONE);
         btnHoldVoice.setVisibility(View.VISIBLE);
@@ -260,15 +406,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private void exitVoiceMode() {
         voiceMode = false;
         updateComposerState();
-        etMessage.requestFocus();
-        etMessage.post(() -> {
-            InputMethodManager manager = (InputMethodManager)
-                    getSystemService(INPUT_METHOD_SERVICE);
-            if (manager != null) {
-                manager.showSoftInput(etMessage,
-                        InputMethodManager.SHOW_IMPLICIT);
-            }
-        });
+        showKeyboard();
     }
 
     private void hideKeyboard() {
@@ -306,6 +444,98 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         prefs.clearDraft(sessionId);
     }
 
+    private void processPickedImage(Uri uri, boolean addEmoji) {
+        Toast.makeText(this, R.string.chat_image_compressing,
+                Toast.LENGTH_SHORT).show();
+        database.execute(() -> {
+            try {
+                File output = addEmoji
+                        ? emojiStore.add(uri)
+                        : ImageUtil.compressForChat(this, uri);
+                deleteCameraTempIfNeeded(uri);
+                database.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    if (addEmoji) {
+                        emojiAdapter.setFiles(emojiStore.list());
+                        Toast.makeText(this, R.string.chat_emoji_added,
+                                Toast.LENGTH_SHORT).show();
+                    } else {
+                        sendMediaFile(output, "image");
+                    }
+                });
+            } catch (IOException e) {
+                deleteCameraTempIfNeeded(uri);
+                String message = e.getMessage();
+                int text = message != null && message.contains("1MB")
+                        ? R.string.chat_image_too_large
+                        : R.string.chat_image_pick_failed;
+                database.runOnMain(() -> Toast.makeText(
+                        this, text, Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+
+    private void deleteCameraTempIfNeeded(Uri uri) {
+        if (pendingCameraFile == null || uri == null
+                || !"file".equalsIgnoreCase(uri.getScheme())) {
+            return;
+        }
+        if (pendingCameraFile.getAbsolutePath().equals(uri.getPath())) {
+            //noinspection ResultOfMethodCallIgnored
+            pendingCameraFile.delete();
+            pendingCameraFile = null;
+            pendingCameraUri = null;
+        }
+    }
+
+    private void requestCameraPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            launchCamera();
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    private void launchCamera() {
+        try {
+            File dir = new File(getCacheDir(), "chat_camera");
+            if (!dir.exists() && !dir.mkdirs()) {
+                throw new IOException("无法创建拍摄目录");
+            }
+            pendingCameraFile = new File(dir,
+                    "camera_" + System.currentTimeMillis() + ".jpg");
+            pendingCameraUri = FileProvider.getUriForFile(
+                    this, getPackageName() + ".fileprovider", pendingCameraFile);
+            cameraLauncher.launch(pendingCameraUri);
+        } catch (Exception e) {
+            pendingCameraFile = null;
+            pendingCameraUri = null;
+            Toast.makeText(this, R.string.chat_camera_failed,
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleCameraResult(boolean success) {
+        if (!success || pendingCameraFile == null
+                || !pendingCameraFile.isFile()) {
+            if (pendingCameraFile != null) {
+                //noinspection ResultOfMethodCallIgnored
+                pendingCameraFile.delete();
+            }
+            pendingCameraFile = null;
+            pendingCameraUri = null;
+            if (!success) {
+                Toast.makeText(this, R.string.chat_camera_failed,
+                        Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        processPickedImage(Uri.fromFile(pendingCameraFile), false);
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -330,6 +560,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (etMessage != null) {
             saveDraftNow();
         }
+        closePanels();
         sessionManager.setOpenChatSession(-1);
         markRead();
         super.onStop();
@@ -403,6 +634,208 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 }
             });
         });
+    }
+
+    private void loadMedia(Message message,
+                           ShapeableImageView imageView,
+                           TextView placeholder,
+                           boolean emoji) {
+        String token = !TextUtils.isEmpty(message.msgId)
+                ? message.msgId
+                : message.clientMsgId;
+        if (TextUtils.isEmpty(token)) {
+            token = "msg-" + message.id;
+        }
+        imageView.setTag(token);
+        imageView.setVisibility(View.VISIBLE);
+        imageView.setImageDrawable(null);
+        placeholder.setVisibility(View.GONE);
+        placeholder.setOnClickListener(null);
+
+        if (message.fileExpired) {
+            showMediaPlaceholder(imageView, placeholder,
+                    R.string.file_expired, null);
+            return;
+        }
+
+        File local = resolveLocalFile(message);
+        if (local != null) {
+            showLocalMedia(local, imageView, placeholder, token, emoji);
+            return;
+        }
+
+        String fileId = message.fileId;
+        if (TextUtils.isEmpty(fileId)) {
+            showMediaPlaceholder(imageView, placeholder,
+                    R.string.chat_image_unavailable, null);
+            return;
+        }
+        if (!sessionManager.isActive(sessionId)) {
+            failedFileRequests.add(fileId);
+            showMediaPlaceholder(imageView, placeholder,
+                    R.string.chat_image_failed, fileId);
+            return;
+        }
+        if (failedFileRequests.contains(fileId)) {
+            showMediaPlaceholder(imageView, placeholder,
+                    R.string.chat_image_failed, fileId);
+            return;
+        }
+        if (pendingFileRequests.contains(fileId)) {
+            showMediaPlaceholder(imageView, placeholder,
+                    R.string.chat_image_loading, null);
+            return;
+        }
+        showMediaPlaceholder(imageView, placeholder,
+                R.string.chat_image_loading, null);
+        requestFile(fileId);
+    }
+
+    private File resolveLocalFile(Message message) {
+        if (!TextUtils.isEmpty(message.localPath)) {
+            File local = new File(message.localPath);
+            if (local.isFile()) {
+                return local;
+            }
+        }
+        return ChatFileStore.findCached(this, message.fileId, message.fileMime);
+    }
+
+    private void showLocalMedia(File file,
+                                ShapeableImageView imageView,
+                                TextView placeholder,
+                                String token,
+                                boolean emoji) {
+        database.execute(() -> {
+            Bitmap bitmap = ImageUtil.decodeFileSampled(
+                    file, emoji ? 512 : 1600);
+            database.runOnMain(() -> {
+                if (!token.equals(imageView.getTag())) {
+                    return;
+                }
+                if (bitmap == null) {
+                    showMediaPlaceholder(imageView, placeholder,
+                            R.string.chat_image_unavailable, null);
+                    return;
+                }
+                imageView.setImageBitmap(bitmap);
+                imageView.setVisibility(View.VISIBLE);
+                placeholder.setVisibility(View.GONE);
+            });
+        });
+    }
+
+    private void showMediaPlaceholder(ShapeableImageView imageView,
+                                      TextView placeholder,
+                                      int textRes,
+                                      String retryFileId) {
+        imageView.setVisibility(View.GONE);
+        imageView.setImageDrawable(null);
+        placeholder.setVisibility(View.VISIBLE);
+        placeholder.setText(textRes);
+        if (retryFileId == null) {
+            placeholder.setOnClickListener(null);
+        } else {
+            placeholder.setOnClickListener(v -> {
+                failedFileRequests.remove(retryFileId);
+                pendingFileRequests.remove(retryFileId);
+                adapter.notifyDataSetChanged();
+            });
+        }
+    }
+
+    private void requestFile(String fileId) {
+        if (TextUtils.isEmpty(fileId)) {
+            return;
+        }
+        if (!sessionManager.isActive(sessionId)) {
+            failedFileRequests.add(fileId);
+            return;
+        }
+        pendingFileRequests.add(fileId);
+        try {
+            JSONObject data = new JSONObject();
+            data.put("fileId", fileId);
+            JSONObject frame = Protocol.frame(Protocol.FILE_REQ, data);
+            frame.put("reqId", "file|" + fileId);
+            sessionManager.sendFrame(frame, new SessionManager.SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String error) {
+                    database.runOnMain(() -> {
+                        pendingFileRequests.remove(fileId);
+                        failedFileRequests.add(fileId);
+                        adapter.notifyDataSetChanged();
+                    });
+                }
+            });
+        } catch (JSONException e) {
+            pendingFileRequests.remove(fileId);
+            failedFileRequests.add(fileId);
+        }
+    }
+
+    private void handleFileResponse(JSONObject data) {
+        String fileId = data.optString("fileId", "");
+        if (fileId.isEmpty()) {
+            return;
+        }
+        pendingFileRequests.remove(fileId);
+        if (data.optBoolean("expired", false)) {
+            failedFileRequests.remove(fileId);
+            database.execute(() -> messageDao.markFileExpiredByFileId(
+                    sessionId, fileId));
+            loadLocalMessages(false, -1);
+            return;
+        }
+
+        String encoded = data.optString("data", "");
+        String mime = data.optString("mime", "image/jpeg");
+        if (encoded.isEmpty()) {
+            failedFileRequests.add(fileId);
+            adapter.notifyDataSetChanged();
+            return;
+        }
+        database.execute(() -> {
+            try {
+                byte[] bytes = decodeBase64(encoded);
+                File file = ChatFileStore.save(this, fileId, mime, bytes);
+                messageDao.updateLocalPathByFileId(
+                        sessionId, fileId, file.getAbsolutePath());
+                database.runOnMain(() -> {
+                    failedFileRequests.remove(fileId);
+                    loadLocalMessages(false, -1);
+                });
+            } catch (Exception e) {
+                database.runOnMain(() -> {
+                    failedFileRequests.add(fileId);
+                    adapter.notifyDataSetChanged();
+                });
+            }
+        });
+    }
+
+    private static byte[] decodeBase64(String encoded) {
+        String payload = encoded;
+        int comma = payload.indexOf(',');
+        if (payload.startsWith("data:") && comma > 0) {
+            payload = payload.substring(comma + 1);
+        }
+        return Base64.decode(payload, Base64.DEFAULT);
+    }
+
+    private void handleFileRequestError(JSONObject frame) {
+        String reqId = frame.optString("reqId", "");
+        if (!reqId.startsWith("file|")) {
+            return;
+        }
+        String fileId = reqId.substring("file|".length());
+        pendingFileRequests.remove(fileId);
+        failedFileRequests.add(fileId);
+        adapter.notifyDataSetChanged();
     }
 
     private void toggleEmpty() {
@@ -506,6 +939,115 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         });
     }
 
+    private void sendMediaFile(File file, String type) {
+        if (file == null || !file.isFile()) {
+            Toast.makeText(this, R.string.chat_image_pick_failed,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!sessionManager.isActive(sessionId)) {
+            Toast.makeText(this, R.string.send_offline, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        long size = file.length();
+        if (size <= 0 || size > ImageUtil.MAX_CHAT_BYTES) {
+            Toast.makeText(this, R.string.chat_image_too_large,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String clientMsgId = "cm-" + UUID.randomUUID().toString()
+                .replace("-", "")
+                .substring(0, 16);
+        Message message = new Message();
+        message.sessionId = sessionId;
+        message.clientMsgId = clientMsgId;
+        message.senderId = sessionManager.getSelfUserId();
+        message.senderName = selfNickname;
+        message.senderAvatarVersion = sessionManager.getSelfAvatarVersion();
+        message.content = "";
+        message.msgType = type;
+        message.fileName = file.getName();
+        message.fileMime = "image/jpeg";
+        message.fileSize = size;
+        message.localPath = file.getAbsolutePath();
+        message.timestamp = System.currentTimeMillis();
+        message.isSelf = true;
+        message.status = Message.STATUS_SENDING;
+        pendingPreviews.put(clientMsgId, previewFor(type));
+
+        database.execute(() -> {
+            long id = messageDao.insert(message);
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (id == -1) {
+                    pendingPreviews.remove(clientMsgId);
+                    Toast.makeText(this, R.string.send_failed,
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                message.id = id;
+                adapter.addMessage(message);
+                toggleEmpty();
+                scrollToBottom();
+                scheduleTimeout(message);
+                sendMediaFrame(message);
+            });
+        });
+    }
+
+    private void sendMediaFrame(Message message) {
+        database.execute(() -> {
+            String dataUri;
+            try {
+                dataUri = ImageUtil.fileToDataUri(message.localPath);
+            } catch (Exception e) {
+                dataUri = "";
+            }
+            if (dataUri.isEmpty()) {
+                database.runOnMain(() -> markFailed(message.clientMsgId, false));
+                return;
+            }
+            try {
+                JSONObject data = new JSONObject();
+                data.put("content", "");
+                data.put("clientMsgId", message.clientMsgId);
+                data.put("type", message.msgType);
+                data.put("mime", message.fileMime);
+                data.put("fileName", message.fileName);
+                data.put("data", dataUri);
+                JSONObject frame = Protocol.frame(Protocol.CHAT, data);
+                frame.put("reqId", "chat-" + message.clientMsgId);
+                sessionManager.sendFrame(frame, new SessionManager.SendCallback() {
+                    @Override
+                    public void onSuccess() {
+                        // 等 message_ack。
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        markFailed(message.clientMsgId, false);
+                    }
+                });
+            } catch (JSONException e) {
+                database.runOnMain(() ->
+                        markFailed(message.clientMsgId, false));
+            }
+        });
+    }
+
+    private static String previewFor(String type) {
+        if ("emoji".equals(type)) {
+            return "[表情]";
+        }
+        if ("voice".equals(type)) {
+            return "[语音]";
+        }
+        return "[图片]";
+    }
+
     private void sendChatFrame(Message message) {
         try {
             JSONObject data = new JSONObject();
@@ -562,12 +1104,25 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (message.clientMsgId == null) {
             return;
         }
-        pendingPreviews.put(message.clientMsgId, message.content);
+        boolean media = "image".equals(message.msgType)
+                || "emoji".equals(message.msgType);
+        if (media && (TextUtils.isEmpty(message.localPath)
+                || !new File(message.localPath).isFile())) {
+            Toast.makeText(this, R.string.chat_image_unavailable,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        pendingPreviews.put(message.clientMsgId,
+                media ? previewFor(message.msgType) : message.content);
         database.execute(() -> messageDao.updateStatus(
                 sessionId, message.clientMsgId, Message.STATUS_SENDING, null, 0));
         loadLocalMessages(false, -1);
         scheduleTimeout(message);
-        sendChatFrame(message);
+        if (media) {
+            sendMediaFrame(message);
+        } else {
+            sendChatFrame(message);
+        }
     }
 
     private void handleAck(JSONObject data) {
@@ -583,9 +1138,15 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         String msgId = data.optString("msgId", "");
         long seq = data.optLong("seq", 0);
         long ts = data.optLong("ts", System.currentTimeMillis());
+        String fileId = data.optString("fileId", "");
+        String fileName = data.optString("fileName", "");
+        String fileMime = data.optString("fileMime", "");
+        long fileSize = data.optLong("fileSize", 0);
+        boolean fileExpired = data.optBoolean("fileExpired", false);
 
-        database.execute(() -> messageDao.updateStatus(
-                sessionId, clientMsgId, Message.STATUS_SENT, msgId, seq));
+        database.execute(() -> messageDao.updateSent(
+                sessionId, clientMsgId, msgId, seq,
+                fileId, fileName, fileMime, fileSize, fileExpired));
         loadLocalMessages(false, -1);
         if (preview != null) {
             sessionManager.updateLocalSummary(
@@ -607,6 +1168,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.senderAvatarVersion = data.optInt("senderAvatarVersion", 0);
         message.content = data.optString("content", "");
         message.msgType = data.optString("type", "text");
+        message.fileId = data.optString("fileId", "");
+        message.fileName = data.optString("fileName", "");
+        message.fileMime = data.optString("fileMime", "");
+        message.fileSize = data.optLong("fileSize", 0);
+        message.fileExpired = data.optBoolean("fileExpired", false);
         message.timestamp = data.optLong("ts", System.currentTimeMillis());
         message.isSelf = false;
         message.status = Message.STATUS_SENT;
@@ -669,6 +1235,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                             "senderAvatarVersion", 0);
                     message.content = object.optString("content", "");
                     message.msgType = object.optString("type", "text");
+                    message.fileId = object.optString("fileId", "");
+                    message.fileName = object.optString("fileName", "");
+                    message.fileMime = object.optString("fileMime", "");
+                    message.fileSize = object.optLong("fileSize", 0);
+                    message.fileExpired = object.optBoolean("fileExpired", false);
                     message.timestamp = object.optLong("ts", System.currentTimeMillis());
                     message.isSelf = object.optBoolean("self", false);
                     message.status = Message.STATUS_SENT;
@@ -770,6 +1341,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             }
         } else if (Protocol.HISTORY_RES.equals(type)) {
             handleHistory(frame);
+        } else if (Protocol.FILE_RES.equals(type)) {
+            JSONObject data = frame.optJSONObject("data");
+            if (data != null) {
+                handleFileResponse(data);
+            }
         } else if (Protocol.SYSTEM.equals(type)) {
             JSONObject data = frame.optJSONObject("data");
             if (data != null) {
@@ -777,6 +1353,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                         Toast.LENGTH_SHORT).show();
             }
         } else if (Protocol.ERROR.equals(type)) {
+            handleFileRequestError(frame);
             JSONObject data = frame.optJSONObject("data");
             Toast.makeText(this,
                     data == null ? "服务器错误" : data.optString("message", "服务器错误"),
@@ -797,6 +1374,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         hideBanner();
         btnSend.setEnabled(true);
         loadingHistory = false;
+        pendingFileRequests.clear();
+        failedFileRequests.clear();
         tvHistoryHint.setVisibility(View.GONE);
         loadSessionTitle();
         loadLocalMessages(true, -1);
