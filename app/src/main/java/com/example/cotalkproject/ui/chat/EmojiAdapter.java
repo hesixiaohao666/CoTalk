@@ -29,6 +29,8 @@ public class EmojiAdapter extends RecyclerView.Adapter<EmojiAdapter.Holder> {
         void onAdd();
 
         void onEmoji(File file);
+
+        void onEmojiLongPress(File file);
     }
 
     private final Listener listener;
@@ -76,6 +78,7 @@ public class EmojiAdapter extends RecyclerView.Adapter<EmojiAdapter.Holder> {
                     dp(image, 12), dp(image, 12));
             image.setImageResource(R.drawable.ic_add_image);
             image.setOnClickListener(v -> listener.onAdd());
+            image.setOnLongClickListener(null);
             return;
         }
 
@@ -85,6 +88,10 @@ public class EmojiAdapter extends RecyclerView.Adapter<EmojiAdapter.Holder> {
         image.setImageDrawable(null);
         image.setTag(file.getAbsolutePath());
         image.setOnClickListener(v -> listener.onEmoji(file));
+        image.setOnLongClickListener(v -> {
+            listener.onEmojiLongPress(file);
+            return true;
+        });
 
         ioExecutor.execute(() -> {
             Bitmap bitmap = ImageUtil.decodeFileSampled(file, 256);

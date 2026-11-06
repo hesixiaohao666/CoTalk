@@ -175,7 +175,7 @@
     <string name="chat_keyboard_button">键盘</string>
     <string name="chat_emoji_button">表情</string>
     <string name="chat_more_button">更多</string>
-    <string name="chat_hold_to_talk">按住说话</string>
+    <string name="chat_hold_to_talk">按住 说话</string>
     <string name="voice_not_implemented">语音功能暂未实装，敬请期待</string>
     <string name="chat_gallery">相册</string>
     <string name="chat_camera">拍摄</string>
@@ -186,6 +186,11 @@
     <string name="chat_image_compressing">正在处理图片…</string>
     <string name="chat_image_too_large">图片压缩后仍超过 1MB</string>
     <string name="chat_emoji_added">已添加到表情包</string>
+    <string name="chat_emoji_limit">表情包最多保存 89 张</string>
+    <string name="chat_emoji_delete_title">删除表情？</string>
+    <string name="chat_emoji_delete_message">删除后将从本机表情包中移除。</string>
+    <string name="chat_emoji_delete_action">删除</string>
+    <string name="chat_emoji_deleted">表情已删除</string>
     <string name="chat_camera_permission_denied">未获得相机权限</string>
     <string name="chat_camera_failed">拍摄失败</string>
     <string name="chat_image_pick_failed">图片读取失败</string>
