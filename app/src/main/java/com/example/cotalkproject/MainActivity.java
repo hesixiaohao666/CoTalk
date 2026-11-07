@@ -20,6 +20,7 @@ import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.about.AboutActivity;
+import com.example.cotalkproject.ui.chat.ChatActivity;
 import com.example.cotalkproject.ui.contacts.ContactsFragment;
 import com.example.cotalkproject.ui.home.HomeFragment;
 import com.example.cotalkproject.ui.login.LoginActivity;
@@ -131,7 +132,13 @@ public class MainActivity extends AppCompatActivity {
                         new SessionManager.ConnectCallback() {
                             @Override
                             public void onSuccess(Session connected) {
-                                // 自动连接成功停留在首页，不自动进入聊天。
+                                if (isFinishing() || isDestroyed()) {
+                                    return;
+                                }
+                                startActivity(ChatActivity.createIntent(
+                                        MainActivity.this,
+                                        connected.id,
+                                        connected.displayName()));
                             }
 
                             @Override
