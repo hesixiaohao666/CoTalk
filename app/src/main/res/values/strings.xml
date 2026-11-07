@@ -119,7 +119,8 @@
     <string name="about_changelog_body">更新内容：\n- 新增图片、表情包与语音消息接口占位\n- 输入栏改版，新增表情包、相册与拍摄入口\n- 新增会话草稿、自动登录与自动连接\n- 新增 7 天云端消息同步与附件容量清理</string>
     <string name="about_changelog_date">2026-11-07</string>
     <string name="about_author_title">开发信息</string>
-    <string name="about_author_placeholder">作者：何似小浩\n\nGitHub 开源仓库：\n - CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk \n - CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server </string>
+    <string name="about_author_name">作者：何似小浩</string>
+    <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>
 
     <string name="home_empty_rooms">还没有房间\n去联系人添加服务器</string>
     <string name="home_no_message">暂无消息</string>
