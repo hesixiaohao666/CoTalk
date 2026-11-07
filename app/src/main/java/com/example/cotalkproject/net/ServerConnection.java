@@ -49,6 +49,7 @@ public class ServerConnection {
     public JSONObject connectAndJoin(String nickname,
                                      String clientTag,
                                      String avatarData,
+                                     String signature,
                                      String authKey,
                                      int clientVersionCode,
                                      String clientVersionName) throws Exception {
@@ -67,6 +68,9 @@ public class ServerConnection {
         JSONObject joinData = new JSONObject();
         joinData.put("nickname", nickname);
         joinData.put("clientTag", clientTag);
+        if (signature != null && !signature.isEmpty()) {
+            joinData.put("signature", signature);
+        }
         if (socket.getLocalAddress() != null) {
             joinData.put("clientIp",
                     socket.getLocalAddress().getHostAddress());

@@ -126,6 +126,19 @@ public class SessionDao {
         );
     }
 
+    public void updateLastMessageIfLatest(long sessionId,
+                                          String message,
+                                          long time,
+                                          long seq) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.execSQL(
+                "UPDATE t_session SET last_message = ?, last_time = ?, "
+                        + "last_seq = MAX(last_seq, ?) "
+                        + "WHERE id = ? AND last_seq <= ?",
+                new Object[]{message, time, seq, sessionId, seq}
+        );
+    }
+
     public void markRead(long sessionId) {
         SQLiteDatabase db = helper.getWritableDatabase();
         db.execSQL(

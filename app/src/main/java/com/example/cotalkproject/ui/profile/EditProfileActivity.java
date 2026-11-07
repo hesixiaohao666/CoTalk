@@ -171,19 +171,22 @@ public class EditProfileActivity extends AppCompatActivity {
                 btnSave.setEnabled(true);
                 Toast.makeText(this, R.string.profile_saved,
                         Toast.LENGTH_SHORT).show();
-                sendProfileUpdate(nickname, avatarData);
+                sendProfileUpdate(nickname, signature, avatarData);
                 finish();
             });
         });
     }
 
-    private void sendProfileUpdate(String nickname, String avatarData) {
+    private void sendProfileUpdate(String nickname,
+                                   String signature,
+                                   String avatarData) {
         if (sessionManager.getActiveSessionId() <= 0) {
             return;
         }
         try {
             JSONObject data = new JSONObject();
             data.put("nickname", nickname);
+            data.put("signature", signature == null ? "" : signature);
             if (!TextUtils.isEmpty(avatarData)) {
                 data.put("avatar", avatarData);
             }
