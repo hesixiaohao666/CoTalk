@@ -48,8 +48,11 @@ public class AboutActivity extends AppCompatActivity {
                 getString(R.string.about_changelog_date)));
 
         TextView author = findViewById(R.id.tv_author);
-        Linkify.addLinks(author, Linkify.WEB_URLS);
-        author.setMovementMethod(LinkMovementMethod.getInstance());
-        author.setLinkTextColor(ContextCompat.getColor(this, R.color.blue_light));
+        author.setText(R.string.about_author_name);
+
+        TextView github = findViewById(R.id.tv_github);
+        Linkify.addLinks(github, Linkify.WEB_URLS);
+        github.setMovementMethod(LinkMovementMethod.getInstance());
+        github.setLinkTextColor(ContextCompat.getColor(this, R.color.blue_light));
     }
 }
