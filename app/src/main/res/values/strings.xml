@@ -105,18 +105,18 @@
     <string name="profile_note">本地账号仅保存在本机，聊天身份为临时游客</string>
 
     <string name="about_title">关于 CoTalk</string>
-    <string name="about_description">CoTalk 是一款基于 Android 与 Java 开发的局域网多人即时聊天应用。</string>
+    <string name="about_description">CoTalk 是一款基于 Android 与 Java 开发的轻量级局域网即时通讯应用，支持多人图文聊天与 AI 智能群聊体验。</string>
     <string name="about_version_format">版本 %1$s</string>
     <string name="about_tech_title">技术栈</string>
-    <string name="about_tech_body">客户端：Android / Java\n服务端：Java Swing\n数据存储：SQLite\n网络通信：TCP Socket</string>
+    <string name="about_tech_body">客户端：Android (Java) / XML\n服务端：Java / Swing / Headless\n数据存储：SQLite\n网络通信：TCP Socket (NDJSON)</string>
     <string name="about_identity_title">隐私与安全</string>
-    <string name="about_identity_body">您的账号信息完全保存在本机。连接服务器时，将由服务端分配临时的内部 UUID，界面将全程仅展示您的昵称，保障您的隐私安全。</string>
+    <string name="about_identity_body">您的账号信息完全保存在本机，并经过加密存储。\n连接服务器时，将由服务端分配临时的内部 UUID，界面将全程仅展示您的昵称，保障您的隐私安全。</string>
     <string name="about_ai_title">AI 功能</string>
-    <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 群友，由服务端 AI 接口驱动。\n- 被 @ 时必定回复；\n- 提到关键词时大概率参与；\n- 其他消息也可能随机参与；\n- 若服务端未启用或未配置 API Key，AI 群友将不会出现在房间中。</string>
+    <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 智能群友，由服务端 AI 接口驱动。\n- 被 @ 时必定回复；\n- 未被 @ 时，将结合上下文智能判断是否参与聊天；\n- 若服务端未启用 AI 功能或未配置 API Key，AI 群友将不会出现在房间中。</string>
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n- 新增图片、表情包与语音消息接口占位\n- 输入栏改版，新增表情包、相册与拍摄入口\n- 新增会话草稿、自动登录与自动连接\n- 新增 7 天云端消息同步与附件容量清理</string>
+    <string name="about_changelog_body">更新内容：\n- 新增图片、表情包的发送与接收功能，预留语音消息接口\n- 聊天输入栏全新改版，新增表情包、相册与拍摄面板\n- 新增会话草稿、自动登录功能，优化自动连接和跳转页面的逻辑\n- 新增 7 天云端消息同步与云端附件超出容量清理的策略\n- 修复了一些已知问题\n- 此次更新不兼容旧版本服务端，请及时升级</string>
     <string name="about_changelog_date">2026-11-07</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
