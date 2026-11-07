@@ -109,26 +109,34 @@
                     android:tint="@color/text_secondary" />
             </FrameLayout>
 
-            <CheckBox
-                android:id="@+id/cb_remember"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:buttonTint="@color/blue_ty"
-                android:paddingStart="0dp"
-                android:text="@string/remember_password"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <CheckBox
-                android:id="@+id/cb_auto_login"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:buttonTint="@color/blue_ty"
-                android:paddingStart="0dp"
-                android:text="@string/auto_login"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
+                <CheckBox
+                    android:id="@+id/cb_remember"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:buttonTint="@color/blue_ty"
+                    android:paddingStart="0dp"
+                    android:text="@string/remember_password"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+
+                <CheckBox
+                    android:id="@+id/cb_auto_login"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:buttonTint="@color/blue_ty"
+                    android:paddingStart="0dp"
+                    android:text="@string/auto_login"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_login"
