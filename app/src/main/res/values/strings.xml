@@ -206,6 +206,12 @@
     <string name="voice_message_placeholder">语音消息（暂不支持播放）</string>
     <string name="chat_mention_format">@%1$s </string>
     <string name="message_copied">消息已复制</string>
+    <string name="message_copy">复制</string>
+    <string name="message_recall">撤回</string>
+    <string name="message_recall_sending">正在撤回…</string>
+    <string name="message_recall_failed">撤回失败：%1$s</string>
+    <string name="poke_failed">拍一拍失败，请稍后再试</string>
+    <string name="chat_image_loading_failed">图片尚未加载完成</string>
     <string name="message_sending">发送中…</string>
     <string name="message_failed">发送失败，点击重试</string>
     <string name="message_empty">还没有消息，来打个招呼吧</string>

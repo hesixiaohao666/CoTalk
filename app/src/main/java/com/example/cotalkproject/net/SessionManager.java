@@ -237,6 +237,7 @@ public class SessionManager {
                         : ImageUtil.fileToDataUri(user.avatarPath);
                 JSONObject joinOk = conn.connectAndJoin(
                         user.nickname, user.clientTag, avatarData,
+                        user.signature,
                         authKey, BuildConfig.VERSION_CODE,
                         BuildConfig.VERSION_NAME);
                 if (generation != connectGeneration.get()) {
@@ -583,6 +584,11 @@ public class SessionManager {
             return;
         }
 
+        if (Protocol.MESSAGE_RECALL.equals(type)) {
+            handleMessageRecall(frame);
+            return;
+        }
+
         if (Protocol.MESSAGE_ACK.equals(type)
                 || Protocol.HISTORY_RES.equals(type)
                 || Protocol.FILE_RES.equals(type)) {
@@ -617,6 +623,48 @@ public class SessionManager {
             notifyConnectionError(message);
             notifyChatFrame(frame);
         }
+    }
+
+    private void handleMessageRecall(JSONObject frame) {
+        JSONObject data = frame.optJSONObject("data");
+        long sessionId = activeSessionId;
+        if (data == null || sessionId <= 0) {
+            return;
+        }
+        String msgId = data.optString("msgId", "");
+        String notice = data.optString("notice", "");
+        long seq = data.optLong("seq", 0);
+        long ts = data.optLong("ts", System.currentTimeMillis());
+        if (msgId.isEmpty() || notice.isEmpty()) {
+            return;
+        }
+        long clearSeq = prefs.getHistoryClearSeq(sessionId);
+        database.execute(() -> {
+            int updated = messageDao.replaceWithSystem(
+                    sessionId, msgId, notice, seq, ts);
+            if (updated == 0 && (clearSeq < 0 || seq > clearSeq)) {
+                Message recalled = new Message();
+                recalled.sessionId = sessionId;
+                recalled.msgId = msgId;
+                recalled.seq = seq;
+                recalled.senderId = "system";
+                recalled.senderName = "系统";
+                recalled.content = notice;
+                recalled.msgType = "system";
+                recalled.timestamp = ts;
+                recalled.isSelf = false;
+                recalled.status = Message.STATUS_SENT;
+                messageDao.insertOrIgnore(recalled);
+            }
+            if (seq > 0) {
+                sessionDao.updateLastMessageIfLatest(
+                        sessionId, notice, ts, seq);
+            }
+            database.runOnMain(() -> {
+                notifySessionsChanged();
+                notifyChatFrame(frame);
+            });
+        });
     }
 
     private void handleDisconnected(ServerConnection source, String reason) {

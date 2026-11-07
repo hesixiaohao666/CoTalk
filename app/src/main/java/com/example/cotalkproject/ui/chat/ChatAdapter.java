@@ -1,14 +1,13 @@
 package com.example.cotalkproject.ui.chat;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
@@ -22,7 +21,9 @@ import com.example.cotalkproject.util.TimeUtil;
 import com.google.android.material.imageview.ShapeableImageView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
@@ -32,6 +33,18 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
     public interface OnAvatarLongClickListener {
         void onAvatarLongClick(String nickname);
+    }
+
+    public interface OnAvatarDoubleClickListener {
+        void onAvatarDoubleClick(String userId, String nickname);
+    }
+
+    public interface OnMessageLongClickListener {
+        void onMessageLongClick(Message message);
+    }
+
+    public interface OnImageClickListener {
+        void onImageClick(Message message);
     }
 
     public interface MediaLoader {
@@ -51,17 +64,28 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     private final AvatarLoader avatarLoader;
     private final OnRetryListener retryListener;
     private final OnAvatarLongClickListener avatarLongClickListener;
+    private final OnAvatarDoubleClickListener avatarDoubleClickListener;
+    private final OnMessageLongClickListener messageLongClickListener;
+    private final OnImageClickListener imageClickListener;
     private final MediaLoader mediaLoader;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Map<String, Long> lastAvatarTap = new HashMap<>();
 
     public ChatAdapter(long sessionId,
                        AvatarLoader avatarLoader,
                        OnRetryListener retryListener,
                        OnAvatarLongClickListener avatarLongClickListener,
+                       OnAvatarDoubleClickListener avatarDoubleClickListener,
+                       OnMessageLongClickListener messageLongClickListener,
+                       OnImageClickListener imageClickListener,
                        MediaLoader mediaLoader) {
         this.sessionId = sessionId;
         this.avatarLoader = avatarLoader;
         this.retryListener = retryListener;
         this.avatarLongClickListener = avatarLongClickListener;
+        this.avatarDoubleClickListener = avatarDoubleClickListener;
+        this.messageLongClickListener = messageLongClickListener;
+        this.imageClickListener = imageClickListener;
         this.mediaLoader = mediaLoader;
     }
 
@@ -147,17 +171,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             other.tvNameAi.setVisibility("ai".equals(message.msgType)
                     ? View.VISIBLE : View.GONE);
             bindContent(other, message);
-            other.tvAvatar.setOnLongClickListener(v -> {
-                if (avatarLongClickListener != null) {
-                    avatarLongClickListener.onAvatarLongClick(senderName);
-                    return true;
-                }
-                return false;
-            });
         } else if (holder instanceof SystemHolder) {
             SystemHolder system = (SystemHolder) holder;
             system.tvContent.setText(message.content);
-            bindCopy(system.tvContent, message.content);
+            bindMessageLongClick(system.tvContent, message);
         }
     }
 
@@ -165,14 +182,17 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         String type = message.msgType == null ? "text" : message.msgType;
         holder.ivMedia.setTag(null);
         holder.ivMedia.setImageDrawable(null);
+        holder.ivMedia.setOnClickListener(null);
+        holder.ivMedia.setOnLongClickListener(null);
+        holder.tvContent.setOnLongClickListener(null);
         holder.tvContent.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
 
         if ("image".equals(type) || "emoji".equals(type)) {
             boolean emoji = "emoji".equals(type);
-            holder.tvContent.setOnLongClickListener(null);
             holder.ivMedia.setVisibility(View.GONE);
             if (message.fileExpired) {
                 showPlaceholder(holder.tvContent, R.string.file_expired);
+                bindMessageLongClick(holder.tvContent, message);
                 return;
             }
             holder.ivMedia.setVisibility(View.VISIBLE);
@@ -180,12 +200,19 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             holder.ivMedia.setMaxWidth(dp(holder.itemView, emoji ? 120 : 220));
             holder.ivMedia.setMaxHeight(dp(holder.itemView, emoji ? 120 : 260));
             holder.tvContent.setVisibility(View.GONE);
+            bindMessageLongClick(holder.ivMedia, message);
+            if (!emoji && imageClickListener != null) {
+                holder.ivMedia.setOnClickListener(
+                        v -> imageClickListener.onImageClick(message));
+            }
             if (mediaLoader == null) {
                 holder.ivMedia.setVisibility(View.GONE);
                 showPlaceholder(holder.tvContent, R.string.chat_image_unavailable);
+                bindMessageLongClick(holder.tvContent, message);
             } else {
                 mediaLoader.loadMedia(
                         message, holder.ivMedia, holder.tvContent, emoji);
+                bindMessageLongClick(holder.tvContent, message);
             }
             return;
         }
@@ -197,13 +224,50 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             holder.tvContent.setCompoundDrawablesWithIntrinsicBounds(
                     R.drawable.ic_play_voice, 0, 0, 0);
             holder.tvContent.setCompoundDrawablePadding(dp(holder.itemView, 6));
-            holder.tvContent.setOnLongClickListener(null);
+            bindMessageLongClick(holder.tvContent, message);
             return;
         }
 
-        holder.tvContent.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
         holder.tvContent.setText(message.content);
-        bindCopy(holder.tvContent, message.content);
+        bindMessageLongClick(holder.tvContent, message);
+    }
+
+    private void bindMessageLongClick(View view, Message message) {
+        view.setOnLongClickListener(v -> {
+            if (messageLongClickListener != null) {
+                messageLongClickListener.onMessageLongClick(message);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private void bindAvatarGestures(AvatarView avatar, Message message) {
+        String nickname = TextUtils.isEmpty(message.senderName)
+                ? avatar.getContext().getString(R.string.member_default)
+                : message.senderName;
+        String userId = message.senderId;
+        avatar.setOnClickListener(v -> {
+            if (TextUtils.isEmpty(userId) || avatarDoubleClickListener == null) {
+                return;
+            }
+            long now = SystemClock.elapsedRealtime();
+            Long last = lastAvatarTap.get(userId);
+            if (last != null && now - last <= 320L) {
+                lastAvatarTap.remove(userId);
+                avatarDoubleClickListener.onAvatarDoubleClick(userId, nickname);
+            } else {
+                lastAvatarTap.put(userId, now);
+                mainHandler.postDelayed(() -> lastAvatarTap.remove(userId), 350L);
+            }
+        });
+        avatar.setOnLongClickListener(v -> {
+            if (avatarLongClickListener != null) {
+                avatarLongClickListener.onAvatarLongClick(nickname);
+                return true;
+            }
+            return false;
+        });
     }
 
     private static void showPlaceholder(TextView view, int textRes) {
@@ -217,6 +281,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     }
 
     private void bindAvatar(AvatarView avatar, Message message) {
+        bindAvatarGestures(avatar, message);
         avatar.setAvatar(message.senderName, null);
         String token = message.msgId != null ? message.msgId : message.clientMsgId;
         avatar.setTag(token);
@@ -248,20 +313,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         } else {
             holder.tvTime.setVisibility(View.GONE);
         }
-    }
-
-    private void bindCopy(TextView view, String content) {
-        view.setOnLongClickListener(v -> {
-            Context context = v.getContext();
-            ClipboardManager manager = (ClipboardManager) context.getSystemService(
-                    Context.CLIPBOARD_SERVICE);
-            if (manager != null) {
-                manager.setPrimaryClip(ClipData.newPlainText("CoTalk", content));
-                Toast.makeText(context, R.string.message_copied,
-                        Toast.LENGTH_SHORT).show();
-            }
-            return true;
-        });
     }
 
     @Override

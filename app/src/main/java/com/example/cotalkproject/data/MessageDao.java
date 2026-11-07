@@ -124,6 +124,35 @@ public class MessageDao {
         }
     }
 
+    public int replaceWithSystem(long sessionId,
+                                 String msgId,
+                                 String notice,
+                                 long seq,
+                                 long timestamp) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("content", notice);
+        values.put("msg_type", "system");
+        values.put("file_id", (String) null);
+        values.put("file_name", (String) null);
+        values.put("file_mime", (String) null);
+        values.put("file_size", 0);
+        values.put("file_expired", 0);
+        values.put("local_path", (String) null);
+        values.put("timestamp", timestamp);
+        values.put("is_self", 0);
+        values.put("status", Message.STATUS_SENT);
+        if (seq > 0) {
+            values.put("seq", seq);
+        }
+        return db.update(
+                TABLE,
+                values,
+                "session_id = ? AND msg_id = ?",
+                new String[]{String.valueOf(sessionId), msgId}
+        );
+    }
+
     public int updateLocalPathByFileId(long sessionId,
                                        String fileId,
                                        String localPath) {

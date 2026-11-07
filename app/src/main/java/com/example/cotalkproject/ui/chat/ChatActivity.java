@@ -1,10 +1,15 @@
 package com.example.cotalkproject.ui.chat;
 
 import android.Manifest;
+import android.app.Dialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,11 +23,14 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Base64;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -62,6 +70,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -77,6 +86,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private static final int HISTORY_LIMIT = 50;
     private static final int MAX_MESSAGE_LENGTH = 500;
     private static final long SEND_TIMEOUT_MS = 10_000L;
+    private static final long RECALL_WINDOW_MS = 2 * 60 * 1000L;
 
     private long sessionId;
     private String roomName;
@@ -240,6 +250,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 CoTalkApp.getInstance().getAvatarLoader(),
                 this::retryMessage,
                 this::insertMention,
+                this::pokeUser,
+                this::showMessageActions,
+                this::showImageFullscreen,
                 this::loadMedia);
         rvMessages.setAdapter(adapter);
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -255,7 +268,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         });
 
         btnSend.setOnClickListener(v -> sendMessage());
-        etMessage.setOnClickListener(v -> closePanels());
+        etMessage.setOnClickListener(v -> {
+            closePanels();
+            showKeyboard();
+        });
         etMessage.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendMessage();
@@ -311,7 +327,6 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
             @Override
             public void onEmoji(File file) {
-                closePanels();
                 sendMediaFile(file, "emoji");
             }
 
@@ -325,14 +340,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
         btnEmoji.setOnClickListener(v -> toggleEmojiPanel());
         btnMore.setOnClickListener(v -> toggleMorePanel());
-        findViewById(R.id.btn_gallery).setOnClickListener(v -> {
-            closePanels();
-            galleryLauncher.launch("image/*");
-        });
-        findViewById(R.id.btn_camera).setOnClickListener(v -> {
-            closePanels();
-            requestCameraPermission();
-        });
+        findViewById(R.id.btn_gallery).setOnClickListener(v ->
+                galleryLauncher.launch("image/*"));
+        findViewById(R.id.btn_camera).setOnClickListener(v ->
+                requestCameraPermission());
     }
 
     private void confirmDeleteEmoji(File file) {
@@ -589,7 +600,6 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (etMessage != null) {
             saveDraftNow();
         }
-        closePanels();
         sessionManager.setOpenChatSession(-1);
         markRead();
         super.onStop();
@@ -639,9 +649,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 if (session != null && !TextUtils.isEmpty(session.displayName())) {
                     roomName = session.displayName();
                 }
-                tvTitle.setText(session != null && session.aiEnabled
-                        ? getString(R.string.chat_title_ai_format, roomName)
-                        : roomName);
+                tvTitle.setText(roomName);
             });
         });
     }
@@ -893,6 +901,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 ? getString(R.string.member_default)
                 : nickname;
         String mention = getString(R.string.chat_mention_format, name);
+        if (!mention.endsWith(" ")) {
+            mention += " ";
+        }
         Editable editable = etMessage.getText();
         int start = etMessage.getSelectionStart();
         if (start < 0) {
@@ -910,6 +921,154 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             if (manager != null) {
                 manager.showSoftInput(etMessage, InputMethodManager.SHOW_IMPLICIT);
             }
+        });
+    }
+
+    private void pokeUser(String userId, String nickname) {
+        if (TextUtils.isEmpty(userId)) {
+            return;
+        }
+        if (!sessionManager.isActive(sessionId)) {
+            Toast.makeText(this, R.string.send_offline, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("targetId", userId);
+            JSONObject frame = Protocol.frame(Protocol.POKE_REQ, data);
+            frame.put("reqId", "poke-" + System.currentTimeMillis());
+            sessionManager.sendFrame(frame, new SessionManager.SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String error) {
+                    Toast.makeText(ChatActivity.this,
+                            R.string.poke_failed, Toast.LENGTH_SHORT).show();
+                }
+            });
+        } catch (JSONException e) {
+            Toast.makeText(this, R.string.poke_failed, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showMessageActions(Message message) {
+        String type = message.msgType == null ? "text" : message.msgType;
+        boolean system = "system".equals(type);
+        boolean canCopy = !TextUtils.isEmpty(message.content)
+                && ("text".equals(type) || "ai".equals(type) || system);
+        boolean canRecall = message.isSelf
+                && !system
+                && !TextUtils.isEmpty(message.msgId)
+                && message.status == Message.STATUS_SENT
+                && System.currentTimeMillis() - message.timestamp
+                <= RECALL_WINDOW_MS;
+        if (!canCopy && !canRecall) {
+            return;
+        }
+
+        ArrayList<String> labels = new ArrayList<>();
+        if (canCopy) {
+            labels.add(getString(R.string.message_copy));
+        }
+        if (canRecall) {
+            labels.add(getString(R.string.message_recall));
+        }
+        new AlertDialog.Builder(this)
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> {
+                    if (canCopy && which == 0) {
+                        copyMessage(message);
+                    } else {
+                        requestRecall(message);
+                    }
+                })
+                .show();
+    }
+
+    private void copyMessage(Message message) {
+        ClipboardManager manager = (ClipboardManager)
+                getSystemService(CLIPBOARD_SERVICE);
+        if (manager != null) {
+            manager.setPrimaryClip(ClipData.newPlainText(
+                    "CoTalk", message.content));
+            Toast.makeText(this, R.string.message_copied,
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void requestRecall(Message message) {
+        if (!sessionManager.isActive(sessionId)) {
+            Toast.makeText(this, R.string.send_offline, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("msgId", message.msgId);
+            JSONObject frame = Protocol.frame(Protocol.RECALL_REQ, data);
+            frame.put("reqId", "recall-" + System.currentTimeMillis());
+            sessionManager.sendFrame(frame, new SessionManager.SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String error) {
+                    Toast.makeText(ChatActivity.this,
+                            getString(R.string.message_recall_failed, error),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        } catch (JSONException e) {
+            Toast.makeText(this,
+                    getString(R.string.message_recall_failed, ""),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showImageFullscreen(Message message) {
+        if (!"image".equals(message.msgType) || message.fileExpired) {
+            return;
+        }
+        File file = resolveLocalFile(message);
+        if (file == null) {
+            Toast.makeText(this, R.string.chat_image_loading,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        database.execute(() -> {
+            Bitmap bitmap = ImageUtil.decodeFileSampled(file, 2048);
+            database.runOnMain(() -> {
+                if (bitmap == null || isFinishing() || isDestroyed()) {
+                    if (bitmap != null) {
+                        bitmap.recycle();
+                    }
+                    Toast.makeText(this, R.string.chat_image_loading_failed,
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                Dialog dialog = new Dialog(this,
+                        android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+                ImageView imageView = new ImageView(this);
+                imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                imageView.setBackgroundColor(Color.BLACK);
+                imageView.setImageBitmap(bitmap);
+                imageView.setOnClickListener(v -> dialog.dismiss());
+                dialog.setContentView(imageView,
+                        new ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT));
+                dialog.setOnDismissListener(d -> bitmap.recycle());
+                dialog.show();
+                Window window = dialog.getWindow();
+                if (window != null) {
+                    window.setBackgroundDrawable(
+                            new ColorDrawable(Color.BLACK));
+                    window.setLayout(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT);
+                }
+            });
         });
     }
 
@@ -1375,6 +1534,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             if (data != null) {
                 handleFileResponse(data);
             }
+        } else if (Protocol.MESSAGE_RECALL.equals(type)) {
+            loadLocalMessages(false, -1);
         } else if (Protocol.SYSTEM.equals(type)) {
             JSONObject data = frame.optJSONObject("data");
             if (data != null) {
