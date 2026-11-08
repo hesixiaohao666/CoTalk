@@ -106,8 +106,8 @@
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n- 新增语音消息录制、发送与播放功能\n- 新增表情包保存、图片双指缩放与保存到相册\n- 新增房间自定义头像\n- 支持 AI 群友读取系统消息与识图开关\n- 新增登录后自动连接、自动保存草稿等设置项\n- 发送失败时显示红色提示并支持点击重发\n- 优化设置页与“我的”页面布局\n- 兼容 3100 协议服务端\n- 修复了一些已知问题</string>
-    <string name="about_changelog_date">2026-11-08</string>
+    <string name="about_changelog_body">更新内容：\n- 新增语音消息：支持长按录音发送（上滑取消）、点击播放/暂停、聊天气泡显示语音时长\n- 新增功能：长按表情包可选择保存到表情面板，图片全屏页面下支持双指缩放、长按可选择保存到相册\n- 优化设置项：新增登录后自动连接、自动保存草稿开关，深色模式实验性功能，调整设置页面的展示顺序\n- 优化聊天体验：发送失败时聊天气泡显示红色图标，点击可重新发送\n- 优化服务端：AI 群友支持读取系统消息，支持自定义房间头像\n- 修复了一些已知问题\n- 此次更新兼容 v0.3.1(beta) 版本的客户端与服务端</string>
+    <string name="about_changelog_date">2026-11-09</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
     <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>
