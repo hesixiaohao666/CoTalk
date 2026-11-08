@@ -964,7 +964,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 && message.status == Message.STATUS_SENT
                 && System.currentTimeMillis() - message.timestamp
                 <= RECALL_WINDOW_MS;
-        if (!canCopy && !canRecall) {
+        if (!canRecall) {
+            if (canCopy) {
+                copyMessage(message);
+            }
             return;
         }
 
@@ -972,12 +975,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (canCopy) {
             labels.add(getString(R.string.message_copy));
         }
-        if (canRecall) {
-            labels.add(getString(R.string.message_recall));
-        }
+        labels.add(getString(R.string.message_recall));
+        final boolean copyFirst = canCopy;
         new AlertDialog.Builder(this)
                 .setItems(labels.toArray(new String[0]), (dialog, which) -> {
-                    if (canCopy && which == 0) {
+                    if (copyFirst && which == 0) {
                         copyMessage(message);
                     } else {
                         requestRecall(message);
