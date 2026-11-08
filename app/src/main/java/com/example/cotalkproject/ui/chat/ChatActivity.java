@@ -31,7 +31,6 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -59,9 +58,11 @@ import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.Protocol;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.serverinfo.ServerInfoActivity;
+import com.example.cotalkproject.ui.widget.ZoomImageView;
 import com.example.cotalkproject.util.ChatFileStore;
 import com.example.cotalkproject.util.EmojiStore;
 import com.example.cotalkproject.util.ImageUtil;
+import com.example.cotalkproject.util.MediaSaver;
 import com.example.cotalkproject.util.UiUtil;
 import com.example.cotalkproject.util.VoicePlayer;
 import com.example.cotalkproject.util.VoiceRecorder;
@@ -144,8 +145,25 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private float voiceDownRawY;
     private Runnable voiceTimerRunnable;
     private Message pendingVoicePlayback;
+    private Message pendingEmojiSave;
+    private File pendingSaveImageFile;
     private String playingVoiceKey = "";
     private String pausedVoiceKey = "";
+
+    private final ActivityResultLauncher<String> storagePermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    granted -> {
+                        File pending = pendingSaveImageFile;
+                        pendingSaveImageFile = null;
+                        if (granted && pending != null) {
+                            saveImageFile(pending);
+                        } else if (!granted) {
+                            Toast.makeText(this,
+                                    R.string.chat_storage_permission_denied,
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
 
     private final ActivityResultLauncher<String> recordAudioPermissionLauncher =
             registerForActivityResult(
@@ -900,6 +918,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     protected void onStop() {
         cancelVoiceRecording();
         stopVoicePlayback();
+        pendingEmojiSave = null;
+        pendingSaveImageFile = null;
         if (etMessage != null) {
             saveDraftNow();
         }
@@ -1136,6 +1156,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 Toast.makeText(this, R.string.chat_voice_unavailable,
                         Toast.LENGTH_SHORT).show();
             }
+            if (pendingEmojiSave != null
+                    && fileId.equals(pendingEmojiSave.fileId)) {
+                pendingEmojiSave = null;
+                Toast.makeText(this, R.string.chat_emoji_unavailable,
+                        Toast.LENGTH_SHORT).show();
+            }
             database.execute(() -> messageDao.markFileExpiredByFileId(
                     sessionId, fileId));
             loadLocalMessages(false, -1);
@@ -1152,6 +1178,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 Toast.makeText(this, R.string.chat_voice_unavailable,
                         Toast.LENGTH_SHORT).show();
             }
+            if (pendingEmojiSave != null
+                    && fileId.equals(pendingEmojiSave.fileId)) {
+                pendingEmojiSave = null;
+                Toast.makeText(this, R.string.chat_emoji_unavailable,
+                        Toast.LENGTH_SHORT).show();
+            }
             adapter.notifyDataSetChanged();
             return;
         }
@@ -1163,12 +1195,20 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                         sessionId, fileId, file.getAbsolutePath());
                 database.runOnMain(() -> {
                     failedFileRequests.remove(fileId);
-                    Message pending = pendingVoicePlayback;
-                    if (pending != null && fileId.equals(pending.fileId)) {
+                    Message pendingEmoji = pendingEmojiSave;
+                    if (pendingEmoji != null
+                            && fileId.equals(pendingEmoji.fileId)) {
+                        pendingEmojiSave = null;
+                        pendingEmoji.localPath = file.getAbsolutePath();
+                        saveEmojiFile(file);
+                    }
+                    Message pendingVoice = pendingVoicePlayback;
+                    if (pendingVoice != null
+                            && fileId.equals(pendingVoice.fileId)) {
                         pendingVoicePlayback = null;
-                        pending.localPath = file.getAbsolutePath();
+                        pendingVoice.localPath = file.getAbsolutePath();
                         loadLocalMessages(false, -1);
-                        playVoice(pending);
+                        playVoice(pendingVoice);
                     } else {
                         loadLocalMessages(false, -1);
                     }
@@ -1203,6 +1243,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 && fileId.equals(pendingVoicePlayback.fileId)) {
             pendingVoicePlayback = null;
             Toast.makeText(this, R.string.chat_voice_unavailable,
+                    Toast.LENGTH_SHORT).show();
+        }
+        if (pendingEmojiSave != null
+                && fileId.equals(pendingEmojiSave.fileId)) {
+            pendingEmojiSave = null;
+            Toast.makeText(this, R.string.chat_emoji_unavailable,
                     Toast.LENGTH_SHORT).show();
         }
         adapter.notifyDataSetChanged();
@@ -1291,34 +1337,103 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         boolean system = "system".equals(type);
         boolean canCopy = !TextUtils.isEmpty(message.content)
                 && ("text".equals(type) || "ai".equals(type) || system);
+        boolean canSaveEmoji = "emoji".equals(type) && !message.fileExpired;
         boolean canRecall = message.isSelf
                 && !system
                 && !TextUtils.isEmpty(message.msgId)
                 && message.status == Message.STATUS_SENT
                 && System.currentTimeMillis() - message.timestamp
                 <= RECALL_WINDOW_MS;
-        if (!canRecall) {
-            if (canCopy) {
-                copyMessage(message);
-            }
+
+        if (!canCopy && !canSaveEmoji && !canRecall) {
+            return;
+        }
+        // 保留旧体验：只有复制一个动作时直接复制，不弹菜单。
+        if (canCopy && !canSaveEmoji && !canRecall) {
+            copyMessage(message);
             return;
         }
 
+        final int actionCopy = 1;
+        final int actionSaveEmoji = 2;
+        final int actionRecall = 3;
         ArrayList<String> labels = new ArrayList<>();
+        ArrayList<Integer> actions = new ArrayList<>();
         if (canCopy) {
             labels.add(getString(R.string.message_copy));
+            actions.add(actionCopy);
         }
-        labels.add(getString(R.string.message_recall));
-        final boolean copyFirst = canCopy;
+        if (canSaveEmoji) {
+            labels.add(getString(R.string.chat_emoji_save));
+            actions.add(actionSaveEmoji);
+        }
+        if (canRecall) {
+            labels.add(getString(R.string.message_recall));
+            actions.add(actionRecall);
+        }
         new AlertDialog.Builder(this)
                 .setItems(labels.toArray(new String[0]), (dialog, which) -> {
-                    if (copyFirst && which == 0) {
+                    int action = actions.get(which);
+                    if (action == actionCopy) {
                         copyMessage(message);
-                    } else {
+                    } else if (action == actionSaveEmoji) {
+                        saveEmojiMessage(message);
+                    } else if (action == actionRecall) {
                         requestRecall(message);
                     }
                 })
                 .show();
+    }
+
+    private void saveEmojiMessage(Message message) {
+        if (message == null || message.fileExpired) {
+            Toast.makeText(this, R.string.chat_emoji_unavailable,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        File local = resolveLocalFile(message);
+        if (local != null) {
+            saveEmojiFile(local);
+            return;
+        }
+        if (!sessionManager.isActive(sessionId)
+                || TextUtils.isEmpty(message.fileId)) {
+            Toast.makeText(this, R.string.chat_emoji_unavailable,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        pendingEmojiSave = message;
+        failedFileRequests.remove(message.fileId);
+        if (!pendingFileRequests.contains(message.fileId)) {
+            requestFile(message.fileId);
+        }
+        Toast.makeText(this, R.string.chat_emoji_saving,
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveEmojiFile(File source) {
+        database.execute(() -> {
+            try {
+                emojiStore.importFile(source);
+                database.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    emojiAdapter.setFiles(emojiStore.list());
+                    Toast.makeText(this, R.string.chat_emoji_saved,
+                            Toast.LENGTH_SHORT).show();
+                });
+            } catch (IOException e) {
+                int text = EmojiStore.ERROR_LIMIT.equals(e.getMessage())
+                        ? R.string.chat_emoji_limit
+                        : R.string.chat_emoji_save_failed;
+                database.runOnMain(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
 
     private void copyMessage(Message message) {
@@ -1384,11 +1499,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 }
                 Dialog dialog = new Dialog(this,
                         android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-                ImageView imageView = new ImageView(this);
-                imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                imageView.setBackgroundColor(Color.BLACK);
+                ZoomImageView imageView = new ZoomImageView(this);
                 imageView.setImageBitmap(bitmap);
                 imageView.setOnClickListener(v -> dialog.dismiss());
+                imageView.setOnLongPressListener(() ->
+                        showImageSaveDialog(file));
                 dialog.setContentView(imageView,
                         new ViewGroup.LayoutParams(
                                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1403,7 +1518,49 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT);
                 }
+                imageView.post(imageView::resetMatrix);
             });
+        });
+    }
+
+    private void showImageSaveDialog(File file) {
+        new AlertDialog.Builder(this)
+                .setItems(new String[]{getString(R.string.chat_image_save)},
+                        (dialog, which) -> saveImageToGallery(file))
+                .show();
+    }
+
+    private void saveImageToGallery(File file) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                && ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            pendingSaveImageFile = file;
+            storagePermissionLauncher.launch(
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            return;
+        }
+        saveImageFile(file);
+    }
+
+    private void saveImageFile(File file) {
+        database.execute(() -> {
+            try {
+                MediaSaver.saveImageToGallery(this, file);
+                database.runOnMain(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        Toast.makeText(this, R.string.chat_image_saved,
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (Exception e) {
+                database.runOnMain(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        Toast.makeText(this, R.string.chat_image_save_failed,
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
         });
     }
 
@@ -1917,6 +2074,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         pendingFileRequests.clear();
         failedFileRequests.clear();
         pendingVoicePlayback = null;
+        pendingEmojiSave = null;
         tvHistoryHint.setVisibility(View.GONE);
         loadSessionTitle();
         loadLocalMessages(true, -1);

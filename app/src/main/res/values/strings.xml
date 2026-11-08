@@ -207,6 +207,11 @@
     <string name="chat_image_compressing">正在处理图片…</string>
     <string name="chat_image_too_large">图片压缩后仍超过 1MB</string>
     <string name="chat_emoji_added">已添加到表情包</string>
+    <string name="chat_emoji_save">保存表情包</string>
+    <string name="chat_emoji_saving">正在保存表情…</string>
+    <string name="chat_emoji_saved">表情已保存</string>
+    <string name="chat_emoji_save_failed">保存表情失败</string>
+    <string name="chat_emoji_unavailable">表情不可用</string>
     <string name="chat_emoji_limit">表情包最多保存 89 张</string>
     <string name="chat_emoji_delete_title">删除表情？</string>
     <string name="chat_emoji_delete_message">删除后将从本机表情包中移除。</string>
@@ -224,6 +229,10 @@
     <string name="message_recall_failed">撤回失败：%1$s</string>
     <string name="poke_failed">拍一拍失败，请稍后再试</string>
     <string name="chat_image_loading_failed">图片尚未加载完成</string>
+    <string name="chat_image_save">保存图片</string>
+    <string name="chat_image_saved">已保存到 Pictures/CoTalk</string>
+    <string name="chat_image_save_failed">保存图片失败</string>
+    <string name="chat_storage_permission_denied">未获得存储权限</string>
     <string name="message_sending">发送中…</string>
     <string name="message_failed">发送失败，点击重试</string>
     <string name="message_empty">还没有消息，来打个招呼吧</string>
