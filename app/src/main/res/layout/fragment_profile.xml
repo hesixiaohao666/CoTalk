@@ -140,14 +140,5 @@
                 android:textSize="16sp" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:gravity="center"
-            android:text="@string/profile_note"
-            android:textColor="@color/text_hint"
-            android:textSize="12sp" />
-
     </LinearLayout>
 </ScrollView>
