@@ -19,6 +19,8 @@ public class Session {
     public boolean aiEnabled;
     public String serverVersionName = "";
     public int serverVersionCode;
+    public String roomAvatarId = "";
+    public int roomAvatarVersion;
 
     public String endpoint() {
         return host + ":" + port;

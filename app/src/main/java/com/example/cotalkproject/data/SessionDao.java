@@ -32,7 +32,9 @@ public class SessionDao {
                           long lastConnected,
                           boolean aiEnabled,
                           String serverVersionName,
-                          int serverVersionCode) {
+                          int serverVersionCode,
+                          String roomAvatarId,
+                          int roomAvatarVersion) {
         SQLiteDatabase db = helper.getWritableDatabase();
         Session existing = getByHostPort(host, port);
 
@@ -46,6 +48,9 @@ public class SessionDao {
         values.put("server_version_name",
                 serverVersionName == null ? "" : serverVersionName);
         values.put("server_version_code", Math.max(0, serverVersionCode));
+        values.put("room_avatar_id",
+                roomAvatarId == null ? "" : roomAvatarId);
+        values.put("room_avatar_version", Math.max(0, roomAvatarVersion));
 
         if (existing == null) {
             values.put("last_seq", lastSeq);
@@ -181,6 +186,10 @@ public class SessionDao {
                 cursor.getColumnIndexOrThrow("server_version_name"));
         session.serverVersionCode = cursor.getInt(
                 cursor.getColumnIndexOrThrow("server_version_code"));
+        session.roomAvatarId = cursor.getString(
+                cursor.getColumnIndexOrThrow("room_avatar_id"));
+        session.roomAvatarVersion = cursor.getInt(
+                cursor.getColumnIndexOrThrow("room_avatar_version"));
         return session;
     }
 }

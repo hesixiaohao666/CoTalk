@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 public class AppDatabase extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "cotalk.db";
-    private static final int DB_VERSION = 4;
+    private static final int DB_VERSION = 5;
 
     private static volatile AppDatabase instance;
 
@@ -87,6 +87,8 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "ai_enabled INTEGER NOT NULL DEFAULT 0, "
                 + "server_version_name TEXT NOT NULL DEFAULT '', "
                 + "server_version_code INTEGER NOT NULL DEFAULT 0, "
+                + "room_avatar_id TEXT NOT NULL DEFAULT '', "
+                + "room_avatar_version INTEGER NOT NULL DEFAULT 0, "
                 + "UNIQUE(host, port)"
                 + ")");
 
@@ -153,6 +155,12 @@ public class AppDatabase extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE t_message ADD COLUMN "
                     + "file_expired INTEGER NOT NULL DEFAULT 0");
             db.execSQL("ALTER TABLE t_message ADD COLUMN local_path TEXT");
+        }
+        if (oldVersion < 5) {
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "room_avatar_id TEXT NOT NULL DEFAULT ''");
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "room_avatar_version INTEGER NOT NULL DEFAULT 0");
         }
     }
 

@@ -258,6 +258,10 @@ public class SessionManager {
                 String roomName = room == null ? "" : room.optString("name", "");
                 String announcement = room == null ? "" : room.optString("announcement", "");
                 long lastSeq = room == null ? 0 : room.optLong("lastSeq", 0);
+                String roomAvatarId = room == null
+                        ? "" : room.optString("avatarId", "");
+                int roomAvatarVersion = room == null
+                        ? 0 : room.optInt("avatarVersion", 0);
 
                 String lastMessage = null;
                 long lastTime = 0;
@@ -285,7 +289,8 @@ public class SessionManager {
                 Session session = sessionDao.upsert(
                         host, port, roomName, announcement, lastSeq,
                         lastMessage, lastTime, System.currentTimeMillis(),
-                        aiEnabled, serverVersionName, serverVersionCode);
+                        aiEnabled, serverVersionName, serverVersionCode,
+                        roomAvatarId, roomAvatarVersion);
                 if (session == null) {
                     throw new IllegalStateException("保存会话失败");
                 }
