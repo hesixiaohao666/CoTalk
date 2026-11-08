@@ -84,6 +84,19 @@ public class MessageDao {
         }
     }
 
+    public int markAllSendingFailed(long sessionId) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("status", Message.STATUS_FAILED);
+        return db.update(
+                TABLE,
+                values,
+                "session_id = ? AND status = ?",
+                new String[]{String.valueOf(sessionId),
+                        String.valueOf(Message.STATUS_SENDING)}
+        );
+    }
+
     public int updateSent(long sessionId,
                           String clientMsgId,
                           String msgId,

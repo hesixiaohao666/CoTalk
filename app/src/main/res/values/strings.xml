@@ -66,6 +66,10 @@
     <string name="settings_data">数据</string>
     <string name="settings_account">账号</string>
     <string name="auto_reconnect">自动重连</string>
+    <string name="auto_connect_after_login">登录后自动连接</string>
+    <string name="auto_save_draft">自动保存草稿</string>
+    <string name="dark_mode">深色模式</string>
+    <string name="dark_mode_not_available">深色模式暂未实装，敬请期待</string>
     <string name="message_notify">消息提示</string>
     <string name="clear_history">清除聊天记录</string>
     <string name="remove_all_servers">移除所有服务器</string>
@@ -244,6 +248,7 @@
     <string name="message_too_long">消息最多 500 字</string>
     <string name="send_offline">当前离线，无法发送</string>
     <string name="send_failed">发送失败</string>
+    <string name="send_failed_connection">发送失败 请检查服务器连接</string>
     <string name="send_timeout">发送超时，点击重试</string>
 
     <string name="test">【(TEST)测试】</string>

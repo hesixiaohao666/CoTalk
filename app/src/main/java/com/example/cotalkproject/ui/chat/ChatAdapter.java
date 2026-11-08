@@ -7,6 +7,7 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -177,12 +178,13 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                         self.itemView.getContext(), R.color.text_hint));
                 self.tvStatus.setVisibility(View.VISIBLE);
                 self.tvStatus.setOnClickListener(null);
+                self.ivFailed.setVisibility(View.GONE);
+                self.ivFailed.setOnClickListener(null);
             } else if (message.status == Message.STATUS_FAILED) {
-                self.tvStatus.setText(R.string.message_failed);
-                self.tvStatus.setTextColor(ContextCompat.getColor(
-                        self.itemView.getContext(), R.color.danger));
-                self.tvStatus.setVisibility(View.VISIBLE);
-                self.tvStatus.setOnClickListener(v -> {
+                self.tvStatus.setVisibility(View.GONE);
+                self.tvStatus.setOnClickListener(null);
+                self.ivFailed.setVisibility(View.VISIBLE);
+                self.ivFailed.setOnClickListener(v -> {
                     if (retryListener != null) {
                         retryListener.onRetry(message);
                     }
@@ -190,6 +192,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             } else {
                 self.tvStatus.setVisibility(View.GONE);
                 self.tvStatus.setOnClickListener(null);
+                self.ivFailed.setVisibility(View.GONE);
+                self.ivFailed.setOnClickListener(null);
             }
         } else if (holder instanceof OtherHolder) {
             OtherHolder other = (OtherHolder) holder;
@@ -405,11 +409,13 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     static class SelfHolder extends ContentHolder {
         final AvatarView tvAvatar;
         final TextView tvStatus;
+        final ImageView ivFailed;
 
         SelfHolder(@NonNull View itemView) {
             super(itemView);
             tvAvatar = itemView.findViewById(R.id.tv_avatar);
             tvStatus = itemView.findViewById(R.id.tv_status);
+            ivFailed = itemView.findViewById(R.id.iv_failed);
         }
     }
 

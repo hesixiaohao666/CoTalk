@@ -19,13 +19,11 @@ import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
-import com.example.cotalkproject.ui.about.AboutActivity;
 import com.example.cotalkproject.ui.chat.ChatActivity;
 import com.example.cotalkproject.ui.contacts.ContactsFragment;
 import com.example.cotalkproject.ui.home.HomeFragment;
 import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.profile.ProfileFragment;
-import com.example.cotalkproject.ui.settings.SettingsActivity;
 import com.example.cotalkproject.util.UiUtil;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
@@ -73,11 +71,6 @@ public class MainActivity extends AppCompatActivity {
         autoConnectStarted = savedInstanceState != null
                 && savedInstanceState.getBoolean(KEY_AUTO_CONNECT_ATTEMPTED, false);
 
-        findViewById(R.id.btn_action_settings).setOnClickListener(v ->
-                startActivity(new Intent(this, SettingsActivity.class)));
-        findViewById(R.id.btn_action_about).setOnClickListener(v ->
-                startActivity(new Intent(this, AboutActivity.class)));
-
         restoreFragments(savedInstanceState);
 
         navigation.setOnItemSelectedListener(item -> {
@@ -107,6 +100,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         autoConnectStarted = true;
+        if (!prefs.isAutoConnectAfterLogin()) {
+            return;
+        }
         if (sessionManager.isConnecting()
                 || sessionManager.getActiveSessionId() > 0) {
             return;
@@ -226,13 +222,5 @@ public class MainActivity extends AppCompatActivity {
         tx.commit();
 
         titleView.setText(titleRes);
-
-        // “我的”页右上角显示设置/关于入口；其他 Tab 隐藏。
-        boolean isProfile = itemId == R.id.navigation_profile;
-        findViewById(R.id.ll_actions).setVisibility(isProfile ? View.VISIBLE : View.GONE);
-        findViewById(R.id.btn_action_settings).setVisibility(
-                isProfile ? View.VISIBLE : View.GONE);
-        findViewById(R.id.btn_action_about).setVisibility(
-                isProfile ? View.VISIBLE : View.GONE);
     }
 }

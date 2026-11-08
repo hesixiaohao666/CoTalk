@@ -21,6 +21,7 @@ import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.contacts.MemberAdapter;
+import com.example.cotalkproject.ui.widget.AvatarView;
 import com.example.cotalkproject.util.UiUtil;
 
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ public class ServerInfoActivity extends AppCompatActivity
     public static final String EXTRA_SESSION_ID = "session_id";
 
     private long sessionId;
+    private AvatarView ivRoomAvatar;
     private TextView tvRoomName;
     private TextView tvAnnouncement;
     private TextView tvServerIp;
@@ -80,6 +82,7 @@ public class ServerInfoActivity extends AppCompatActivity
         TextView title = findViewById(R.id.tv_title);
         title.setText(R.string.server_info_title);
 
+        ivRoomAvatar = findViewById(R.id.iv_room_avatar);
         tvRoomName = findViewById(R.id.tv_room_name);
         tvAnnouncement = findViewById(R.id.tv_announcement);
         tvServerIp = findViewById(R.id.tv_server_ip);
@@ -136,6 +139,7 @@ public class ServerInfoActivity extends AppCompatActivity
     }
 
     private void bindSession(Session session) {
+        bindRoomAvatar(session);
         tvRoomName.setText(session.displayName());
         tvAnnouncement.setText(TextUtils.isEmpty(session.announcement)
                 ? getString(R.string.server_info_no_announcement)
@@ -151,6 +155,34 @@ public class ServerInfoActivity extends AppCompatActivity
         } else {
             tvServerVersion.setText(session.serverVersionName);
         }
+    }
+
+    private void bindRoomAvatar(Session session) {
+        if (session.roomAvatarVersion <= 0
+                || TextUtils.isEmpty(session.roomAvatarId)) {
+            ivRoomAvatar.setVisibility(View.GONE);
+            ivRoomAvatar.setTag(null);
+            return;
+        }
+        ivRoomAvatar.setVisibility(View.VISIBLE);
+        String name = session.displayName();
+        ivRoomAvatar.setAvatar(name, null);
+        String token = session.id + "|" + session.roomAvatarId
+                + "|" + session.roomAvatarVersion;
+        ivRoomAvatar.setTag(token);
+        CoTalkApp.getInstance().getAvatarLoader().load(
+                session.id,
+                session.roomAvatarId,
+                session.roomAvatarVersion,
+                name,
+                bitmap -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    if (token.equals(ivRoomAvatar.getTag())) {
+                        ivRoomAvatar.setAvatar(name, bitmap);
+                    }
+                });
     }
 
     private void loadMembers() {

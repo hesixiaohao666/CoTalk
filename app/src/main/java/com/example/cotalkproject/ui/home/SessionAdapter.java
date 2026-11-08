@@ -14,7 +14,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
-import com.example.cotalkproject.util.AvatarUtil;
+import com.example.cotalkproject.ui.widget.AvatarView;
+import com.example.cotalkproject.util.AvatarLoader;
 import com.example.cotalkproject.util.TimeUtil;
 
 import java.util.ArrayList;
@@ -28,10 +29,14 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
 
     private final List<Session> sessions = new ArrayList<>();
     private final SessionManager sessionManager;
+    private final AvatarLoader avatarLoader;
     private final OnSessionClickListener listener;
 
-    public SessionAdapter(SessionManager sessionManager, OnSessionClickListener listener) {
+    public SessionAdapter(SessionManager sessionManager,
+                          AvatarLoader avatarLoader,
+                          OnSessionClickListener listener) {
         this.sessionManager = sessionManager;
+        this.avatarLoader = avatarLoader;
         this.listener = listener;
     }
 
@@ -56,7 +61,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
         Session session = sessions.get(position);
         Context context = holder.itemView.getContext();
 
-        AvatarUtil.bindInitial(holder.tvAvatar, session.displayName());
+        bindRoomAvatar(holder.tvAvatar, session);
         holder.tvRoomName.setText(session.displayName());
         holder.tvAiBadge.setVisibility(session.aiEnabled
                 ? View.VISIBLE : View.GONE);
@@ -89,13 +94,39 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
         });
     }
 
+    private void bindRoomAvatar(AvatarView avatar, Session session) {
+        String name = session.displayName();
+        avatar.setAvatar(name, null);
+        if (session.roomAvatarVersion <= 0
+                || TextUtils.isEmpty(session.roomAvatarId)) {
+            avatar.setTag(null);
+            return;
+        }
+        String token = session.id + "|" + session.roomAvatarId
+                + "|" + session.roomAvatarVersion;
+        avatar.setTag(token);
+        if (avatarLoader == null) {
+            return;
+        }
+        avatarLoader.load(
+                session.id,
+                session.roomAvatarId,
+                session.roomAvatarVersion,
+                name,
+                bitmap -> {
+                    if (token.equals(avatar.getTag())) {
+                        avatar.setAvatar(name, bitmap);
+                    }
+                });
+    }
+
     @Override
     public int getItemCount() {
         return sessions.size();
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        final TextView tvAvatar;
+        final AvatarView tvAvatar;
         final TextView tvRoomName;
         final TextView tvAiBadge;
         final TextView tvEndpoint;

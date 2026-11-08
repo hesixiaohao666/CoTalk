@@ -75,6 +75,26 @@ public class SettingsActivity extends AppCompatActivity {
         messageNotify.setOnCheckedChangeListener((buttonView, isChecked) ->
                 prefs.setMessageNotify(isChecked));
 
+        SwitchCompat autoConnectAfterLogin = findViewById(
+                R.id.switch_auto_connect_after_login);
+        autoConnectAfterLogin.setChecked(prefs.isAutoConnectAfterLogin());
+        autoConnectAfterLogin.setOnCheckedChangeListener((buttonView, isChecked) ->
+                prefs.setAutoConnectAfterLogin(isChecked));
+
+        SwitchCompat autoSaveDraft = findViewById(
+                R.id.switch_auto_save_draft);
+        autoSaveDraft.setChecked(prefs.isAutoSaveDraft());
+        autoSaveDraft.setOnCheckedChangeListener((buttonView, isChecked) ->
+                prefs.setAutoSaveDraft(isChecked));
+
+        SwitchCompat darkMode = findViewById(R.id.switch_dark_mode);
+        darkMode.setChecked(false);
+        darkMode.setOnClickListener(v -> {
+            darkMode.setChecked(false);
+            Toast.makeText(this, R.string.dark_mode_not_available,
+                    Toast.LENGTH_SHORT).show();
+        });
+
         findViewById(R.id.btn_clear_history).setOnClickListener(v -> confirmClearHistory());
         findViewById(R.id.btn_remove_all_servers).setOnClickListener(v -> confirmRemoveAllServers());
         findViewById(R.id.btn_reset_account).setOnClickListener(v -> showResetDialog());

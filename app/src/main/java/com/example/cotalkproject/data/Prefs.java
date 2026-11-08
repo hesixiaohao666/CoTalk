@@ -20,6 +20,8 @@ public class Prefs {
     private static final String KEY_CURRENT_USER = "current_user_id";
     private static final String KEY_AUTO_RECONNECT = "auto_reconnect";
     private static final String KEY_MESSAGE_NOTIFY = "message_notify";
+    private static final String KEY_AUTO_CONNECT_AFTER_LOGIN = "auto_connect_after_login";
+    private static final String KEY_AUTO_SAVE_DRAFT = "auto_save_draft";
     private static final String KEY_HISTORY_CLEAR_PREFIX = "history_clear_seq_";
     private static final String KEY_SERVER_AUTH_PREFIX = "server_auth_";
     private static final String KEY_DRAFT_PREFIX = "draft_";
@@ -119,6 +121,22 @@ public class Prefs {
 
     public void setMessageNotify(boolean enabled) {
         preferences.edit().putBoolean(KEY_MESSAGE_NOTIFY, enabled).apply();
+    }
+
+    public boolean isAutoConnectAfterLogin() {
+        return preferences.getBoolean(KEY_AUTO_CONNECT_AFTER_LOGIN, true);
+    }
+
+    public void setAutoConnectAfterLogin(boolean enabled) {
+        preferences.edit().putBoolean(KEY_AUTO_CONNECT_AFTER_LOGIN, enabled).apply();
+    }
+
+    public boolean isAutoSaveDraft() {
+        return preferences.getBoolean(KEY_AUTO_SAVE_DRAFT, true);
+    }
+
+    public void setAutoSaveDraft(boolean enabled) {
+        preferences.edit().putBoolean(KEY_AUTO_SAVE_DRAFT, enabled).apply();
     }
 
     public void markHistoryCleared(long sessionId, long sequence) {

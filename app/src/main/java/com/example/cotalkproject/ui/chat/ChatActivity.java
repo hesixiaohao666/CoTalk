@@ -221,6 +221,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private boolean atBottom = true;
     private boolean voiceMode;
     private Runnable draftSaveRunnable;
+    private long lastSendFailureToastAt;
 
     public static Intent createIntent(Context context, long sessionId, String roomName) {
         Intent intent = new Intent(context, ChatActivity.class);
@@ -364,10 +365,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         btnKeyboard.setOnClickListener(v -> exitVoiceMode());
         btnHoldVoice.setOnTouchListener(this::onHoldVoiceTouch);
 
-        String draft = prefs.getDraft(sessionId);
-        if (!TextUtils.isEmpty(draft)) {
-            etMessage.setText(draft);
-            etMessage.setSelection(draft.length());
+        if (prefs.isAutoSaveDraft()) {
+            String draft = prefs.getDraft(sessionId);
+            if (!TextUtils.isEmpty(draft)) {
+                etMessage.setText(draft);
+                etMessage.setSelection(draft.length());
+            }
         }
         updateComposerState();
     }
@@ -773,6 +776,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private void scheduleDraftSave() {
         if (draftSaveRunnable != null) {
             handler.removeCallbacks(draftSaveRunnable);
+            draftSaveRunnable = null;
+        }
+        if (!prefs.isAutoSaveDraft()) {
+            return;
         }
         draftSaveRunnable = () -> {
             draftSaveRunnable = null;
@@ -785,6 +792,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (draftSaveRunnable != null) {
             handler.removeCallbacks(draftSaveRunnable);
             draftSaveRunnable = null;
+        }
+        if (!prefs.isAutoSaveDraft()) {
+            return;
         }
         prefs.setDraft(sessionId, etMessage.getText().toString());
     }
@@ -909,7 +919,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             }
         } else {
             showBanner(getString(R.string.offline_banner));
-            btnSend.setEnabled(false);
+            btnSend.setEnabled(true);
         }
         markRead();
     }
@@ -1569,14 +1579,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (content.isEmpty()) {
             return;
         }
-        if (!sessionManager.isActive(sessionId)) {
-            Toast.makeText(this, R.string.send_offline, Toast.LENGTH_SHORT).show();
-            return;
-        }
         if (content.length() > MAX_MESSAGE_LENGTH) {
             Toast.makeText(this, R.string.message_too_long, Toast.LENGTH_SHORT).show();
             return;
         }
+        boolean online = sessionManager.isActive(sessionId);
 
         String clientMsgId = "cm-" + UUID.randomUUID().toString()
                 .replace("-", "")
@@ -1591,11 +1598,14 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.msgType = "text";
         message.timestamp = System.currentTimeMillis();
         message.isSelf = true;
-        message.status = Message.STATUS_SENDING;
+        message.status = online
+                ? Message.STATUS_SENDING : Message.STATUS_FAILED;
 
         etMessage.setText("");
         clearDraftNow();
-        pendingPreviews.put(clientMsgId, content);
+        if (online) {
+            pendingPreviews.put(clientMsgId, content);
+        }
 
         database.execute(() -> {
             long id = messageDao.insert(message);
@@ -1613,6 +1623,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 adapter.addMessage(message);
                 toggleEmpty();
                 scrollToBottom();
+                if (!online) {
+                    showSendFailureToast();
+                    return;
+                }
                 scheduleTimeout(message);
                 sendChatFrame(message);
             });
@@ -1634,16 +1648,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                     Toast.LENGTH_SHORT).show();
             return;
         }
-        if (!sessionManager.isActive(sessionId)) {
-            Toast.makeText(this, R.string.send_offline, Toast.LENGTH_SHORT).show();
-            return;
-        }
         long size = file.length();
         if (size <= 0 || size > ImageUtil.MAX_CHAT_BYTES) {
             Toast.makeText(this, R.string.chat_image_too_large,
                     Toast.LENGTH_SHORT).show();
             return;
         }
+        boolean online = sessionManager.isActive(sessionId);
 
         String clientMsgId = "cm-" + UUID.randomUUID().toString()
                 .replace("-", "")
@@ -1663,8 +1674,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.localPath = file.getAbsolutePath();
         message.timestamp = System.currentTimeMillis();
         message.isSelf = true;
-        message.status = Message.STATUS_SENDING;
-        pendingPreviews.put(clientMsgId, previewFor(type));
+        message.status = online
+                ? Message.STATUS_SENDING : Message.STATUS_FAILED;
+        if (online) {
+            pendingPreviews.put(clientMsgId, previewFor(type));
+        }
 
         database.execute(() -> {
             long id = messageDao.insert(message);
@@ -1682,6 +1696,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 adapter.addMessage(message);
                 toggleEmpty();
                 scrollToBottom();
+                if (!online) {
+                    showSendFailureToast();
+                    return;
+                }
                 scheduleTimeout(message);
                 sendMediaFrame(message);
             });
@@ -1785,12 +1803,24 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         loadLocalMessages(false, -1);
         if (timeout) {
             Toast.makeText(this, R.string.send_timeout, Toast.LENGTH_SHORT).show();
+        } else {
+            showSendFailureToast();
         }
+    }
+
+    private void showSendFailureToast() {
+        long now = System.currentTimeMillis();
+        if (now - lastSendFailureToastAt < 1000L) {
+            return;
+        }
+        lastSendFailureToastAt = now;
+        Toast.makeText(this, R.string.send_failed_connection,
+                Toast.LENGTH_SHORT).show();
     }
 
     private void retryMessage(Message message) {
         if (!sessionManager.isActive(sessionId)) {
-            Toast.makeText(this, R.string.send_offline, Toast.LENGTH_SHORT).show();
+            showSendFailureToast();
             return;
         }
         if (message.clientMsgId == null) {
@@ -1801,7 +1831,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 || "voice".equals(message.msgType);
         if (media && (TextUtils.isEmpty(message.localPath)
                 || !new File(message.localPath).isFile())) {
-            Toast.makeText(this, R.string.chat_image_unavailable,
+            Toast.makeText(this, "voice".equals(message.msgType)
+                            ? R.string.chat_voice_unavailable
+                            : R.string.chat_image_unavailable,
                     Toast.LENGTH_SHORT).show();
             return;
         }
@@ -2060,10 +2092,27 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     public void onChatDisconnected(String reason) {
         cancelVoiceRecording();
         stopVoicePlayback();
+        for (Runnable runnable : pendingTimeouts.values()) {
+            handler.removeCallbacks(runnable);
+        }
+        pendingTimeouts.clear();
+        pendingPreviews.clear();
         showBanner(getString(R.string.connection_banner, reason));
-        btnSend.setEnabled(false);
+        btnSend.setEnabled(true);
         loadingHistory = false;
         tvHistoryHint.setVisibility(View.GONE);
+        database.execute(() -> {
+            int failed = messageDao.markAllSendingFailed(sessionId);
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                loadLocalMessages(false, -1);
+                if (failed > 0) {
+                    showSendFailureToast();
+                }
+            });
+        });
     }
 
     @Override

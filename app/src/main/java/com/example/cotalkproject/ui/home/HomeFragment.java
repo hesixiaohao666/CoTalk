@@ -49,7 +49,10 @@ public class HomeFragment extends Fragment implements SessionManager.Listener {
 
         sessionManager = CoTalkApp.getInstance().getSessionManager();
         sessionDao = new SessionDao(CoTalkApp.getInstance().getDatabase());
-        adapter = new SessionAdapter(sessionManager, this::openSession);
+        adapter = new SessionAdapter(
+                sessionManager,
+                CoTalkApp.getInstance().getAvatarLoader(),
+                this::openSession);
         recyclerView.setAdapter(adapter);
 
         loadSessions();
