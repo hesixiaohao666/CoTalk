@@ -10,17 +10,8 @@
     <string name="title_profile">我的</string>
 
     <string name="back">&lt; 返回</string>
-    <string name="settings">设置</string>
-    <string name="about">关于</string>
     <string name="send">发送</string>
-    <string name="add">添加</string>
-    <string name="online">在线</string>
-    <string name="offline">离线</string>
     <string name="avatar_default">默认头像</string>
-
-    <string name="home_placeholder">首页\n下一步：连接服务器后显示房间</string>
-    <string name="contacts_placeholder">联系人\n下一步：在这里输入 IP 和端口</string>
-    <string name="profile_placeholder">我的\n下一步：显示昵称、头像和设置</string>
 
     <string name="login_subtitle">局域网多人聊天</string>
     <string name="label_username">本地账号</string>
@@ -43,9 +34,7 @@
     <string name="register_note">本地账号只用于进入 App 和保存资料，不会上传到服务器</string>
     <string name="version_format">CoTalk v%1$s</string>
 
-    <string name="error_username_empty">请输入本地账号</string>
     <string name="error_username_format">账号需为 3–16 位字母、数字或下划线</string>
-    <string name="error_password_empty">请输入密码</string>
     <string name="error_password_format">密码需为 6–20 位</string>
     <string name="error_nickname_empty">请输入昵称</string>
     <string name="error_nickname_format">昵称需为 1–16 个字符</string>
@@ -61,7 +50,6 @@
     <string name="register_success">注册成功</string>
 
     <string name="settings_title">设置</string>
-    <string name="settings_local_account">本地账号</string>
     <string name="settings_general">通用</string>
     <string name="settings_chat">聊天</string>
     <string name="settings_account">账号</string>
@@ -82,15 +70,13 @@
     <string name="logout_confirm">退出后需要重新登录本地账号，已保存的聊天记录会保留。</string>
     <string name="logout_done">已退出登录</string>
     <string name="reset_password_hint">输入本地账号密码确认</string>
-    <string name="reset_password_wrong">密码错误，未重置</string>
+    <string name="reset_password_wrong">密码错误，未注销</string>
     <string name="reset_local_account">注销账号</string>
-    <string name="reset_local_account_desc">清空本机的账号、会话、消息和头像。服务器上的共享历史不受影响。</string>
-    <string name="reset_confirm_title">确认重置本地账号？</string>
-    <string name="reset_confirm_message">此操作不可撤销。重置后会回到注册页。</string>
+    <string name="reset_confirm_title">确认注销账号？</string>
+    <string name="reset_confirm_message">此操作不可撤销。注销后会回到注册页。</string>
     <string name="confirm">确认</string>
     <string name="cancel">取消</string>
-    <string name="reset_success">本地账号已重置</string>
-    <string name="open_settings">设置（本地账号）</string>
+    <string name="reset_success">账号已注销</string>
 
     <string name="profile_local_account">本地账号：%1$s</string>
     <string name="signature_empty">这个人很懒，什么都没留下</string>
@@ -109,10 +95,10 @@
     <string name="profile_about_entry">关于 CoTalk</string>
 
     <string name="about_title">关于 CoTalk</string>
-    <string name="about_description">CoTalk 是一款基于 Android 与 Java 开发的轻量级局域网即时通讯应用，支持多人图文聊天与 AI 智能群聊体验。</string>
+    <string name="about_description">CoTalk 是一款基于 Android 与 Java 开发的轻量级局域网即时通讯应用，支持多人文字、图片、语音聊天与 AI 智能群聊体验。</string>
     <string name="about_version_format">版本 %1$s</string>
     <string name="about_tech_title">技术栈</string>
-    <string name="about_tech_body">客户端：Android (Java) / XML\n服务端：Java / Swing / Headless\n数据存储：SQLite\n网络通信：TCP Socket (NDJSON)</string>
+    <string name="about_tech_body">客户端：Android Java / XML\n服务端：Java / Swing / Headless\n数据存储：SQLite\n网络通信：TCP Socket NDJSON</string>
     <string name="about_identity_title">隐私与安全</string>
     <string name="about_identity_body">您的账号信息完全保存在本机，并经过加密存储。\n连接服务器时，将由服务端分配临时的内部 UUID，界面将全程仅展示您的昵称，保障您的隐私安全。</string>
     <string name="about_ai_title">AI 功能</string>
@@ -120,7 +106,7 @@
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n- 新增消息撤回功能，支持 2 分钟内撤回及管理员强制撤回\n- 新增“拍一拍”互动功能，支持双击头像提醒并展示对方的个性签名\n- 新增图片全屏查看功能，优化图片浏览体验\n- 新增 AI 群友“大肥鱼”支持多模态识图功能\n- 优化断线重连体验，短时间内重新连接不再显示进退群聊提示\n- 优化输入栏面板的交互，发送表情或选择图片后不再自动收起面板\n- 修复了一些已知问题\n- 此次更新不兼容旧版本服务端，请及时升级</string>
+    <string name="about_changelog_body">更新内容：\n- 新增语音消息录制、发送与播放功能\n- 新增表情包保存、图片双指缩放与保存到相册\n- 新增房间自定义头像\n- 支持 AI 群友读取系统消息与识图开关\n- 新增登录后自动连接、自动保存草稿等设置项\n- 发送失败时显示红色提示并支持点击重发\n- 优化设置页与“我的”页面布局\n- 兼容 3100 协议服务端\n- 修复了一些已知问题</string>
     <string name="about_changelog_date">2026-11-08</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
@@ -140,7 +126,7 @@
     <string name="hint_port">4700</string>
     <string name="auth_key">连接密钥</string>
     <string name="hint_auth_key">由服务器管理员提供</string>
-    <string name="remember_auth_key">记住密钥（本机加密）</string>
+    <string name="remember_auth_key">记住密钥</string>
     <string name="input_auth_key_required">请输入连接密钥</string>
     <string name="auth_key_save_failed">连接密钥加密保存失败</string>
     <string name="server_key_title">输入连接密钥</string>
@@ -156,7 +142,7 @@
     <string name="connect_success">已加入房间</string>
     <string name="connect_failed">连接失败：%1$s</string>
     <string name="input_host_required">请输入服务器 IP 或主机名</string>
-    <string name="input_port_invalid">请输入有效端口（1–65535）</string>
+    <string name="input_port_invalid">请输入 1–65535 之间的端口</string>
     <string name="switch_server_title">切换服务器？</string>
     <string name="switch_server_message">连接新服务器将断开当前服务器，是否继续？</string>
     <string name="remove_server_title">移除房间？</string>
@@ -164,7 +150,6 @@
     <string name="me_suffix">（我）</string>
     <string name="ai_badge">AI</string>
     <string name="server_supports_ai">支持 AI</string>
-    <string name="chat_title_ai_format">%1$s  ·  AI</string>
     <string name="chat_title_default">聊天</string>
     <string name="server_info">房间信息</string>
     <string name="server_info_title">房间信息</string>
@@ -178,7 +163,7 @@
     <string name="server_info_ai_enabled">已启用</string>
     <string name="server_info_ai_disabled">未启用</string>
     <string name="server_info_no_announcement">暂无公告</string>
-    <string name="server_info_unknown_version">未知（旧服务端）</string>
+    <string name="server_info_unknown_version">未知版本</string>
     <string name="server_info_members_format">在线成员（%1$d）</string>
     <string name="server_info_offline_members">当前离线，无法获取在线成员</string>
     <string name="server_info_no_members">暂无在线成员</string>
@@ -187,9 +172,9 @@
     <string name="chat_keyboard_button">键盘</string>
     <string name="chat_emoji_button">表情</string>
     <string name="chat_more_button">更多</string>
-    <string name="chat_hold_to_talk">按住 说话</string>
+    <string name="chat_hold_to_talk">按住说话</string>
     <string name="chat_voice_slide_cancel">上滑取消</string>
-    <string name="chat_voice_release_cancel">松开 取消</string>
+    <string name="chat_voice_release_cancel">松开取消</string>
     <string name="chat_voice_cancelled">已取消录音</string>
     <string name="chat_voice_too_short">录音时间太短</string>
     <string name="chat_voice_max_reached">已达到最长录音时间</string>
@@ -201,10 +186,9 @@
     <string name="chat_voice_play_failed">语音播放失败</string>
     <string name="chat_voice_duration_format">%1$d″</string>
     <string name="voice_message_short">语音</string>
-    <string name="chat_voice_release_send">松开 发送</string>
+    <string name="chat_voice_release_send">松开发送</string>
     <string name="chat_gallery">相册</string>
     <string name="chat_camera">拍摄</string>
-    <string name="chat_emoji_add">新增表情</string>
     <string name="chat_image_loading">图片加载中…</string>
     <string name="chat_image_failed">图片加载失败，点击重试</string>
     <string name="chat_image_unavailable">图片不可用</string>
@@ -229,7 +213,6 @@
     <string name="message_copied">消息已复制</string>
     <string name="message_copy">复制</string>
     <string name="message_recall">撤回</string>
-    <string name="message_recall_sending">正在撤回…</string>
     <string name="message_recall_failed">撤回失败：%1$s</string>
     <string name="poke_failed">拍一拍失败，请稍后再试</string>
     <string name="chat_image_loading_failed">图片尚未加载完成</string>
@@ -241,7 +224,6 @@
     <string name="message_failed">发送失败，点击重试</string>
     <string name="message_empty">还没有消息，来打个招呼吧</string>
     <string name="history_loading">加载中…</string>
-    <string name="history_no_more">没有更多了</string>
     <string name="offline_banner">当前离线，仅显示本地历史</string>
     <string name="connection_banner">连接已断开：%1$s</string>
     <string name="member_default">成员</string>
