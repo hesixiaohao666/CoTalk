@@ -47,6 +47,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         void onImageClick(Message message);
     }
 
+    public interface OnVoiceClickListener {
+        void onVoiceClick(Message message);
+    }
+
     public interface MediaLoader {
         void loadMedia(Message message,
                        ShapeableImageView imageView,
@@ -67,9 +71,11 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     private final OnAvatarDoubleClickListener avatarDoubleClickListener;
     private final OnMessageLongClickListener messageLongClickListener;
     private final OnImageClickListener imageClickListener;
+    private final OnVoiceClickListener voiceClickListener;
     private final MediaLoader mediaLoader;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Map<String, Long> lastAvatarTap = new HashMap<>();
+    private String playingMessageKey = "";
 
     public ChatAdapter(long sessionId,
                        AvatarLoader avatarLoader,
@@ -78,6 +84,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                        OnAvatarDoubleClickListener avatarDoubleClickListener,
                        OnMessageLongClickListener messageLongClickListener,
                        OnImageClickListener imageClickListener,
+                       OnVoiceClickListener voiceClickListener,
                        MediaLoader mediaLoader) {
         this.sessionId = sessionId;
         this.avatarLoader = avatarLoader;
@@ -86,7 +93,30 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         this.avatarDoubleClickListener = avatarDoubleClickListener;
         this.messageLongClickListener = messageLongClickListener;
         this.imageClickListener = imageClickListener;
+        this.voiceClickListener = voiceClickListener;
         this.mediaLoader = mediaLoader;
+    }
+
+    public void setPlayingMessage(String key) {
+        String next = key == null ? "" : key;
+        if (next.equals(playingMessageKey)) {
+            return;
+        }
+        playingMessageKey = next;
+        notifyDataSetChanged();
+    }
+
+    public static String messageKey(Message message) {
+        if (message == null) {
+            return "";
+        }
+        if (!TextUtils.isEmpty(message.clientMsgId)) {
+            return message.clientMsgId;
+        }
+        if (!TextUtils.isEmpty(message.msgId)) {
+            return message.msgId;
+        }
+        return "msg-" + message.id;
     }
 
     public void setMessages(List<Message> newMessages) {
@@ -184,6 +214,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         holder.ivMedia.setImageDrawable(null);
         holder.ivMedia.setOnClickListener(null);
         holder.ivMedia.setOnLongClickListener(null);
+        holder.tvContent.setOnClickListener(null);
         holder.tvContent.setOnLongClickListener(null);
         holder.tvContent.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
 
@@ -220,11 +251,27 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         holder.ivMedia.setVisibility(View.GONE);
         holder.tvContent.setVisibility(View.VISIBLE);
         if ("voice".equals(type)) {
-            holder.tvContent.setText(R.string.voice_message_placeholder);
+            if (message.fileExpired) {
+                holder.tvContent.setText(R.string.file_expired);
+                bindMessageLongClick(holder.tvContent, message);
+                return;
+            }
+            int seconds = voiceSeconds(message.content);
+            holder.tvContent.setText(seconds > 0
+                    ? holder.itemView.getContext().getString(
+                    R.string.chat_voice_duration_format, seconds)
+                    : holder.itemView.getContext().getString(
+                    R.string.voice_message_short));
+            boolean playing = messageKey(message).equals(playingMessageKey);
             holder.tvContent.setCompoundDrawablesWithIntrinsicBounds(
-                    R.drawable.ic_play_voice, 0, 0, 0);
+                    playing ? R.drawable.ic_pause_voice : R.drawable.ic_play_voice,
+                    0, 0, 0);
             holder.tvContent.setCompoundDrawablePadding(dp(holder.itemView, 6));
             bindMessageLongClick(holder.tvContent, message);
+            if (voiceClickListener != null) {
+                holder.tvContent.setOnClickListener(
+                        v -> voiceClickListener.onVoiceClick(message));
+            }
             return;
         }
 
@@ -268,6 +315,21 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             }
             return false;
         });
+    }
+
+    private static int voiceSeconds(String content) {
+        if (TextUtils.isEmpty(content)) {
+            return 0;
+        }
+        try {
+            long ms = Long.parseLong(content.trim());
+            if (ms <= 0) {
+                return 0;
+            }
+            return (int) Math.max(1L, (ms + 999L) / 1000L);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private static void showPlaceholder(TextView view, int textRes) {

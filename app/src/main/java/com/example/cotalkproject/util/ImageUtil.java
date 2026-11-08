@@ -152,6 +152,10 @@ public final class ImageUtil {
     }
 
     public static String fileToDataUri(String path) {
+        return fileToDataUri(path, "image/jpeg");
+    }
+
+    public static String fileToDataUri(String path, String mime) {
         if (path == null || path.isEmpty()) {
             return "";
         }
@@ -159,6 +163,8 @@ public final class ImageUtil {
         if (!file.exists()) {
             return "";
         }
+        String type = mime == null || mime.trim().isEmpty()
+                ? "image/jpeg" : mime.trim();
         try (FileInputStream in = new FileInputStream(file)) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             byte[] buffer = new byte[8192];
@@ -167,7 +173,7 @@ public final class ImageUtil {
                 out.write(buffer, 0, length);
             }
             String base64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
-            return "data:image/jpeg;base64," + base64;
+            return "data:" + type + ";base64," + base64;
         } catch (IOException e) {
             return "";
         }

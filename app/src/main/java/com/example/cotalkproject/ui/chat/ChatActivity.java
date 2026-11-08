@@ -22,6 +22,7 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Base64;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -62,6 +63,8 @@ import com.example.cotalkproject.util.ChatFileStore;
 import com.example.cotalkproject.util.EmojiStore;
 import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.UiUtil;
+import com.example.cotalkproject.util.VoicePlayer;
+import com.example.cotalkproject.util.VoiceRecorder;
 import com.google.android.material.imageview.ShapeableImageView;
 
 import org.json.JSONArray;
@@ -74,6 +77,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -102,6 +106,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private ImageButton btnEmoji;
     private ImageButton btnMore;
     private TextView btnHoldVoice;
+    private View voiceRecordOverlay;
+    private TextView tvVoiceTimer;
+    private TextView tvVoiceHint;
     private View inputActions;
     private View llEmptyActions;
     private TextView tvBanner;
@@ -128,6 +135,32 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     private File pendingCameraFile;
     private Uri pendingCameraUri;
+
+    private final VoiceRecorder voiceRecorder = new VoiceRecorder();
+    private final VoicePlayer voicePlayer = new VoicePlayer();
+    private boolean voiceRecording;
+    private boolean voiceFinishing;
+    private boolean voiceCancel;
+    private float voiceDownRawY;
+    private Runnable voiceTimerRunnable;
+    private Message pendingVoicePlayback;
+    private String playingVoiceKey = "";
+    private String pausedVoiceKey = "";
+
+    private final ActivityResultLauncher<String> recordAudioPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    granted -> {
+                        if (granted) {
+                            Toast.makeText(this,
+                                    R.string.chat_voice_permission_granted,
+                                    Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this,
+                                    R.string.chat_voice_permission_denied,
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
 
     private final ActivityResultLauncher<String> galleryLauncher =
             registerForActivityResult(
@@ -223,6 +256,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         btnEmoji = findViewById(R.id.btn_emoji);
         btnMore = findViewById(R.id.btn_more);
         btnHoldVoice = findViewById(R.id.btn_hold_voice);
+        voiceRecordOverlay = findViewById(R.id.voice_record_overlay);
+        tvVoiceTimer = findViewById(R.id.tv_voice_timer);
+        tvVoiceHint = findViewById(R.id.tv_voice_hint);
         inputActions = findViewById(R.id.ll_input_actions);
         llEmptyActions = findViewById(R.id.ll_empty_actions);
         tvBanner = findViewById(R.id.tv_connection_banner);
@@ -253,6 +289,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 this::pokeUser,
                 this::showMessageActions,
                 this::showImageFullscreen,
+                this::playVoice,
                 this::loadMedia);
         rvMessages.setAdapter(adapter);
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -307,8 +344,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
         btnVoice.setOnClickListener(v -> enterVoiceMode());
         btnKeyboard.setOnClickListener(v -> exitVoiceMode());
-        btnHoldVoice.setOnClickListener(v -> Toast.makeText(
-                this, R.string.voice_not_implemented, Toast.LENGTH_SHORT).show());
+        btnHoldVoice.setOnTouchListener(this::onHoldVoiceTouch);
 
         String draft = prefs.getDraft(sessionId);
         if (!TextUtils.isEmpty(draft)) {
@@ -435,12 +471,277 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         inputActions.setVisibility(View.GONE);
         llEmptyActions.setVisibility(View.GONE);
         btnSend.setVisibility(View.GONE);
+        if (!hasRecordPermission()) {
+            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+        }
     }
 
     private void exitVoiceMode() {
         voiceMode = false;
         updateComposerState();
         showKeyboard();
+    }
+
+    private boolean onHoldVoiceTouch(View view, MotionEvent event) {
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                if (!hasRecordPermission()) {
+                    recordAudioPermissionLauncher.launch(
+                            Manifest.permission.RECORD_AUDIO);
+                    return true;
+                }
+                startVoiceRecording(event.getRawY());
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                if (voiceRecording) {
+                    updateVoiceCancel(event.getRawY());
+                }
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (voiceRecording) {
+                    finishVoiceRecording(voiceCancel);
+                }
+                return true;
+            case MotionEvent.ACTION_CANCEL:
+                if (voiceRecording) {
+                    finishVoiceRecording(true);
+                }
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private boolean hasRecordPermission() {
+        return ContextCompat.checkSelfPermission(
+                this, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void startVoiceRecording(float rawY) {
+        if (voiceRecording) {
+            return;
+        }
+        File file;
+        try {
+            file = VoiceRecorder.createOutputFile(this);
+        } catch (IOException e) {
+            Toast.makeText(this, R.string.chat_voice_start_failed,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!voiceRecorder.start(file)) {
+            Toast.makeText(this, R.string.chat_voice_start_failed,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        voiceRecording = true;
+        voiceFinishing = false;
+        voiceCancel = false;
+        voiceDownRawY = rawY;
+        voiceRecordOverlay.setVisibility(View.VISIBLE);
+        tvVoiceTimer.setText(formatVoiceDuration(0));
+        updateVoiceCancelUi(false);
+        startVoiceTimer();
+    }
+
+    private void updateVoiceCancel(float rawY) {
+        float threshold = 80 * getResources().getDisplayMetrics().density;
+        boolean cancel = voiceDownRawY - rawY > threshold;
+        if (cancel != voiceCancel) {
+            voiceCancel = cancel;
+            updateVoiceCancelUi(cancel);
+        }
+    }
+
+    private void updateVoiceCancelUi(boolean cancel) {
+        tvVoiceHint.setText(cancel
+                ? R.string.chat_voice_release_cancel
+                : R.string.chat_voice_slide_cancel);
+        tvVoiceHint.setTextColor(ContextCompat.getColor(
+                this, cancel ? R.color.danger : R.color.white));
+        btnHoldVoice.setText(cancel
+                ? R.string.chat_voice_release_cancel
+                : R.string.chat_voice_release_send);
+    }
+
+    private void startVoiceTimer() {
+        stopVoiceTimer();
+        voiceTimerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!voiceRecording) {
+                    return;
+                }
+                long elapsed = voiceRecorder.elapsedMs();
+                tvVoiceTimer.setText(formatVoiceDuration(elapsed));
+                if (elapsed >= VoiceRecorder.MAX_DURATION_MS) {
+                    finishVoiceRecording(false);
+                    Toast.makeText(ChatActivity.this,
+                            R.string.chat_voice_max_reached,
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                handler.postDelayed(this, 100L);
+            }
+        };
+        handler.post(voiceTimerRunnable);
+    }
+
+    private void stopVoiceTimer() {
+        if (voiceTimerRunnable != null) {
+            handler.removeCallbacks(voiceTimerRunnable);
+            voiceTimerRunnable = null;
+        }
+    }
+
+    private static String formatVoiceDuration(long ms) {
+        long seconds = Math.max(0L, ms) / 1000L;
+        long minutes = Math.min(99L, seconds / 60L);
+        return String.format(Locale.ROOT, "%02d:%02d",
+                minutes, seconds % 60L);
+    }
+
+    private void finishVoiceRecording(boolean cancel) {
+        if (!voiceRecording || voiceFinishing) {
+            return;
+        }
+        voiceFinishing = true;
+        voiceRecording = false;
+        voiceCancel = false;
+        stopVoiceTimer();
+        voiceRecordOverlay.setVisibility(View.GONE);
+        btnHoldVoice.setText(R.string.chat_hold_to_talk);
+
+        if (cancel) {
+            voiceRecorder.cancel();
+            Toast.makeText(this, R.string.chat_voice_cancelled,
+                    Toast.LENGTH_SHORT).show();
+            voiceFinishing = false;
+            return;
+        }
+
+        long duration = voiceRecorder.stop();
+        if (duration <= 0) {
+            Toast.makeText(this, R.string.chat_voice_too_short,
+                    Toast.LENGTH_SHORT).show();
+            voiceFinishing = false;
+            return;
+        }
+        File file = voiceRecorder.getOutput();
+        if (file == null || !file.isFile()) {
+            Toast.makeText(this, R.string.chat_voice_too_short,
+                    Toast.LENGTH_SHORT).show();
+            voiceFinishing = false;
+            return;
+        }
+        sendMediaFile(file, "voice", "audio/mp4",
+                String.valueOf(duration), file.getName());
+        voiceFinishing = false;
+    }
+
+    private void cancelVoiceRecording() {
+        if (!voiceRecording) {
+            return;
+        }
+        voiceRecording = false;
+        voiceFinishing = false;
+        voiceCancel = false;
+        stopVoiceTimer();
+        voiceRecordOverlay.setVisibility(View.GONE);
+        btnHoldVoice.setText(R.string.chat_hold_to_talk);
+        voiceRecorder.cancel();
+    }
+
+    private void playVoice(Message message) {
+        if (message == null) {
+            return;
+        }
+        if (message.fileExpired) {
+            Toast.makeText(this, R.string.chat_voice_unavailable,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String key = ChatAdapter.messageKey(message);
+        File file = resolveLocalFile(message);
+        if (file == null) {
+            if (!sessionManager.isActive(sessionId)) {
+                Toast.makeText(this, R.string.chat_voice_unavailable,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (TextUtils.isEmpty(message.fileId)) {
+                Toast.makeText(this, R.string.chat_voice_unavailable,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            pendingVoicePlayback = message;
+            if (pendingFileRequests.contains(message.fileId)) {
+                Toast.makeText(this, R.string.chat_voice_loading,
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                failedFileRequests.remove(message.fileId);
+                requestFile(message.fileId);
+                Toast.makeText(this, R.string.chat_voice_loading,
+                        Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+
+        if (key.equals(playingVoiceKey) && voicePlayer.isPlaying()) {
+            voicePlayer.pause();
+            playingVoiceKey = "";
+            pausedVoiceKey = key;
+            adapter.setPlayingMessage("");
+            return;
+        }
+        if (key.equals(pausedVoiceKey) && voicePlayer.isPaused()) {
+            voicePlayer.resume();
+            playingVoiceKey = key;
+            pausedVoiceKey = "";
+            adapter.setPlayingMessage(key);
+            return;
+        }
+
+        pendingVoicePlayback = null;
+        playingVoiceKey = "";
+        pausedVoiceKey = "";
+        adapter.setPlayingMessage("");
+        voicePlayer.play(file, new VoicePlayer.Listener() {
+            @Override
+            public void onStarted() {
+                playingVoiceKey = key;
+                pausedVoiceKey = "";
+                adapter.setPlayingMessage(key);
+            }
+
+            @Override
+            public void onCompleted() {
+                playingVoiceKey = "";
+                pausedVoiceKey = "";
+                adapter.setPlayingMessage("");
+            }
+
+            @Override
+            public void onError(String detail) {
+                playingVoiceKey = "";
+                pausedVoiceKey = "";
+                adapter.setPlayingMessage("");
+                Toast.makeText(ChatActivity.this,
+                        R.string.chat_voice_play_failed,
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void stopVoicePlayback() {
+        voicePlayer.stop();
+        playingVoiceKey = "";
+        pausedVoiceKey = "";
+        pendingVoicePlayback = null;
+        if (adapter != null) {
+            adapter.setPlayingMessage("");
+        }
     }
 
     private void hideKeyboard() {
@@ -597,6 +898,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     @Override
     protected void onStop() {
+        cancelVoiceRecording();
+        stopVoicePlayback();
         if (etMessage != null) {
             saveDraftNow();
         }
@@ -625,6 +928,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             });
         }
         pendingTimeouts.clear();
+        voicePlayer.stop();
+        if (voiceRecording) {
+            voiceRecorder.cancel();
+        }
         super.onDestroy();
     }
 
@@ -823,6 +1130,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         pendingFileRequests.remove(fileId);
         if (data.optBoolean("expired", false)) {
             failedFileRequests.remove(fileId);
+            if (pendingVoicePlayback != null
+                    && fileId.equals(pendingVoicePlayback.fileId)) {
+                pendingVoicePlayback = null;
+                Toast.makeText(this, R.string.chat_voice_unavailable,
+                        Toast.LENGTH_SHORT).show();
+            }
             database.execute(() -> messageDao.markFileExpiredByFileId(
                     sessionId, fileId));
             loadLocalMessages(false, -1);
@@ -833,6 +1146,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         String mime = data.optString("mime", "image/jpeg");
         if (encoded.isEmpty()) {
             failedFileRequests.add(fileId);
+            if (pendingVoicePlayback != null
+                    && fileId.equals(pendingVoicePlayback.fileId)) {
+                pendingVoicePlayback = null;
+                Toast.makeText(this, R.string.chat_voice_unavailable,
+                        Toast.LENGTH_SHORT).show();
+            }
             adapter.notifyDataSetChanged();
             return;
         }
@@ -844,7 +1163,15 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                         sessionId, fileId, file.getAbsolutePath());
                 database.runOnMain(() -> {
                     failedFileRequests.remove(fileId);
-                    loadLocalMessages(false, -1);
+                    Message pending = pendingVoicePlayback;
+                    if (pending != null && fileId.equals(pending.fileId)) {
+                        pendingVoicePlayback = null;
+                        pending.localPath = file.getAbsolutePath();
+                        loadLocalMessages(false, -1);
+                        playVoice(pending);
+                    } else {
+                        loadLocalMessages(false, -1);
+                    }
                 });
             } catch (Exception e) {
                 database.runOnMain(() -> {
@@ -872,6 +1199,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         String fileId = reqId.substring("file|".length());
         pendingFileRequests.remove(fileId);
         failedFileRequests.add(fileId);
+        if (pendingVoicePlayback != null
+                && fileId.equals(pendingVoicePlayback.fileId)) {
+            pendingVoicePlayback = null;
+            Toast.makeText(this, R.string.chat_voice_unavailable,
+                    Toast.LENGTH_SHORT).show();
+        }
         adapter.notifyDataSetChanged();
     }
 
@@ -1130,6 +1463,15 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     }
 
     private void sendMediaFile(File file, String type) {
+        sendMediaFile(file, type, "image/jpeg", "", file == null
+                ? "" : file.getName());
+    }
+
+    private void sendMediaFile(File file,
+                               String type,
+                               String mime,
+                               String content,
+                               String fileName) {
         if (file == null || !file.isFile()) {
             Toast.makeText(this, R.string.chat_image_pick_failed,
                     Toast.LENGTH_SHORT).show();
@@ -1155,10 +1497,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.senderId = sessionManager.getSelfUserId();
         message.senderName = selfNickname;
         message.senderAvatarVersion = sessionManager.getSelfAvatarVersion();
-        message.content = "";
+        message.content = content == null ? "" : content;
         message.msgType = type;
-        message.fileName = file.getName();
-        message.fileMime = "image/jpeg";
+        message.fileName = fileName == null ? file.getName() : fileName;
+        message.fileMime = mime == null || mime.isEmpty()
+                ? "image/jpeg" : mime;
         message.fileSize = size;
         message.localPath = file.getAbsolutePath();
         message.timestamp = System.currentTimeMillis();
@@ -1192,7 +1535,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         database.execute(() -> {
             String dataUri;
             try {
-                dataUri = ImageUtil.fileToDataUri(message.localPath);
+                dataUri = ImageUtil.fileToDataUri(
+                        message.localPath, message.fileMime);
             } catch (Exception e) {
                 dataUri = "";
             }
@@ -1202,7 +1546,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             }
             try {
                 JSONObject data = new JSONObject();
-                data.put("content", "");
+                data.put("content", message.content == null
+                        ? "" : message.content);
                 data.put("clientMsgId", message.clientMsgId);
                 data.put("type", message.msgType);
                 data.put("mime", message.fileMime);
@@ -1295,7 +1640,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             return;
         }
         boolean media = "image".equals(message.msgType)
-                || "emoji".equals(message.msgType);
+                || "emoji".equals(message.msgType)
+                || "voice".equals(message.msgType);
         if (media && (TextUtils.isEmpty(message.localPath)
                 || !new File(message.localPath).isFile())) {
             Toast.makeText(this, R.string.chat_image_unavailable,
@@ -1555,6 +1901,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     @Override
     public void onChatDisconnected(String reason) {
+        cancelVoiceRecording();
+        stopVoicePlayback();
         showBanner(getString(R.string.connection_banner, reason));
         btnSend.setEnabled(false);
         loadingHistory = false;
@@ -1568,6 +1916,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         loadingHistory = false;
         pendingFileRequests.clear();
         failedFileRequests.clear();
+        pendingVoicePlayback = null;
         tvHistoryHint.setVisibility(View.GONE);
         loadSessionTitle();
         loadLocalMessages(true, -1);
