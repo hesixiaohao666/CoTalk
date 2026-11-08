@@ -116,8 +116,8 @@
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n- 新增图片、表情包的发送与接收功能，预留语音消息接口\n- 聊天输入栏全新改版，新增表情包、相册与拍摄面板\n- 新增会话草稿、自动登录功能，优化自动连接和跳转页面的逻辑\n- 新增 7 天云端消息同步与云端附件超出容量清理的策略\n- 修复了一些已知问题\n- 此次更新不兼容旧版本服务端，请及时升级</string>
-    <string name="about_changelog_date">2026-11-07</string>
+    <string name="about_changelog_body">更新内容：\n- 新增消息撤回功能，支持 2 分钟内撤回及管理员强制撤回\n- 新增“拍一拍”互动功能，支持双击头像提醒并展示对方的个性签名\n- 新增图片全屏查看功能，优化图片浏览体验\n- 新增 AI 群友“大肥鱼”支持多模态识图功能\n- 优化断线重连体验，短时间内重新连接不再显示进退群聊提示\n- 优化输入栏面板的交互，发送表情或选择图片后不再自动收起面板\n- 修复了一些已知问题\n- 此次更新不兼容旧版本服务端，请及时升级</string>
+    <string name="about_changelog_date">2026-11-08</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
     <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>
