@@ -239,5 +239,4 @@
     <string name="room_feature_disabled">房间未启用该功能</string>
     <string name="send_timeout">发送超时，点击重试</string>
 
-    <string name="test">【(TEST)测试】</string>
 </resources>
