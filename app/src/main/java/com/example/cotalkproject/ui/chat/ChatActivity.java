@@ -1181,7 +1181,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             }
             database.execute(() -> messageDao.markFileExpiredByFileId(
                     sessionId, fileId));
-            loadLocalMessages(false, -1);
+            adapter.markFileExpired(fileId);
             return;
         }
 
@@ -1207,7 +1207,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 Toast.makeText(this, R.string.chat_image_unavailable,
                         Toast.LENGTH_SHORT).show();
             }
-            adapter.notifyDataSetChanged();
+            adapter.notifyFileChanged(fileId);
             return;
         }
         database.execute(() -> {
@@ -1218,6 +1218,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                         sessionId, fileId, file.getAbsolutePath());
                 database.runOnMain(() -> {
                     failedFileRequests.remove(fileId);
+                    adapter.updateFilePath(fileId, file.getAbsolutePath());
                     Message pendingEmoji = pendingEmojiSave;
                     if (pendingEmoji != null
                             && fileId.equals(pendingEmoji.fileId)) {
@@ -1237,16 +1238,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                             && fileId.equals(pendingVoice.fileId)) {
                         pendingVoicePlayback = null;
                         pendingVoice.localPath = file.getAbsolutePath();
-                        loadLocalMessages(false, -1);
                         playVoice(pendingVoice);
-                    } else {
-                        loadLocalMessages(false, -1);
                     }
                 });
             } catch (Exception e) {
                 database.runOnMain(() -> {
                     failedFileRequests.add(fileId);
-                    adapter.notifyDataSetChanged();
+                    adapter.notifyFileChanged(fileId);
                 });
             }
         });
@@ -1706,6 +1704,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             return;
         }
         boolean online = sessionManager.isActive(sessionId);
+        boolean featureEnabled = isFeatureEnabled(type);
 
         String clientMsgId = "cm-" + UUID.randomUUID().toString()
                 .replace("-", "")
@@ -1725,9 +1724,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.localPath = file.getAbsolutePath();
         message.timestamp = System.currentTimeMillis();
         message.isSelf = true;
-        message.status = online
+        message.status = online && featureEnabled
                 ? Message.STATUS_SENDING : Message.STATUS_FAILED;
-        if (online) {
+        if (online && featureEnabled) {
             pendingPreviews.put(clientMsgId, previewFor(type));
         }
 
@@ -1751,10 +1750,28 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                     showSendFailureToast();
                     return;
                 }
+                if (!featureEnabled) {
+                    Toast.makeText(this, R.string.room_feature_disabled,
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 scheduleTimeout(message);
                 sendMediaFrame(message);
             });
         });
+    }
+
+    private boolean isFeatureEnabled(String type) {
+        if ("image".equals(type)) {
+            return sessionManager.isImageEnabled();
+        }
+        if ("voice".equals(type)) {
+            return sessionManager.isVoiceEnabled();
+        }
+        if ("emoji".equals(type)) {
+            return sessionManager.isEmojiEnabled();
+        }
+        return true;
     }
 
     private void sendMediaFrame(Message message) {
@@ -1844,14 +1861,23 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     }
 
     private void markFailed(String clientMsgId, boolean timeout) {
+        markFailed(clientMsgId, timeout, true);
+    }
+
+    private void markFailed(String clientMsgId,
+                            boolean timeout,
+                            boolean showToast) {
         Runnable pending = pendingTimeouts.remove(clientMsgId);
         if (pending != null) {
             handler.removeCallbacks(pending);
         }
         pendingPreviews.remove(clientMsgId);
+        adapter.updateStatus(clientMsgId, Message.STATUS_FAILED);
         database.execute(() -> messageDao.updateStatus(
                 sessionId, clientMsgId, Message.STATUS_FAILED, null, 0));
-        loadLocalMessages(false, -1);
+        if (!showToast) {
+            return;
+        }
         if (timeout) {
             Toast.makeText(this, R.string.send_timeout, Toast.LENGTH_SHORT).show();
         } else {
@@ -1880,6 +1906,12 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         boolean media = "image".equals(message.msgType)
                 || "emoji".equals(message.msgType)
                 || "voice".equals(message.msgType);
+        if (media && !isFeatureEnabled(message.msgType)) {
+            adapter.updateStatus(message.clientMsgId, Message.STATUS_FAILED);
+            Toast.makeText(this, R.string.room_feature_disabled,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (media && (TextUtils.isEmpty(message.localPath)
                 || !new File(message.localPath).isFile())) {
             Toast.makeText(this, "voice".equals(message.msgType)
@@ -1890,9 +1922,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         }
         pendingPreviews.put(message.clientMsgId,
                 media ? previewFor(message.msgType) : message.content);
+        adapter.updateStatus(message.clientMsgId, Message.STATUS_SENDING);
         database.execute(() -> messageDao.updateStatus(
                 sessionId, message.clientMsgId, Message.STATUS_SENDING, null, 0));
-        loadLocalMessages(false, -1);
         scheduleTimeout(message);
         if (media) {
             sendMediaFrame(message);
@@ -1920,14 +1952,35 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         long fileSize = data.optLong("fileSize", 0);
         boolean fileExpired = data.optBoolean("fileExpired", false);
 
-        database.execute(() -> messageDao.updateSent(
-                sessionId, clientMsgId, msgId, seq,
-                fileId, fileName, fileMime, fileSize, fileExpired));
-        loadLocalMessages(false, -1);
-        if (preview != null) {
-            sessionManager.updateLocalSummary(
-                    sessionId, "我: " + preview, ts, seq);
-        }
+        database.execute(() -> {
+            int updated = messageDao.updateSent(
+                    sessionId, clientMsgId, msgId, seq,
+                    fileId, fileName, fileMime, fileSize, fileExpired);
+            database.runOnMain(() -> {
+                Message current = adapter.findMessage(clientMsgId);
+                if (updated == 0 || current == null) {
+                    loadLocalMessages(false, -1);
+                } else {
+                    current.msgId = msgId;
+                    if (seq > 0) {
+                        current.seq = seq;
+                    }
+                    current.status = Message.STATUS_SENT;
+                    if (!TextUtils.isEmpty(fileId)) {
+                        current.fileId = fileId;
+                        current.fileName = fileName;
+                        current.fileMime = fileMime;
+                        current.fileSize = fileSize;
+                        current.fileExpired = fileExpired;
+                    }
+                    adapter.updateMessage(current);
+                }
+                if (preview != null) {
+                    sessionManager.updateLocalSummary(
+                            sessionId, "我: " + preview, ts, seq);
+                }
+            });
+        });
     }
 
     private void handleIncoming(JSONObject data) {
@@ -1970,9 +2023,18 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
         boolean scroll = atBottom;
         database.execute(() -> {
-            messageDao.insertOrIgnore(message);
+            long id = messageDao.insertOrIgnore(message);
             sessionDao.markRead(sessionId);
-            database.runOnMain(() -> loadLocalMessages(scroll, -1));
+            database.runOnMain(() -> {
+                if (id != -1) {
+                    message.id = id;
+                    adapter.addMessage(message);
+                    toggleEmpty();
+                    if (scroll) {
+                        scrollToBottom();
+                    }
+                }
+            });
         });
     }
 
@@ -2123,7 +2185,19 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 handleFileResponse(data);
             }
         } else if (Protocol.MESSAGE_RECALL.equals(type)) {
-            loadLocalMessages(false, -1);
+            JSONObject data = frame.optJSONObject("data");
+            if (data != null) {
+                String msgId = data.optString("msgId", "");
+                String notice = data.optString("notice", "");
+                if (!msgId.isEmpty() && !notice.isEmpty()) {
+                    adapter.replaceWithSystem(
+                            msgId,
+                            notice,
+                            data.optLong("seq", 0),
+                            data.optLong("ts", System.currentTimeMillis()));
+                    toggleEmpty();
+                }
+            }
         } else if (Protocol.SYSTEM.equals(type)) {
             JSONObject data = frame.optJSONObject("data");
             if (data != null) {
@@ -2131,11 +2205,17 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                         Toast.LENGTH_SHORT).show();
             }
         } else if (Protocol.ERROR.equals(type)) {
-            handleFileRequestError(frame);
             JSONObject data = frame.optJSONObject("data");
-            Toast.makeText(this,
-                    data == null ? "服务器错误" : data.optString("message", "服务器错误"),
-                    Toast.LENGTH_SHORT).show();
+            String errorMessage = data == null
+                    ? "服务器错误"
+                    : data.optString("message", "服务器错误");
+            String reqId = frame.optString("reqId", "");
+            if (reqId.startsWith("chat-")) {
+                markFailed(reqId.substring("chat-".length()), false, false);
+            } else {
+                handleFileRequestError(frame);
+            }
+            Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -2154,13 +2234,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         btnSend.setEnabled(true);
         loadingHistory = false;
         tvHistoryHint.setVisibility(View.GONE);
+        adapter.markAllSendingFailed();
         database.execute(() -> {
             int failed = messageDao.markAllSendingFailed(sessionId);
             database.runOnMain(() -> {
                 if (isFinishing() || isDestroyed()) {
                     return;
                 }
-                loadLocalMessages(false, -1);
                 if (failed > 0) {
                     showSendFailureToast();
                 }

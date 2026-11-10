@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.cotalkproject.R;
@@ -96,6 +97,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         this.imageClickListener = imageClickListener;
         this.voiceClickListener = voiceClickListener;
         this.mediaLoader = mediaLoader;
+        setHasStableIds(true);
     }
 
     public void setPlayingMessage(String key) {
@@ -103,8 +105,21 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         if (next.equals(playingMessageKey)) {
             return;
         }
+        String previous = playingMessageKey;
         playingMessageKey = next;
-        notifyDataSetChanged();
+        int oldPosition = findPosition(previous);
+        if (oldPosition >= 0) {
+            notifyItemChanged(oldPosition);
+        }
+        int newPosition = findPosition(next);
+        if (newPosition >= 0 && newPosition != oldPosition) {
+            notifyItemChanged(newPosition);
+        }
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return messageKey(messages.get(position)).hashCode() & 0xFFFFFFFFL;
     }
 
     public static String messageKey(Message message) {
@@ -121,20 +136,199 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     }
 
     public void setMessages(List<Message> newMessages) {
+        List<Message> oldMessages = new ArrayList<>(messages);
+        List<Message> next = newMessages == null
+                ? new ArrayList<>() : new ArrayList<>(newMessages);
+        DiffUtil.DiffResult diff = DiffUtil.calculateDiff(
+                new DiffUtil.Callback() {
+                    @Override
+                    public int getOldListSize() {
+                        return oldMessages.size();
+                    }
+
+                    @Override
+                    public int getNewListSize() {
+                        return next.size();
+                    }
+
+                    @Override
+                    public boolean areItemsTheSame(int oldPos, int newPos) {
+                        return messageKey(oldMessages.get(oldPos))
+                                .equals(messageKey(next.get(newPos)));
+                    }
+
+                    @Override
+                    public boolean areContentsTheSame(int oldPos, int newPos) {
+                        return sameContent(oldMessages.get(oldPos),
+                                next.get(newPos));
+                    }
+                });
         messages.clear();
-        if (newMessages != null) {
-            messages.addAll(newMessages);
-        }
-        notifyDataSetChanged();
+        messages.addAll(next);
+        diff.dispatchUpdatesTo(this);
     }
 
     public void addMessage(Message message) {
+        int position = findPosition(messageKey(message));
+        if (position >= 0) {
+            messages.set(position, message);
+            notifyItemChanged(position);
+            return;
+        }
         messages.add(message);
         notifyItemInserted(messages.size() - 1);
     }
 
     public List<Message> getMessages() {
         return new ArrayList<>(messages);
+    }
+
+    public int findPosition(String key) {
+        if (TextUtils.isEmpty(key)) {
+            return -1;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            if (key.equals(messageKey(messages.get(i)))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public Message findMessage(String key) {
+        int position = findPosition(key);
+        return position < 0 ? null : messages.get(position);
+    }
+
+    public void updateMessage(Message message) {
+        int position = findPosition(messageKey(message));
+        if (position < 0) {
+            addMessage(message);
+            return;
+        }
+        messages.set(position, message);
+        notifyItemChanged(position);
+    }
+
+    public void markAllSendingFailed() {
+        for (int i = 0; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            if (message.status == Message.STATUS_SENDING) {
+                message.status = Message.STATUS_FAILED;
+                notifyItemChanged(i);
+            }
+        }
+    }
+
+    public void updateStatus(String clientMsgId, int status) {
+        int position = findPosition(clientMsgId);
+        if (position < 0) {
+            return;
+        }
+        Message message = messages.get(position);
+        if (message.status == status) {
+            return;
+        }
+        message.status = status;
+        notifyItemChanged(position);
+    }
+
+    public void updateFilePath(String fileId, String localPath) {
+        if (TextUtils.isEmpty(fileId)) {
+            return;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            if (fileId.equals(message.fileId)) {
+                message.localPath = localPath;
+                notifyItemChanged(i);
+            }
+        }
+    }
+
+    public void markFileExpired(String fileId) {
+        if (TextUtils.isEmpty(fileId)) {
+            return;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            if (fileId.equals(message.fileId)) {
+                message.fileExpired = true;
+                notifyItemChanged(i);
+            }
+        }
+    }
+
+    public void notifyFileChanged(String fileId) {
+        if (TextUtils.isEmpty(fileId)) {
+            return;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            if (fileId.equals(messages.get(i).fileId)) {
+                notifyItemChanged(i);
+            }
+        }
+    }
+
+    public void replaceWithSystem(String msgId,
+                                  String notice,
+                                  long seq,
+                                  long timestamp) {
+        for (int i = 0; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            if (msgId.equals(message.msgId)) {
+                message.msgType = "system";
+                message.content = notice;
+                message.fileId = null;
+                message.fileName = null;
+                message.fileMime = null;
+                message.fileSize = 0;
+                message.fileExpired = false;
+                message.localPath = null;
+                message.isSelf = false;
+                message.status = Message.STATUS_SENT;
+                if (seq > 0) {
+                    message.seq = seq;
+                }
+                message.timestamp = timestamp;
+                notifyItemChanged(i);
+                return;
+            }
+        }
+        Message system = new Message();
+        system.msgId = msgId;
+        system.seq = seq;
+        system.senderId = "system";
+        system.senderName = "系统";
+        system.content = notice;
+        system.msgType = "system";
+        system.timestamp = timestamp;
+        system.isSelf = false;
+        system.status = Message.STATUS_SENT;
+        addMessage(system);
+    }
+
+    private static boolean sameContent(Message left, Message right) {
+        return left.status == right.status
+                && left.seq == right.seq
+                && left.timestamp == right.timestamp
+                && left.senderAvatarVersion == right.senderAvatarVersion
+                && left.fileExpired == right.fileExpired
+                && left.fileSize == right.fileSize
+                && left.isSelf == right.isSelf
+                && equals(left.msgId, right.msgId)
+                && equals(left.clientMsgId, right.clientMsgId)
+                && equals(left.senderName, right.senderName)
+                && equals(left.content, right.content)
+                && equals(left.msgType, right.msgType)
+                && equals(left.fileId, right.fileId)
+                && equals(left.fileName, right.fileName)
+                && equals(left.fileMime, right.fileMime)
+                && equals(left.localPath, right.localPath);
+    }
+
+    private static boolean equals(String left, String right) {
+        return left == null ? right == null : left.equals(right);
     }
 
     @Override

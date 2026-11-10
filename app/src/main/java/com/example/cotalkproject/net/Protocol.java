@@ -38,6 +38,8 @@ public final class Protocol {
     public static final String ERROR = "error";
     public static final String PONG = "pong";
 
+    public static final int ERR_FEATURE_DISABLED = 2016;
+
     public static final int ERR_AUTH_FAILED = 3001;
     public static final int ERR_CLIENT_VERSION = 3002;
     public static final int ERR_PROTOCOL = 3003;

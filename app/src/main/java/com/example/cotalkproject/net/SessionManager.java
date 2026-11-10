@@ -88,6 +88,9 @@ public class SessionManager {
     private volatile long activeSessionId = -1;
     private volatile String selfUserId = "";
     private volatile int selfAvatarVersion;
+    private volatile boolean imageEnabled = true;
+    private volatile boolean voiceEnabled = true;
+    private volatile boolean emojiEnabled = true;
     private volatile boolean connecting;
     private volatile ChatListener chatListener;
     private volatile long openChatSessionId = -1;
@@ -280,6 +283,14 @@ public class SessionManager {
 
                 boolean aiEnabled = server != null
                         && server.optBoolean("aiEnabled", false);
+                JSONObject features = server == null
+                        ? null : server.optJSONObject("features");
+                imageEnabled = features == null
+                        || features.optBoolean("image", true);
+                voiceEnabled = features == null
+                        || features.optBoolean("voice", true);
+                emojiEnabled = features == null
+                        || features.optBoolean("emoji", true);
                 String serverVersionName = server == null
                         ? ""
                         : server.optString("versionName", "");
@@ -827,5 +838,17 @@ public class SessionManager {
 
     public int getSelfAvatarVersion() {
         return selfAvatarVersion;
+    }
+
+    public boolean isImageEnabled() {
+        return imageEnabled;
+    }
+
+    public boolean isVoiceEnabled() {
+        return voiceEnabled;
+    }
+
+    public boolean isEmojiEnabled() {
+        return emojiEnabled;
     }
 }

@@ -236,6 +236,7 @@
     <string name="send_offline">当前离线，无法发送</string>
     <string name="send_failed">发送失败</string>
     <string name="send_failed_connection">发送失败 请检查服务器连接</string>
+    <string name="room_feature_disabled">房间未启用该功能</string>
     <string name="send_timeout">发送超时，点击重试</string>
 
     <string name="test">【(TEST)测试】</string>
