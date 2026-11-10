@@ -27,4 +27,14 @@
     <color name="bubble_other">#FFFFFFFF</color>
     <color name="bubble_system">#FFE0E0E0</color>
     <color name="input_bg">#FFF5F5F5</color>
+
+    <!-- Semantic surfaces for light/dark themes -->
+    <color name="surface">#FFFFFFFF</color>
+    <color name="surface_alt">#FFF5F5F5</color>
+    <color name="title_bar_bg">#FF66CCFF</color>
+    <color name="title_bar_text">#FF000000</color>
+    <color name="sheet_bg">#FFFFFFFF</color>
+    <color name="sheet_scrim">#66000000</color>
+    <color name="checkbox_gap">#FFFFFFFF</color>
+    <color name="text_on_accent">#FF000000</color>
 </resources>

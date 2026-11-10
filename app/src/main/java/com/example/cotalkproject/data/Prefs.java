@@ -22,6 +22,8 @@ public class Prefs {
     private static final String KEY_MESSAGE_NOTIFY = "message_notify";
     private static final String KEY_AUTO_CONNECT_AFTER_LOGIN = "auto_connect_after_login";
     private static final String KEY_AUTO_SAVE_DRAFT = "auto_save_draft";
+    private static final String KEY_DARK_FOLLOW_SYSTEM = "dark_follow_system";
+    private static final String KEY_DARK_MODE = "dark_mode";
     private static final String KEY_HISTORY_CLEAR_PREFIX = "history_clear_seq_";
     private static final String KEY_SERVER_AUTH_PREFIX = "server_auth_";
     private static final String KEY_DRAFT_PREFIX = "draft_";
@@ -137,6 +139,22 @@ public class Prefs {
 
     public void setAutoSaveDraft(boolean enabled) {
         preferences.edit().putBoolean(KEY_AUTO_SAVE_DRAFT, enabled).apply();
+    }
+
+    public boolean isDarkFollowSystem() {
+        return preferences.getBoolean(KEY_DARK_FOLLOW_SYSTEM, false);
+    }
+
+    public void setDarkFollowSystem(boolean enabled) {
+        preferences.edit().putBoolean(KEY_DARK_FOLLOW_SYSTEM, enabled).apply();
+    }
+
+    public boolean isDarkMode() {
+        return preferences.getBoolean(KEY_DARK_MODE, false);
+    }
+
+    public void setDarkMode(boolean enabled) {
+        preferences.edit().putBoolean(KEY_DARK_MODE, enabled).apply();
     }
 
     public void markHistoryCleared(long sessionId, long sequence) {

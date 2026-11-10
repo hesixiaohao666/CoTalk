@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_page">#FF121212</color>
+    <color name="text_primary">#FFF5F5F5</color>
+    <color name="text_secondary">#FFB0B0B0</color>
+    <color name="text_hint">#FF808080</color>
+    <color name="divider">#FF2C2C2C</color>
+    <color name="grey">#FF808080</color>
+
+    <color name="bubble_other">#FF1E1E1E</color>
+    <color name="bubble_system">#FF2A2A2A</color>
+    <color name="input_bg">#FF1E1E1E</color>
+
+    <color name="surface">#FF1E1E1E</color>
+    <color name="surface_alt">#FF161616</color>
+    <color name="title_bar_bg">#FF1A1A1A</color>
+    <color name="title_bar_text">#FFF5F5F5</color>
+    <color name="sheet_bg">#FF1E1E1E</color>
+    <color name="sheet_scrim">#99000000</color>
+    <color name="checkbox_gap">#FF1E1E1E</color>
+    <color name="text_on_accent">#FF000000</color>
+</resources>
