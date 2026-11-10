@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 底部操作弹层中 A/B/C/D 之间以及到边界的基础间距。 -->
+    <dimen name="bottom_sheet_action_spacing">24dp</dimen>
+</resources>

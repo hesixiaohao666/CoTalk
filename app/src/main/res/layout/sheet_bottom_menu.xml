@@ -6,9 +6,9 @@
     android:background="@drawable/bg_bottom_sheet"
     android:orientation="vertical"
     android:paddingStart="16dp"
-    android:paddingTop="16dp"
+    android:paddingTop="8dp"
     android:paddingEnd="16dp"
-    android:paddingBottom="20dp">
+    android:paddingBottom="0dp">
 
     <TextView
         android:id="@+id/tv_sheet_title"
@@ -25,6 +25,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:lineSpacingExtra="2dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
         android:visibility="gone" />
@@ -33,7 +35,6 @@
         android:id="@+id/ll_sheet_actions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
         android:orientation="vertical" />
 
     <EditText
@@ -54,33 +55,42 @@
         android:id="@+id/ll_sheet_buttons"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="24dp"
         android:gravity="end"
         android:orientation="horizontal"
         android:visibility="gone">
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_sheet_secondary"
-            style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="44dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
+            android:background="@drawable/btn_round_light"
+            android:elevation="0dp"
+            android:minWidth="88dp"
+            android:minHeight="44dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:stateListAnimator="@null"
             android:text="@string/cancel"
-            android:textColor="@color/text_secondary"
-            app:rippleColor="@android:color/transparent" />
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp" />
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_sheet_primary"
             android:layout_width="wrap_content"
             android:layout_height="44dp"
             android:layout_marginStart="8dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
+            android:background="@drawable/btn_round_dark"
+            android:elevation="0dp"
+            android:minWidth="88dp"
+            android:minHeight="44dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:stateListAnimator="@null"
             android:text="@string/confirm"
-            android:textColor="@color/text_on_accent"
-            app:backgroundTint="@color/blue_ty"
-            app:cornerRadius="12dp"
-            app:rippleColor="@android:color/transparent" />
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp" />
     </LinearLayout>
 </LinearLayout>
