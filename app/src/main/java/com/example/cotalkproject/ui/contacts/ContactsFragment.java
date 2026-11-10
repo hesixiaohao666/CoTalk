@@ -1,7 +1,6 @@
 package com.example.cotalkproject.ui.contacts;
 
 import android.os.Bundle;
-import android.text.InputType;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,13 +8,11 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,6 +25,7 @@ import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.chat.ChatActivity;
+import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 
 import java.util.List;
 
@@ -170,14 +168,12 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
             return;
         }
         if (sessionManager.getActiveSessionId() > 0) {
-            new AlertDialog.Builder(requireContext())
-                    .setTitle(R.string.switch_server_title)
-                    .setMessage(R.string.switch_server_message)
-                    .setNegativeButton(R.string.cancel, null)
-                    .setPositiveButton(R.string.confirm,
-                            (dialog, which) -> doConnect(
-                                    host, port, authKey, allowAuthPrompt))
-                    .show();
+            BottomSheetMenu.showConfirm(
+                    requireContext(),
+                    getString(R.string.switch_server_title),
+                    getString(R.string.switch_server_message),
+                    getString(R.string.confirm),
+                    () -> doConnect(host, port, authKey, allowAuthPrompt));
             return;
         }
         doConnect(host, port, authKey, allowAuthPrompt);
@@ -255,68 +251,64 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
     }
 
     private void promptForAuthKey(String host, int port, boolean afterFailure) {
-        EditText input = new EditText(requireContext());
-        input.setHint(R.string.hint_auth_key);
-        input.setInputType(InputType.TYPE_CLASS_TEXT
-                | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
-        LinearLayout container = new LinearLayout(requireContext());
-        container.setPadding(padding, padding / 2, padding, 0);
-        container.addView(input, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        new AlertDialog.Builder(requireContext())
-                .setTitle(afterFailure
+        BottomSheetMenu.showInput(
+                requireContext(),
+                getString(afterFailure
                         ? R.string.auth_key_retry_title
-                        : R.string.server_key_title)
-                .setMessage(afterFailure
+                        : R.string.server_key_title),
+                afterFailure
                         ? getString(R.string.auth_key_retry_message,
                         host + ":" + port)
                         : getString(R.string.server_key_message,
-                        host + ":" + port))
-                .setView(container)
-                .setNegativeButton(R.string.cancel, (dialog, which) -> {
-                    cbRememberKey.setChecked(false);
-                    prefs.clearServerAuthKey(host, port);
-                    etAuthKey.setText("");
-                    if (afterFailure) {
-                        Toast.makeText(requireContext(),
-                                R.string.auth_key_remember_cancelled,
-                                Toast.LENGTH_SHORT).show();
+                        host + ":" + port),
+                getString(R.string.hint_auth_key),
+                true,
+                new BottomSheetMenu.InputCallback() {
+                    @Override
+                    public boolean onInput(String text) {
+                        String key = text.trim();
+                        if (key.isEmpty()) {
+                            cbRememberKey.setChecked(false);
+                            prefs.clearServerAuthKey(host, port);
+                            Toast.makeText(requireContext(),
+                                    R.string.input_auth_key_required,
+                                    Toast.LENGTH_SHORT).show();
+                            return false;
+                        }
+                        etHost.setText(host);
+                        etPort.setText(String.valueOf(port));
+                        etAuthKey.setText(key);
+                        confirmAndConnect(host, port, key, !afterFailure);
+                        return true;
                     }
-                })
-                .setPositiveButton(R.string.confirm, (dialog, which) -> {
-                    String key = input.getText().toString().trim();
-                    if (key.isEmpty()) {
+
+                    @Override
+                    public void onCancel() {
                         cbRememberKey.setChecked(false);
                         prefs.clearServerAuthKey(host, port);
-                        Toast.makeText(requireContext(),
-                                R.string.input_auth_key_required,
-                                Toast.LENGTH_SHORT).show();
-                        return;
+                        etAuthKey.setText("");
+                        if (afterFailure) {
+                            Toast.makeText(requireContext(),
+                                    R.string.auth_key_remember_cancelled,
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     }
-                    etHost.setText(host);
-                    etPort.setText(String.valueOf(port));
-                    etAuthKey.setText(key);
-                    confirmAndConnect(host, port, key, !afterFailure);
-                })
-                .show();
+                });
     }
 
     private void confirmRemove(Session session) {
-        new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.remove_server_title)
-                .setMessage(R.string.remove_server_message)
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.confirm, (dialog, which) -> {
+        BottomSheetMenu.showConfirm(
+                requireContext(),
+                getString(R.string.remove_server_title),
+                getString(R.string.remove_server_message),
+                getString(R.string.confirm),
+                () -> {
                     if (selectedSessionId == session.id) {
                         selectedSessionId = -1;
                     }
                     sessionManager.removeSession(session.id);
                     loadSessions();
-                })
-                .show();
+                });
     }
 
     private void loadSessions() {

@@ -2,15 +2,11 @@ package com.example.cotalkproject.ui.settings;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.View;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
@@ -25,6 +21,7 @@ import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.login.RegisterActivity;
+import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.SecurityUtil;
 import com.example.cotalkproject.util.UiUtil;
@@ -102,24 +99,25 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void confirmClearHistory() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.clear_history)
-                .setMessage(R.string.clear_history_confirm)
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.confirm, (dialog, which) -> {
+        BottomSheetMenu.showConfirm(
+                this,
+                getString(R.string.clear_history),
+                getString(R.string.clear_history_confirm),
+                getString(R.string.confirm),
+                () -> {
                     sessionManager.clearAllHistory();
                     Toast.makeText(this, R.string.clear_history_done,
                             Toast.LENGTH_SHORT).show();
-                })
-                .show();
+                });
     }
 
     private void confirmRemoveAllServers() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.remove_all_servers)
-                .setMessage(R.string.remove_all_servers_confirm)
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.confirm, (dialog, which) -> {
+        BottomSheetMenu.showConfirm(
+                this,
+                getString(R.string.remove_all_servers),
+                getString(R.string.remove_all_servers_confirm),
+                getString(R.string.confirm),
+                () -> {
                     sessionManager.removeAllSessions();
                     database.execute(() -> {
                         messageDao.deleteAll();
@@ -127,30 +125,23 @@ public class SettingsActivity extends AppCompatActivity {
                     });
                     Toast.makeText(this, R.string.remove_all_servers_done,
                             Toast.LENGTH_SHORT).show();
-                })
-                .show();
+                });
     }
 
     private void showResetDialog() {
-        EditText input = new EditText(this);
-        input.setHint(R.string.reset_password_hint);
-        input.setInputType(InputType.TYPE_CLASS_TEXT
-                | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
-        LinearLayout container = new LinearLayout(this);
-        container.setPadding(padding, padding / 2, padding, 0);
-        container.addView(input, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.reset_confirm_title)
-                .setMessage(R.string.reset_confirm_message)
-                .setView(container)
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.confirm,
-                        (dialog, which) -> verifyAndReset(input.getText().toString()))
-                .show();
+        BottomSheetMenu.showInput(
+                this,
+                getString(R.string.reset_confirm_title),
+                getString(R.string.reset_confirm_message),
+                getString(R.string.reset_password_hint),
+                true,
+                new BottomSheetMenu.InputCallback() {
+                    @Override
+                    public boolean onInput(String text) {
+                        verifyAndReset(text);
+                        return true;
+                    }
+                });
     }
 
     private void verifyAndReset(String password) {
@@ -186,11 +177,12 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void confirmLogout() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.logout)
-                .setMessage(R.string.logout_confirm)
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.confirm, (dialog, which) -> {
+        BottomSheetMenu.showConfirm(
+                this,
+                getString(R.string.logout),
+                getString(R.string.logout_confirm),
+                getString(R.string.confirm),
+                () -> {
                     sessionManager.disconnect();
                     CoTalkApp.getInstance().setAuthenticated(false);
                     prefs.logout();
@@ -203,7 +195,6 @@ public class SettingsActivity extends AppCompatActivity {
                             | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
                     finishAffinity();
-                })
-                .show();
+                });
     }
 }
