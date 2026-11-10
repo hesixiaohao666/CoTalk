@@ -129,7 +129,7 @@
                     android:id="@+id/cb_auto_login"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="24dp"
                     android:paddingStart="0dp"
                     android:text="@string/auto_login"
                     android:textColor="@color/text_secondary"
