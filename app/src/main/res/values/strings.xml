@@ -101,7 +101,7 @@
     <string name="about_description">CoTalk 是一款基于 Android 与 Java 开发的轻量级局域网即时通讯应用，支持多人文字、图片、语音聊天与 AI 智能群聊体验。</string>
     <string name="about_version_format">版本 %1$s</string>
     <string name="about_tech_title">技术栈</string>
-    <string name="about_tech_body">客户端：Android Java / XML\n服务端：Java / Swing / Headless\n数据存储：SQLite\n网络通信：TCP Socket NDJSON</string>
+    <string name="about_tech_body">客户端：Android Java / XML\n服务端：Java / Swing / Headless\n数据存储：SQLite\n网络通信：TCP Socket (NDJSON)</string>
     <string name="about_identity_title">隐私与安全</string>
     <string name="about_identity_body">您的账号信息完全保存在本机，并经过加密存储。\n连接服务器时，将由服务端分配临时的内部 UUID，界面将全程仅展示您的昵称，保障您的隐私安全。</string>
     <string name="about_ai_title">AI 功能</string>
@@ -109,8 +109,8 @@
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n- 新增语音消息：支持长按录音发送（上滑取消）、点击播放/暂停、聊天气泡显示语音时长\n- 新增功能：长按表情包可选择保存到表情面板，图片全屏页面下支持双指缩放、长按可选择保存到相册\n- 优化设置项：新增登录后自动连接、自动保存草稿开关，深色模式实验性功能，调整设置页面的展示顺序\n- 优化聊天体验：发送失败时聊天气泡显示红色图标，点击可重新发送\n- 优化服务端：AI 群友支持读取系统消息，支持自定义房间头像\n- 修复了一些已知问题\n- 此次更新兼容 v0.3.1(beta) 版本的客户端与服务端</string>
-    <string name="about_changelog_date">2026-11-09</string>
+    <string name="about_changelog_body">更新内容：\n- 全新底部弹窗：统一所有操作菜单、确认框与输入框的弹出界面样式\n- 长按菜单升级：根据消息类型提供复制、保存、回复（占位）与撤回操作\n- 实验性功能：深色模式实装，支持跟随系统切换，新增了管理员模式（占位）\n- 显示优化：改进了勾选框的显示效果\n- 性能优化：修复发送消息与播放语音时界面的卡顿问题\n- 修复了一些已知问题\n- 此次更新兼容 v0.3.1(beta)-v0.3.2(beta) 版本的服务端</string>
+    <string name="about_changelog_date">2026-11-10</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
     <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>
