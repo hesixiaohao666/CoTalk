@@ -90,7 +90,7 @@
             android:stateListAnimator="@null"
             android:text="@string/confirm"
             android:textAllCaps="false"
-            android:textColor="@color/text_primary"
+            android:textColor="@color/text_on_accent"
             android:textSize="15sp" />
     </LinearLayout>
 </LinearLayout>

@@ -83,7 +83,7 @@
             android:text="@string/edit_profile"
             android:textColor="@color/text_primary"
             android:textSize="15sp"
-            app:backgroundTint="@color/white"
+            app:backgroundTint="@color/surface"
             app:cornerRadius="12dp"
             app:rippleColor="@color/blue_ty"
             app:strokeColor="@color/blue_ty"

@@ -57,8 +57,11 @@
     <string name="auto_reconnect">自动重连</string>
     <string name="auto_connect_after_login">登录后自动连接</string>
     <string name="auto_save_draft">自动保存草稿</string>
+    <string name="dark_follow_system">深色跟随系统</string>
     <string name="dark_mode">深色模式</string>
-    <string name="dark_mode_not_available">深色模式暂未实装，敬请期待</string>
+    <string name="dark_experimental_warning">深色模式为实验性功能，请酌情开启</string>
+    <string name="admin_mode">管理员模式</string>
+    <string name="admin_mode_not_available">管理员模式暂未实装，敬请期待</string>
     <string name="message_notify">消息提示</string>
     <string name="clear_history">清除所有聊天记录</string>
     <string name="remove_all_servers">移除所有服务器</string>

@@ -73,7 +73,7 @@
             android:paddingTop="12dp"
             android:paddingEnd="16dp"
             android:paddingBottom="12dp"
-            android:textColor="@color/text_primary"
+            android:textColor="@color/text_on_accent"
             android:textSize="16sp" />
 
         <com.example.cotalkproject.ui.widget.AvatarView

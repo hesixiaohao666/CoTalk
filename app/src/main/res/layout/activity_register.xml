@@ -178,7 +178,7 @@
                     android:insetBottom="0dp"
                     android:stateListAnimator="@null"
                     android:text="@string/register"
-                    android:textColor="@color/text_primary"
+                    android:textColor="@color/text_on_accent"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     app:backgroundTint="@color/blue_ty"

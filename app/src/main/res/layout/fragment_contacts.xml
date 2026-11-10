@@ -122,12 +122,11 @@
                 android:textColorHint="@color/text_hint"
                 android:textSize="16sp" />
 
-            <CheckBox
+            <com.example.cotalkproject.ui.widget.InsetCheckBox
                 android:id="@+id/cb_remember_key"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:buttonTint="@color/blue_ty"
                 android:checked="true"
                 android:paddingStart="0dp"
                 android:text="@string/remember_auth_key"
@@ -143,7 +142,7 @@
                 android:insetBottom="0dp"
                 android:stateListAnimator="@null"
                 android:text="@string/connect_and_join"
-                android:textColor="@color/text_primary"
+                android:textColor="@color/text_on_accent"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 app:backgroundTint="@color/blue_ty"

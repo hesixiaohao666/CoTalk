@@ -1,12 +1,14 @@
 package com.example.cotalkproject.ui.settings;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
@@ -33,6 +35,7 @@ public class SettingsActivity extends AppCompatActivity {
     private MessageDao messageDao;
     private Prefs prefs;
     private SessionManager sessionManager;
+    private boolean updatingSwitches;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,11 +87,60 @@ public class SettingsActivity extends AppCompatActivity {
         autoSaveDraft.setOnCheckedChangeListener((buttonView, isChecked) ->
                 prefs.setAutoSaveDraft(isChecked));
 
+        SwitchCompat darkFollow = findViewById(R.id.switch_dark_follow_system);
         SwitchCompat darkMode = findViewById(R.id.switch_dark_mode);
-        darkMode.setChecked(false);
-        darkMode.setOnClickListener(v -> {
-            darkMode.setChecked(false);
-            Toast.makeText(this, R.string.dark_mode_not_available,
+        SwitchCompat adminMode = findViewById(R.id.switch_admin_mode);
+
+        boolean followSystem = prefs.isDarkFollowSystem();
+        boolean darkEnabled = prefs.isDarkMode();
+        updatingSwitches = true;
+        darkFollow.setChecked(followSystem);
+        darkMode.setEnabled(!followSystem);
+        darkMode.setChecked(followSystem ? isSystemNight() : darkEnabled);
+        adminMode.setChecked(false);
+        updatingSwitches = false;
+
+        darkFollow.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (updatingSwitches) {
+                return;
+            }
+            prefs.setDarkFollowSystem(checked);
+            if (checked) {
+                updatingSwitches = true;
+                darkMode.setChecked(isSystemNight());
+                updatingSwitches = false;
+                darkMode.setEnabled(false);
+                AppCompatDelegate.setDefaultNightMode(
+                        AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+                showDarkExperimentalToast();
+            } else {
+                darkMode.setEnabled(true);
+                boolean enabled = prefs.isDarkMode();
+                updatingSwitches = true;
+                darkMode.setChecked(enabled);
+                updatingSwitches = false;
+                AppCompatDelegate.setDefaultNightMode(enabled
+                        ? AppCompatDelegate.MODE_NIGHT_YES
+                        : AppCompatDelegate.MODE_NIGHT_NO);
+            }
+        });
+
+        darkMode.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (updatingSwitches || prefs.isDarkFollowSystem()) {
+                return;
+            }
+            prefs.setDarkMode(checked);
+            AppCompatDelegate.setDefaultNightMode(checked
+                    ? AppCompatDelegate.MODE_NIGHT_YES
+                    : AppCompatDelegate.MODE_NIGHT_NO);
+            if (checked) {
+                showDarkExperimentalToast();
+            }
+        });
+
+        adminMode.setOnClickListener(v -> {
+            adminMode.setChecked(false);
+            Toast.makeText(this, R.string.admin_mode_not_available,
                     Toast.LENGTH_SHORT).show();
         });
 
@@ -96,6 +148,17 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.btn_remove_all_servers).setOnClickListener(v -> confirmRemoveAllServers());
         findViewById(R.id.btn_reset_account).setOnClickListener(v -> showResetDialog());
         findViewById(R.id.btn_logout).setOnClickListener(v -> confirmLogout());
+    }
+
+    private boolean isSystemNight() {
+        int mode = getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK;
+        return mode == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private void showDarkExperimentalToast() {
+        Toast.makeText(this, R.string.dark_experimental_warning,
+                Toast.LENGTH_SHORT).show();
     }
 
     private void confirmClearHistory() {

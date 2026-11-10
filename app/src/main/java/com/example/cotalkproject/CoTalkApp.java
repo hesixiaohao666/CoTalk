@@ -2,6 +2,8 @@ package com.example.cotalkproject;
 
 import android.app.Application;
 
+import androidx.appcompat.app.AppCompatDelegate;
+
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.net.SessionManager;
@@ -23,8 +25,22 @@ public class CoTalkApp extends Application {
         instance = this;
         database = AppDatabase.getInstance(this);
         prefs = new Prefs(this);
+        applyNightMode(prefs);
         sessionManager = new SessionManager(database, prefs);
         avatarLoader = new AvatarLoader(this, sessionManager);
+    }
+
+    public static void applyNightMode(Prefs prefs) {
+        if (prefs.isDarkFollowSystem()) {
+            AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        } else if (prefs.isDarkMode()) {
+            AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_YES);
+        } else {
+            AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_NO);
+        }
     }
 
     public static CoTalkApp getInstance() {
