@@ -2023,16 +2023,18 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
         boolean scroll = atBottom;
         database.execute(() -> {
-            long id = messageDao.insertOrIgnore(message);
+            // SessionManager 已经负责把该消息写入本地库；这里再次 insertOrIgnore
+            // 只作兜底，不能因为唯一键冲突（返回 -1）就跳过 UI 插入。
+            messageDao.insertOrIgnore(message);
             sessionDao.markRead(sessionId);
             database.runOnMain(() -> {
-                if (id != -1) {
-                    message.id = id;
-                    adapter.addMessage(message);
-                    toggleEmpty();
-                    if (scroll) {
-                        scrollToBottom();
-                    }
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                adapter.addMessage(message);
+                toggleEmpty();
+                if (scroll) {
+                    scrollToBottom();
                 }
             });
         });

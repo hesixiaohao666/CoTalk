@@ -198,7 +198,7 @@
                         android:layout_weight="1"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp"
-                        tools:text="0.3.3(beta)（3120）" />
+                        tools:text="0.3.4(beta)（3121）" />
                 </LinearLayout>
             </LinearLayout>
 

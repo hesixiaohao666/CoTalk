@@ -109,8 +109,8 @@
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n- 全新底部弹窗：统一所有操作菜单、确认框与输入框的弹出界面样式\n- 长按菜单升级：根据消息类型提供复制、保存、回复（占位）与撤回操作\n- 实验性功能：深色模式实装，支持跟随系统切换，新增了管理员模式（占位）\n- 显示优化：改进了勾选框的显示效果\n- 性能优化：修复发送消息与播放语音时界面的卡顿问题\n- 修复了一些已知问题\n- 此次更新兼容 v0.3.1(beta)-v0.3.2(beta) 版本的服务端</string>
-    <string name="about_changelog_date">2026-11-10</string>
+    <string name="about_changelog_body">更新内容：\n- 修复了一些已知问题\n- 此次更新兼容 v0.3.1(beta)-v0.3.3(beta) 版本的服务端</string>
+    <string name="about_changelog_date">2026-11-11</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
     <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>
