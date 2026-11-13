@@ -25,6 +25,9 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public class ServerConnection {
 
+    private static final long HEARTBEAT_INTERVAL_MS = 25_000L;
+    private static final int MAX_MISSED_PONGS = 2;
+
     private final String host;
     private final int port;
     private final ConnectionListener listener;
@@ -36,6 +39,9 @@ public class ServerConnection {
 
     private volatile boolean connected;
     private volatile boolean manuallyClosed;
+    private volatile long lastPongAt;
+    private volatile long lastPingAt;
+    private volatile int missedPongs;
 
     public ServerConnection(String host, int port, ConnectionListener listener) {
         this.host = host;
@@ -56,6 +62,7 @@ public class ServerConnection {
         socket = new Socket();
         socket.connect(new InetSocketAddress(host, port), 8000);
         socket.setTcpNoDelay(true);
+        socket.setKeepAlive(true);
         socket.setSoTimeout(10000);
 
         reader = new BufferedReader(new InputStreamReader(
@@ -179,6 +186,9 @@ public class ServerConnection {
     public void start() {
         connected = true;
         manuallyClosed = false;
+        lastPongAt = System.currentTimeMillis();
+        lastPingAt = 0L;
+        missedPongs = 0;
 
         Thread readThread = new Thread(this::readLoop, "cotalk-client-reader");
         readThread.start();
@@ -195,6 +205,9 @@ public class ServerConnection {
                 }
                 try {
                     JSONObject frame = new JSONObject(line);
+                    if (Protocol.PONG.equals(frame.optString("type", ""))) {
+                        lastPongAt = System.currentTimeMillis();
+                    }
                     listener.onFrame(this, frame);
                 } catch (Exception ignored) {
                     // 跳过坏帧
@@ -219,9 +232,24 @@ public class ServerConnection {
             if (!connected || manuallyClosed) {
                 return;
             }
+            long now = System.currentTimeMillis();
+            if (lastPingAt > 0L && lastPongAt < lastPingAt) {
+                missedPongs++;
+            } else {
+                missedPongs = 0;
+            }
+            if (missedPongs >= MAX_MISSED_PONGS) {
+                closeSocket();
+                stopHeartbeat();
+                if (!manuallyClosed) {
+                    listener.onDisconnected(this, "心跳超时");
+                }
+                return;
+            }
+            lastPingAt = now;
             try {
                 JSONObject data = new JSONObject();
-                data.put("t", System.currentTimeMillis());
+                data.put("t", now);
                 send(Protocol.frame(Protocol.PING, data));
             } catch (Exception e) {
                 closeSocket();
@@ -230,7 +258,7 @@ public class ServerConnection {
                     listener.onDisconnected(this, "心跳发送失败");
                 }
             }
-        }, 25, 25, TimeUnit.SECONDS);
+        }, HEARTBEAT_INTERVAL_MS, HEARTBEAT_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
 
     public synchronized void send(JSONObject frame) throws IOException {

@@ -1,7 +1,12 @@
 package com.example.cotalkproject.net;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.os.Handler;
 import android.os.Looper;
+
+import androidx.annotation.NonNull;
 
 import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.CoTalkApp;
@@ -27,6 +32,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -109,6 +115,20 @@ public class SessionManager {
     private volatile String reconnectAuthKey = "";
     private volatile long reconnectSessionId = -1;
     private final Runnable reconnectTask = this::runReconnect;
+    private final ConnectivityManager.NetworkCallback networkCallback =
+            new ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onAvailable(@NonNull Network network) {
+                    if (shouldReconnect
+                            && prefs.isAutoReconnect()
+                            && reconnectSessionId > 0
+                            && !connecting
+                            && connection == null) {
+                        mainHandler.removeCallbacks(reconnectTask);
+                        mainHandler.postDelayed(reconnectTask, 500L);
+                    }
+                }
+            };
 
     public SessionManager(AppDatabase database, Prefs prefs) {
         this.database = database;
@@ -117,6 +137,24 @@ public class SessionManager {
         this.sessionDao = new SessionDao(database);
         this.memberDao = new MemberDao(database);
         this.messageDao = new MessageDao(database);
+        registerNetworkCallback();
+    }
+
+    private void registerNetworkCallback() {
+        CoTalkApp app = CoTalkApp.getInstance();
+        if (app == null) {
+            return;
+        }
+        ConnectivityManager manager = (ConnectivityManager)
+                app.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (manager == null) {
+            return;
+        }
+        try {
+            manager.registerDefaultNetworkCallback(networkCallback);
+        } catch (RuntimeException ignored) {
+            // 系统限制或缺少网络状态权限时退化为普通重连。
+        }
     }
 
     public void addListener(Listener listener) {
@@ -860,10 +898,13 @@ public class SessionManager {
             return;
         }
         int index = Math.min(reconnectAttempt, RECONNECT_DELAYS.length - 1);
-        long delay = RECONNECT_DELAYS[index];
+        long baseDelay = RECONNECT_DELAYS[index];
+        // 0–20% 随机抖动，避免多个客户端同时重连冲击服务器。
+        long jitter = (long) (baseDelay * 0.2
+                * ThreadLocalRandom.current().nextDouble());
         reconnectAttempt++;
         mainHandler.removeCallbacks(reconnectTask);
-        mainHandler.postDelayed(reconnectTask, delay);
+        mainHandler.postDelayed(reconnectTask, baseDelay + jitter);
         notifySessionsChanged();
     }
 
