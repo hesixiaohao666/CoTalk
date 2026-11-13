@@ -24,6 +24,7 @@ public class Message {
     public String fileMime;
     public long fileSize;
     public boolean fileExpired;
+    public boolean senderAdmin;
     public String localPath;
     public long timestamp;
     public boolean isSelf;

@@ -11,5 +11,6 @@ public class Member {
     public int avatarVersion;
     public boolean online;
     public boolean ai;
+    public boolean admin;
     public long lastSeen;
 }

@@ -2002,6 +2002,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.fileMime = data.optString("fileMime", "");
         message.fileSize = data.optLong("fileSize", 0);
         message.fileExpired = data.optBoolean("fileExpired", false);
+        message.senderAdmin = data.optBoolean("senderAdmin", false);
         message.timestamp = data.optLong("ts", System.currentTimeMillis());
         message.isSelf = false;
         message.status = Message.STATUS_SENT;
@@ -2080,6 +2081,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                     message.fileMime = object.optString("fileMime", "");
                     message.fileSize = object.optLong("fileSize", 0);
                     message.fileExpired = object.optBoolean("fileExpired", false);
+                    message.senderAdmin = object.optBoolean("senderAdmin", false);
                     message.timestamp = object.optLong("ts", System.currentTimeMillis());
                     message.isSelf = object.optBoolean("self", false);
                     message.status = Message.STATUS_SENT;

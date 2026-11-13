@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 public class AppDatabase extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "cotalk.db";
-    private static final int DB_VERSION = 5;
+    private static final int DB_VERSION = 3200;
 
     private static volatile AppDatabase instance;
 
@@ -89,6 +89,8 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "server_version_code INTEGER NOT NULL DEFAULT 0, "
                 + "room_avatar_id TEXT NOT NULL DEFAULT '', "
                 + "room_avatar_version INTEGER NOT NULL DEFAULT 0, "
+                + "admin_enabled INTEGER NOT NULL DEFAULT 0, "
+                + "push_enabled INTEGER NOT NULL DEFAULT 1, "
                 + "UNIQUE(host, port)"
                 + ")");
 
@@ -112,6 +114,7 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "file_size INTEGER NOT NULL DEFAULT 0, "
                 + "file_expired INTEGER NOT NULL DEFAULT 0, "
                 + "local_path TEXT, "
+                + "sender_admin INTEGER NOT NULL DEFAULT 0, "
                 + "FOREIGN KEY(session_id) REFERENCES t_session(id) ON DELETE CASCADE"
                 + ")");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_message_session_seq "
@@ -126,6 +129,7 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "avatar_version INTEGER NOT NULL DEFAULT 0, "
                 + "online INTEGER NOT NULL DEFAULT 1, "
                 + "is_ai INTEGER NOT NULL DEFAULT 0, "
+                + "is_admin INTEGER NOT NULL DEFAULT 0, "
                 + "last_seen INTEGER, "
                 + "PRIMARY KEY(session_id, user_id), "
                 + "FOREIGN KEY(session_id) REFERENCES t_session(id) ON DELETE CASCADE"
@@ -161,6 +165,16 @@ public class AppDatabase extends SQLiteOpenHelper {
                     + "room_avatar_id TEXT NOT NULL DEFAULT ''");
             db.execSQL("ALTER TABLE t_session ADD COLUMN "
                     + "room_avatar_version INTEGER NOT NULL DEFAULT 0");
+        }
+        if (oldVersion < 3200) {
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "admin_enabled INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "push_enabled INTEGER NOT NULL DEFAULT 1");
+            db.execSQL("ALTER TABLE t_member ADD COLUMN "
+                    + "is_admin INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "sender_admin INTEGER NOT NULL DEFAULT 0");
         }
     }
 

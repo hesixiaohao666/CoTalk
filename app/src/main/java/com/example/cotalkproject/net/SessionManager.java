@@ -265,6 +265,10 @@ public class SessionManager {
                         ? "" : room.optString("avatarId", "");
                 int roomAvatarVersion = room == null
                         ? 0 : room.optInt("avatarVersion", 0);
+                boolean adminEnabled = server != null
+                        && server.optBoolean("adminEnabled", false);
+                boolean pushEnabled = server == null
+                        || server.optBoolean("pushEnabled", true);
 
                 String lastMessage = null;
                 long lastTime = 0;
@@ -301,7 +305,8 @@ public class SessionManager {
                         host, port, roomName, announcement, lastSeq,
                         lastMessage, lastTime, System.currentTimeMillis(),
                         aiEnabled, serverVersionName, serverVersionCode,
-                        roomAvatarId, roomAvatarVersion);
+                        roomAvatarId, roomAvatarVersion,
+                        adminEnabled, pushEnabled);
                 if (session == null) {
                     throw new IllegalStateException("保存会话失败");
                 }
@@ -510,6 +515,7 @@ public class SessionManager {
         message.fileMime = object.optString("fileMime", "");
         message.fileSize = object.optLong("fileSize", 0);
         message.fileExpired = object.optBoolean("fileExpired", false);
+        message.senderAdmin = object.optBoolean("senderAdmin", false);
         message.timestamp = object.optLong("ts", System.currentTimeMillis());
         message.isSelf = isSelf;
         message.status = Message.STATUS_SENT;
@@ -737,6 +743,7 @@ public class SessionManager {
             member.avatarVersion = object.optInt("avatarVersion", 0);
             member.online = true;
             member.ai = object.optBoolean("ai", false);
+            member.admin = object.optBoolean("admin", false);
             members.add(member);
         }
         return members;

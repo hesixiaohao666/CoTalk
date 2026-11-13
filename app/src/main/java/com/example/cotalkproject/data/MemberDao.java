@@ -36,6 +36,7 @@ public class MemberDao {
                 values.put("avatar_version", member.avatarVersion);
                 values.put("online", member.online ? 1 : 0);
                 values.put("is_ai", member.ai ? 1 : 0);
+                values.put("is_admin", member.admin ? 1 : 0);
                 values.put("last_seen", now);
                 db.insert(TABLE, null, values);
             }
@@ -62,6 +63,8 @@ public class MemberDao {
                 member.avatarVersion = cursor.getInt(cursor.getColumnIndexOrThrow("avatar_version"));
                 member.online = cursor.getInt(cursor.getColumnIndexOrThrow("online")) == 1;
                 member.ai = cursor.getInt(cursor.getColumnIndexOrThrow("is_ai")) == 1;
+                member.admin = cursor.getInt(
+                        cursor.getColumnIndexOrThrow("is_admin")) == 1;
                 member.lastSeen = cursor.getLong(cursor.getColumnIndexOrThrow("last_seen"));
                 members.add(member);
             }

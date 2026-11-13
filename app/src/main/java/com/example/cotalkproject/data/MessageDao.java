@@ -151,6 +151,7 @@ public class MessageDao {
         values.put("file_mime", (String) null);
         values.put("file_size", 0);
         values.put("file_expired", 0);
+        values.put("sender_admin", 0);
         values.put("local_path", (String) null);
         values.put("timestamp", timestamp);
         values.put("is_self", 0);
@@ -219,6 +220,7 @@ public class MessageDao {
         values.put("file_size", message.fileSize);
         values.put("file_expired", message.fileExpired ? 1 : 0);
         values.put("local_path", message.localPath);
+        values.put("sender_admin", message.senderAdmin ? 1 : 0);
         values.put("timestamp", message.timestamp);
         values.put("is_self", message.isSelf ? 1 : 0);
         values.put("status", message.status);
@@ -244,6 +246,8 @@ public class MessageDao {
         message.fileSize = cursor.getLong(cursor.getColumnIndexOrThrow("file_size"));
         message.fileExpired = cursor.getInt(
                 cursor.getColumnIndexOrThrow("file_expired")) == 1;
+        message.senderAdmin = cursor.getInt(
+                cursor.getColumnIndexOrThrow("sender_admin")) == 1;
         message.localPath = cursor.getString(cursor.getColumnIndexOrThrow("local_path"));
         message.timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("timestamp"));
         message.isSelf = cursor.getInt(cursor.getColumnIndexOrThrow("is_self")) == 1;

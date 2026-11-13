@@ -21,6 +21,8 @@ public class Session {
     public int serverVersionCode;
     public String roomAvatarId = "";
     public int roomAvatarVersion;
+    public boolean adminEnabled;
+    public boolean pushEnabled = true;
 
     public String endpoint() {
         return host + ":" + port;
