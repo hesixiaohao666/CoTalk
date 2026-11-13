@@ -63,7 +63,10 @@
     <string name="admin_mode">管理员模式</string>
     <string name="admin_mode_not_available">管理员模式暂未实装，敬请期待</string>
     <string name="background_resident">后台常驻</string>
+    <string name="background_resident_battery_hint">为保障与服务器连接的稳定性，建议为 CoTalk 开启后台高耗电权限</string>
+    <string name="go_to_settings">去设置</string>
     <string name="message_notify">消息通知</string>
+    <string name="notification_push_permission_hint">为保障消息推送的体验，建议为 CoTalk 开启锁屏通知与悬浮通知等权限</string>
     <string name="notification_permission_denied">未授予通知权限，后台连接仍可用，但不会显示消息通知</string>
     <string name="notification_channel_background">CoTalk 后台连接</string>
     <string name="notification_channel_background_desc">保持后台连接时的常驻通知</string>

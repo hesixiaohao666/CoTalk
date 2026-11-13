@@ -1,6 +1,9 @@
 package com.example.cotalkproject;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -8,8 +11,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
@@ -43,10 +49,21 @@ public class MainActivity extends AppCompatActivity {
     private Prefs prefs;
     private SessionManager sessionManager;
     private boolean autoConnectStarted;
+    private ActivityResultLauncher<String> notificationPermissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        notificationPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                granted -> {
+                    if (!granted) {
+                        prefs.setMessageNotify(false);
+                        Toast.makeText(this,
+                                R.string.notification_permission_denied,
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
 
         CoTalkApp app = CoTalkApp.getInstance();
         prefs = app.getPrefs();
@@ -85,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
         }
         showTab(initialItem);
         CoTalkConnectionService.sync(this, prefs);
+        maybeRequestNotificationPermission();
         maybeAutoConnect();
     }
 
@@ -92,6 +110,26 @@ public class MainActivity extends AppCompatActivity {
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(KEY_AUTO_CONNECT_ATTEMPTED, autoConnectStarted);
+    }
+
+    /**
+     * 旧版本升级后“消息通知”可能已默认开启，但 Android 13+ 尚未授权；
+     * 首次进入主界面时补一次授权请求，避免后台收消息却无法显示通知。
+     */
+    private void maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                || !prefs.isMessageNotify()
+                || prefs.isNotificationPermissionAsked()) {
+            return;
+        }
+        if (ContextCompat.checkSelfPermission(
+                this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        prefs.setNotificationPermissionAsked(true);
+        notificationPermissionLauncher.launch(
+                Manifest.permission.POST_NOTIFICATIONS);
     }
 
     /**

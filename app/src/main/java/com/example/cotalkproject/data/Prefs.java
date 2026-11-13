@@ -21,6 +21,8 @@ public class Prefs {
     private static final String KEY_AUTO_RECONNECT = "auto_reconnect";
     private static final String KEY_MESSAGE_NOTIFY = "message_notify";
     private static final String KEY_BACKGROUND_RESIDENT = "background_resident";
+    private static final String KEY_NOTIFICATION_PERMISSION_ASKED =
+            "notification_permission_asked";
     private static final String KEY_AUTO_CONNECT_AFTER_LOGIN = "auto_connect_after_login";
     private static final String KEY_AUTO_SAVE_DRAFT = "auto_save_draft";
     private static final String KEY_DARK_FOLLOW_SYSTEM = "dark_follow_system";
@@ -128,6 +130,16 @@ public class Prefs {
 
     public void setBackgroundResident(boolean enabled) {
         preferences.edit().putBoolean(KEY_BACKGROUND_RESIDENT, enabled).apply();
+    }
+
+    public boolean isNotificationPermissionAsked() {
+        return preferences.getBoolean(KEY_NOTIFICATION_PERMISSION_ASKED, false);
+    }
+
+    public void setNotificationPermissionAsked(boolean asked) {
+        preferences.edit()
+                .putBoolean(KEY_NOTIFICATION_PERMISSION_ASKED, asked)
+                .apply();
     }
 
     public void setMessageNotify(boolean enabled) {

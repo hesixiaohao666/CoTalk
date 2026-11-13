@@ -30,7 +30,12 @@ import java.util.Map;
 public final class NotificationHelper {
 
     public static final String CHANNEL_BACKGROUND = "cotalk_background";
-    public static final String CHANNEL_MESSAGES = "cotalk_messages";
+    /**
+     * 使用新的渠道 ID：Android 不允许应用在渠道创建后提升重要性，
+     * 升级时必须新建渠道，才能让“悬浮通知”默认生效。
+     */
+    public static final String CHANNEL_MESSAGES = "cotalk_messages_v2";
+    private static final String LEGACY_CHANNEL_MESSAGES = "cotalk_messages";
 
     public static final int PERSISTENT_NOTIFICATION_ID = 1001;
     private static final int MESSAGE_NOTIFICATION_BASE = 2000;
@@ -67,14 +72,17 @@ public final class NotificationHelper {
         background.setSound(null, null);
         manager.createNotificationChannel(background);
 
+        // 删除旧的低重要性渠道，避免设置里出现两个“CoTalk 消息通知”。
+        manager.deleteNotificationChannel(LEGACY_CHANNEL_MESSAGES);
         NotificationChannel messages = new NotificationChannel(
                 CHANNEL_MESSAGES,
                 context.getString(R.string.notification_channel_messages),
-                NotificationManager.IMPORTANCE_DEFAULT);
+                NotificationManager.IMPORTANCE_HIGH);
         messages.setDescription(context.getString(
                 R.string.notification_channel_messages_desc));
         messages.setShowBadge(true);
         messages.enableVibration(true);
+        messages.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         manager.createNotificationChannel(messages);
     }
 
@@ -118,9 +126,13 @@ public final class NotificationHelper {
         if (!persistentActive || !canPostNotifications(context)) {
             return;
         }
-        NotificationManagerCompat.from(context).notify(
-                PERSISTENT_NOTIFICATION_ID,
-                buildPersistent(context, roomName));
+        try {
+            NotificationManagerCompat.from(context).notify(
+                    PERSISTENT_NOTIFICATION_ID,
+                    buildPersistent(context, roomName));
+        } catch (RuntimeException ignored) {
+            // 厂商 ROM 的通知限制不应影响连接本身。
+        }
     }
 
     public static void hidePersistent(Context context) {
@@ -198,10 +210,16 @@ public final class NotificationHelper {
                         .setContentIntent(contentIntent)
                         .setAutoCancel(true)
                         .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setDefaults(NotificationCompat.DEFAULT_ALL)
                         .build();
-        NotificationManagerCompat.from(context).notify(notificationId, notification);
+        try {
+            NotificationManagerCompat.from(context).notify(
+                    notificationId, notification);
+        } catch (RuntimeException ignored) {
+            // 通知失败不能阻断消息入库与聊天页显示。
+        }
     }
 
     public static void cancelMessage(Context context, long sessionId) {

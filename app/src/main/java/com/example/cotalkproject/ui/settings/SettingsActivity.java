@@ -4,8 +4,10 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +19,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.content.ContextCompat;
+import androidx.lifecycle.Lifecycle;
 
 import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.CoTalkApp;
@@ -32,8 +35,10 @@ import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.login.RegisterActivity;
 import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 import com.example.cotalkproject.util.ImageUtil;
+import com.example.cotalkproject.util.NotificationHelper;
 import com.example.cotalkproject.util.SecurityUtil;
 import com.example.cotalkproject.util.UiUtil;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -44,6 +49,12 @@ public class SettingsActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private boolean updatingSwitches;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
+    private SwitchCompat messageNotifySwitch;
+    private boolean pendingBackgroundResidentHint;
+    private boolean pendingMessageNotifyEnable;
+    private boolean pendingMessageNotifyShowHint;
+    private boolean pendingPushHintAfterBattery;
+    private boolean showPushHintOnResume;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,10 +62,30 @@ public class SettingsActivity extends AppCompatActivity {
         notificationPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(),
                 granted -> {
-                    if (!granted) {
+                    if (granted) {
+                        if (pendingMessageNotifyEnable) {
+                            boolean showHint = pendingMessageNotifyShowHint;
+                            pendingMessageNotifyEnable = false;
+                            pendingMessageNotifyShowHint = false;
+                            applyMessageNotifyEnabled(showHint);
+                            if (!showHint) {
+                                pendingPushHintAfterBattery = true;
+                            }
+                        }
+                    } else {
+                        if (pendingMessageNotifyEnable) {
+                            pendingMessageNotifyEnable = false;
+                            pendingMessageNotifyShowHint = false;
+                            setMessageNotifyOff();
+                        }
+                        prefs.setMessageNotify(false);
                         Toast.makeText(this,
                                 R.string.notification_permission_denied,
                                 Toast.LENGTH_LONG).show();
+                    }
+                    if (pendingBackgroundResidentHint) {
+                        pendingBackgroundResidentHint = false;
+                        showBackgroundResidentHint();
                     }
                 });
         EdgeToEdge.enable(this);
@@ -88,9 +119,28 @@ public class SettingsActivity extends AppCompatActivity {
         backgroundResident.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.setBackgroundResident(isChecked);
             if (isChecked) {
-                ensureNotificationPermission();
                 CoTalkConnectionService.start(this);
+                boolean waitingForPermission = false;
+                if (!messageNotifySwitch.isChecked()) {
+                    if (needNotificationPermission()) {
+                        pendingMessageNotifyEnable = true;
+                        pendingMessageNotifyShowHint = false;
+                        pendingBackgroundResidentHint = true;
+                        waitingForPermission = true;
+                        ensureNotificationPermission();
+                    } else {
+                        applyMessageNotifyEnabled(false);
+                        pendingPushHintAfterBattery = true;
+                    }
+                }
+                if (!waitingForPermission) {
+                    showBackgroundResidentHint();
+                }
             } else {
+                pendingBackgroundResidentHint = false;
+                pendingPushHintAfterBattery = false;
+                pendingMessageNotifyEnable = false;
+                pendingMessageNotifyShowHint = false;
                 CoTalkConnectionService.stop(this);
             }
         });
@@ -100,13 +150,31 @@ public class SettingsActivity extends AppCompatActivity {
         autoReconnect.setOnCheckedChangeListener((buttonView, isChecked) ->
                 sessionManager.setAutoReconnectEnabled(isChecked));
 
-        SwitchCompat messageNotify = findViewById(R.id.switch_message_notify);
-        messageNotify.setChecked(prefs.isMessageNotify());
-        messageNotify.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isChecked) {
-                ensureNotificationPermission();
+        messageNotifySwitch = findViewById(R.id.switch_message_notify);
+        boolean messageNotifyEnabled = prefs.isMessageNotify();
+        if (messageNotifyEnabled && needNotificationPermission()) {
+            // 未授予通知权限时，消息通知在界面上保持关闭。
+            messageNotifyEnabled = false;
+            prefs.setMessageNotify(false);
+        }
+        messageNotifySwitch.setChecked(messageNotifyEnabled);
+        messageNotifySwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (updatingSwitches) {
+                return;
             }
-            prefs.setMessageNotify(isChecked);
+            if (!isChecked) {
+                pendingMessageNotifyEnable = false;
+                pendingMessageNotifyShowHint = false;
+                prefs.setMessageNotify(false);
+                return;
+            }
+            if (needNotificationPermission()) {
+                pendingMessageNotifyEnable = true;
+                pendingMessageNotifyShowHint = true;
+                ensureNotificationPermission();
+            } else {
+                applyMessageNotifyEnabled(true);
+            }
         });
 
         SwitchCompat autoConnectAfterLogin = findViewById(
@@ -184,23 +252,134 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.btn_logout).setOnClickListener(v -> confirmLogout());
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (messageNotifySwitch != null
+                && messageNotifySwitch.isChecked()
+                && needNotificationPermission()) {
+            setMessageNotifyOff();
+        }
+        if (showPushHintOnResume) {
+            showPushHintOnResume = false;
+            showNotificationPushHint();
+        }
+    }
+
+    private void applyMessageNotifyEnabled(boolean showHint) {
+        boolean previous = updatingSwitches;
+        updatingSwitches = true;
+        messageNotifySwitch.setChecked(true);
+        updatingSwitches = previous;
+        prefs.setMessageNotify(true);
+        // 同步创建高重要性消息渠道：锁屏可见 + 允许悬浮通知。
+        NotificationHelper.createChannels(this);
+        if (showHint) {
+            showNotificationPushHint();
+        }
+    }
+
+    private void setMessageNotifyOff() {
+        boolean previous = updatingSwitches;
+        updatingSwitches = true;
+        messageNotifySwitch.setChecked(false);
+        updatingSwitches = previous;
+        prefs.setMessageNotify(false);
+    }
+
+    private void showNotificationPushHint() {
+        BottomSheetMenu.showConfirm(
+                this,
+                getString(R.string.message_notify),
+                getString(R.string.notification_push_permission_hint),
+                getString(R.string.go_to_settings),
+                this::openAppNotificationSettings);
+    }
+
+    private void openAppNotificationSettings() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+            intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+            startActivity(intent);
+        } catch (RuntimeException ignored) {
+            try {
+                startActivity(new Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName())));
+            } catch (RuntimeException ignoredAgain) {
+                Toast.makeText(this,
+                        R.string.notification_push_permission_hint,
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
     private boolean isSystemNight() {
         int mode = getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK;
         return mode == Configuration.UI_MODE_NIGHT_YES;
     }
 
+    private boolean needNotificationPermission() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(
+                        this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED;
+    }
+
     private void ensureNotificationPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        if (!needNotificationPermission()) {
             return;
         }
-        if (ContextCompat.checkSelfPermission(
-                this, Manifest.permission.POST_NOTIFICATIONS)
-                == PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
+        prefs.setNotificationPermissionAsked(true);
         notificationPermissionLauncher.launch(
                 Manifest.permission.POST_NOTIFICATIONS);
+    }
+
+    private void showBackgroundResidentHint() {
+        BottomSheetDialog dialog = BottomSheetMenu.showConfirm(
+                this,
+                getString(R.string.background_resident),
+                getString(R.string.background_resident_battery_hint),
+                getString(R.string.go_to_settings),
+                this::openBatteryOptimizationSettings);
+        View root = findViewById(R.id.settings_root);
+        dialog.setOnDismissListener(d -> {
+            if (!pendingPushHintAfterBattery) {
+                return;
+            }
+            pendingPushHintAfterBattery = false;
+            // 等底部弹层完全收起后再显示下一个提示，避免窗口切换闪烁。
+            root.postDelayed(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (getLifecycle().getCurrentState()
+                        .isAtLeast(Lifecycle.State.RESUMED)) {
+                    showNotificationPushHint();
+                } else {
+                    // 用户跳转到系统设置时，等返回本页后再提示。
+                    showPushHintOnResume = true;
+                }
+            }, 250L);
+        });
+    }
+
+    private void openBatteryOptimizationSettings() {
+        try {
+            startActivity(new Intent(
+                    Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        } catch (RuntimeException ignored) {
+            try {
+                startActivity(new Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName())));
+            } catch (RuntimeException ignoredAgain) {
+                Toast.makeText(this,
+                        R.string.background_resident_battery_hint,
+                        Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private void showDarkExperimentalToast() {
