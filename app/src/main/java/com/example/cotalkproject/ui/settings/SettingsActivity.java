@@ -28,7 +28,9 @@ import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.LocalUserDao;
 import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
+import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.LocalUser;
+import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.service.CoTalkConnectionService;
 import com.example.cotalkproject.ui.login.LoginActivity;
@@ -40,13 +42,18 @@ import com.example.cotalkproject.util.SecurityUtil;
 import com.example.cotalkproject.util.UiUtil;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class SettingsActivity extends AppCompatActivity {
 
     private AppDatabase database;
     private LocalUserDao userDao;
     private MessageDao messageDao;
+    private SessionDao sessionDao;
     private Prefs prefs;
     private SessionManager sessionManager;
+    private SwitchCompat adminModeSwitch;
     private boolean updatingSwitches;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
     private SwitchCompat messageNotifySwitch;
@@ -110,6 +117,7 @@ public class SettingsActivity extends AppCompatActivity {
         database = CoTalkApp.getInstance().getDatabase();
         userDao = new LocalUserDao(database);
         messageDao = new MessageDao(database);
+        sessionDao = new SessionDao(database);
         prefs = CoTalkApp.getInstance().getPrefs();
         sessionManager = CoTalkApp.getInstance().getSessionManager();
 
@@ -191,7 +199,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         SwitchCompat darkFollow = findViewById(R.id.switch_dark_follow_system);
         SwitchCompat darkMode = findViewById(R.id.switch_dark_mode);
-        SwitchCompat adminMode = findViewById(R.id.switch_admin_mode);
+        adminModeSwitch = findViewById(R.id.switch_admin_mode);
 
         boolean followSystem = prefs.isDarkFollowSystem();
         boolean darkEnabled = prefs.isDarkMode();
@@ -199,7 +207,7 @@ public class SettingsActivity extends AppCompatActivity {
         darkFollow.setChecked(followSystem);
         darkMode.setEnabled(!followSystem);
         darkMode.setChecked(followSystem ? isSystemNight() : darkEnabled);
-        adminMode.setChecked(false);
+        adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
         updatingSwitches = false;
 
         darkFollow.setOnCheckedChangeListener((buttonView, checked) -> {
@@ -240,10 +248,15 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
 
-        adminMode.setOnClickListener(v -> {
-            adminMode.setChecked(false);
-            Toast.makeText(this, R.string.admin_mode_not_available,
-                    Toast.LENGTH_SHORT).show();
+        adminModeSwitch.setOnClickListener(v -> {
+            boolean isAdmin = sessionManager.isSelfAdmin();
+            adminModeSwitch.setChecked(isAdmin);
+            if (isAdmin) {
+                Toast.makeText(this, R.string.admin_already_bound,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            showAdminRoomPicker();
         });
 
         findViewById(R.id.btn_clear_history).setOnClickListener(v -> confirmClearHistory());
@@ -263,6 +276,9 @@ public class SettingsActivity extends AppCompatActivity {
         if (showPushHintOnResume) {
             showPushHintOnResume = false;
             showNotificationPushHint();
+        }
+        if (adminModeSwitch != null) {
+            adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
         }
     }
 
@@ -285,6 +301,104 @@ public class SettingsActivity extends AppCompatActivity {
         messageNotifySwitch.setChecked(false);
         updatingSwitches = previous;
         prefs.setMessageNotify(false);
+    }
+
+    private void showAdminRoomPicker() {
+        database.execute(() -> {
+            List<Session> all = sessionDao.queryAll();
+            List<Session> adminSessions = new ArrayList<>();
+            for (Session session : all) {
+                if (session.adminEnabled) {
+                    adminSessions.add(session);
+                }
+            }
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (adminSessions.isEmpty()) {
+                    Toast.makeText(this, R.string.admin_room_required,
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                ArrayList<BottomSheetMenu.Action> actions = new ArrayList<>();
+                for (Session session : adminSessions) {
+                    actions.add(new BottomSheetMenu.Action(
+                            session.displayName(),
+                            () -> {
+                                if (!sessionManager.isActive(session.id)) {
+                                    Toast.makeText(this,
+                                            R.string.admin_room_connect_first,
+                                            Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
+                                showAdminKeyInput(session);
+                            }));
+                }
+                BottomSheetMenu.showActions(
+                        this, getString(R.string.admin_mode), actions);
+            });
+        });
+    }
+
+    private void showAdminKeyInput(Session session) {
+        BottomSheetMenu.showInput(
+                this,
+                getString(R.string.admin_key_title),
+                getString(R.string.admin_key_message,
+                        session.displayName()),
+                getString(R.string.admin_key_hint),
+                true,
+                new BottomSheetMenu.InputCallback() {
+                    @Override
+                    public boolean onInput(String text) {
+                        String key = text == null ? "" : text.trim();
+                        if (key.isEmpty()) {
+                            Toast.makeText(SettingsActivity.this,
+                                    R.string.admin_key_required,
+                                    Toast.LENGTH_SHORT).show();
+                            return false;
+                        }
+                        authenticateAdmin(key);
+                        return true;
+                    }
+                });
+    }
+
+    private void authenticateAdmin(String adminKey) {
+        if (adminModeSwitch == null) {
+            return;
+        }
+        adminModeSwitch.setEnabled(false);
+        Toast.makeText(this, R.string.admin_authenticating,
+                Toast.LENGTH_SHORT).show();
+        sessionManager.authenticateAdmin(adminKey,
+                new SessionManager.AdminAuthCallback() {
+                    @Override
+                    public void onSuccess() {
+                        if (isFinishing() || isDestroyed()) {
+                            return;
+                        }
+                        adminModeSwitch.setEnabled(true);
+                        adminModeSwitch.setChecked(true);
+                        Toast.makeText(SettingsActivity.this,
+                                R.string.admin_auth_success,
+                                Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onError(String message, int code) {
+                        if (isFinishing() || isDestroyed()) {
+                            return;
+                        }
+                        adminModeSwitch.setEnabled(true);
+                        adminModeSwitch.setChecked(
+                                sessionManager.isSelfAdmin());
+                        Toast.makeText(SettingsActivity.this,
+                                getString(R.string.admin_auth_failed, message),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 
     private void showNotificationPushHint() {

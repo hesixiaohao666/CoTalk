@@ -20,6 +20,7 @@ import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.model.Session;
+import com.example.cotalkproject.util.AdminKeyUtil;
 import com.example.cotalkproject.util.AppForegroundTracker;
 import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.NotificationHelper;
@@ -75,6 +76,18 @@ public class SessionManager {
         void onError(String message);
     }
 
+    public interface AdminAuthCallback {
+        void onSuccess();
+
+        void onError(String message, int code);
+    }
+
+    public interface RoomUpdateCallback {
+        void onSuccess();
+
+        void onError(String message, int code);
+    }
+
     public interface AvatarListener {
         void onAvatarFrame(JSONObject frame);
     }
@@ -90,8 +103,10 @@ public class SessionManager {
     private final CopyOnWriteArrayList<AvatarListener> avatarListeners =
             new CopyOnWriteArrayList<>();
     private final AtomicLong connectGeneration = new AtomicLong();
+    private final Object adminAuthLock = new Object();
     // 连接/join 会阻塞最多数秒，不能占用单线程的数据库队列。
     private final ExecutorService connectExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService cryptoExecutor = Executors.newSingleThreadExecutor();
 
     private volatile ServerConnection connection;
     private volatile long activeSessionId = -1;
@@ -99,6 +114,11 @@ public class SessionManager {
     private volatile String selfUserId = "";
     private volatile int selfAvatarVersion;
     private volatile boolean pushEnabled = true;
+    private volatile boolean selfAdmin;
+    private volatile AdminAuthCallback pendingAdminAuthCallback;
+    private volatile String pendingAdminKey = "";
+    private volatile ServerConnection pendingAdminConnection;
+    private volatile RoomUpdateCallback pendingRoomUpdateCallback;
     private volatile boolean imageEnabled = true;
     private volatile boolean voiceEnabled = true;
     private volatile boolean emojiEnabled = true;
@@ -212,6 +232,317 @@ public class SessionManager {
                 }
             }
         });
+    }
+
+    public void authenticateAdmin(String adminKey, AdminAuthCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        ServerConnection current = connection;
+        if (current == null || !current.isConnected() || activeSessionId <= 0) {
+            postAdminError(callback, "请先连接启用了管理员模式的房间", 0);
+            return;
+        }
+        if (adminKey == null || adminKey.trim().isEmpty()) {
+            postAdminError(callback, "请输入管理员密钥", 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingAdminAuthCallback != null) {
+                postAdminError(callback, "正在验证管理员密钥，请稍候", 0);
+                return;
+            }
+            pendingAdminAuthCallback = callback;
+            pendingAdminKey = adminKey.trim();
+            pendingAdminConnection = current;
+        }
+
+        try {
+            JSONObject data = new JSONObject();
+            JSONObject frame = Protocol.frame(Protocol.ADMIN_AUTH_BEGIN, data);
+            frame.put("reqId", "admin-begin-" + System.currentTimeMillis());
+            sendFrame(frame, new SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String message) {
+                    if (clearPendingAdmin(callback)) {
+                        postAdminError(callback, message, 0);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            if (clearPendingAdmin(callback)) {
+                postAdminError(callback, "管理员认证请求失败", 0);
+            }
+        }
+    }
+
+    public void updateRoomInfo(String name,
+                               String announcement,
+                               String avatarData,
+                               RoomUpdateCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        ServerConnection current = connection;
+        if (current == null || !current.isConnected() || activeSessionId <= 0) {
+            postRoomError(callback, "请先连接房间", 0);
+            return;
+        }
+        if (!selfAdmin) {
+            postRoomError(callback, "当前不是管理员身份", Protocol.ERR_ADMIN_FORBIDDEN);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingRoomUpdateCallback != null) {
+                postRoomError(callback, "正在保存房间信息，请稍候", 0);
+                return;
+            }
+            pendingRoomUpdateCallback = callback;
+        }
+
+        try {
+            JSONObject data = new JSONObject();
+            data.put("name", name == null ? "" : name);
+            data.put("announcement", announcement == null ? "" : announcement);
+            if (avatarData != null && !avatarData.isEmpty()) {
+                data.put("avatar", avatarData);
+            }
+            JSONObject frame = Protocol.frame(Protocol.ROOM_ADMIN_UPDATE, data);
+            frame.put("reqId", "room-update-" + System.currentTimeMillis());
+            sendFrame(frame, new SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String message) {
+                    if (clearPendingRoom(callback)) {
+                        postRoomError(callback, message, 0);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            if (clearPendingRoom(callback)) {
+                postRoomError(callback, "房间信息提交失败", 0);
+            }
+        }
+    }
+
+    private boolean clearPendingAdmin(AdminAuthCallback callback) {
+        synchronized (adminAuthLock) {
+            if (pendingAdminAuthCallback != callback) {
+                return false;
+            }
+            pendingAdminAuthCallback = null;
+            pendingAdminKey = "";
+            pendingAdminConnection = null;
+            return true;
+        }
+    }
+
+    private boolean clearPendingRoom(RoomUpdateCallback callback) {
+        synchronized (adminAuthLock) {
+            if (pendingRoomUpdateCallback != callback) {
+                return false;
+            }
+            pendingRoomUpdateCallback = null;
+            return true;
+        }
+    }
+
+    private void postAdminError(AdminAuthCallback callback,
+                                String message,
+                                int code) {
+        mainHandler.post(() -> callback.onError(message, code));
+    }
+
+    private void postRoomError(RoomUpdateCallback callback,
+                               String message,
+                               int code) {
+        mainHandler.post(() -> callback.onError(message, code));
+    }
+
+    private void failPendingOperations(String message) {
+        AdminAuthCallback adminCallback;
+        RoomUpdateCallback roomCallback;
+        synchronized (adminAuthLock) {
+            adminCallback = pendingAdminAuthCallback;
+            roomCallback = pendingRoomUpdateCallback;
+            pendingAdminAuthCallback = null;
+            pendingAdminKey = "";
+            pendingAdminConnection = null;
+            pendingRoomUpdateCallback = null;
+        }
+        if (adminCallback != null) {
+            postAdminError(adminCallback, message, 0);
+        }
+        if (roomCallback != null) {
+            postRoomError(roomCallback, message, 0);
+        }
+    }
+
+    private void handleAdminChallenge(ServerConnection source, JSONObject frame) {
+        AdminAuthCallback callback;
+        String adminKey;
+        ServerConnection expected;
+        synchronized (adminAuthLock) {
+            callback = pendingAdminAuthCallback;
+            adminKey = pendingAdminKey;
+            expected = pendingAdminConnection;
+        }
+        if (callback == null || adminKey.isEmpty()
+                || expected == null || source != expected) {
+            return;
+        }
+
+        JSONObject data = frame.optJSONObject("data");
+        if (data == null) {
+            if (clearPendingAdmin(callback)) {
+                postAdminError(callback, "管理员挑战为空", 0);
+            }
+            return;
+        }
+        String salt = data.optString("salt", "");
+        String nonce = data.optString("nonce", "");
+        int iterations = data.optInt("iterations", 0);
+        if (salt.isEmpty() || nonce.isEmpty() || iterations <= 0) {
+            if (clearPendingAdmin(callback)) {
+                postAdminError(callback, "管理员挑战格式错误", 0);
+            }
+            return;
+        }
+
+        cryptoExecutor.execute(() -> {
+            String proof;
+            try {
+                proof = AdminKeyUtil.createProof(
+                        adminKey, salt, iterations, nonce);
+            } catch (Exception e) {
+                if (clearPendingAdmin(callback)) {
+                    postAdminError(callback, "管理员密钥处理失败", 0);
+                }
+                return;
+            }
+
+            synchronized (adminAuthLock) {
+                if (pendingAdminAuthCallback != callback) {
+                    return;
+                }
+                if (connection != expected) {
+                    if (clearPendingAdmin(callback)) {
+                        postAdminError(callback, "连接已断开", 0);
+                    }
+                    return;
+                }
+                pendingAdminKey = "";
+            }
+
+            try {
+                JSONObject responseData = new JSONObject();
+                responseData.put("proof", proof);
+                JSONObject response = Protocol.frame(
+                        Protocol.ADMIN_AUTH_RESPONSE, responseData);
+                response.put("reqId",
+                        "admin-response-" + System.currentTimeMillis());
+                sendFrame(response, new SendCallback() {
+                    @Override
+                    public void onSuccess() {
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (clearPendingAdmin(callback)) {
+                            postAdminError(callback, message, 0);
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                if (clearPendingAdmin(callback)) {
+                    postAdminError(callback, "管理员认证响应失败", 0);
+                }
+            }
+        });
+    }
+
+    private void handleAdminAuthOk() {
+        AdminAuthCallback callback;
+        synchronized (adminAuthLock) {
+            callback = pendingAdminAuthCallback;
+            pendingAdminAuthCallback = null;
+            pendingAdminKey = "";
+            pendingAdminConnection = null;
+        }
+        selfAdmin = true;
+        if (callback != null) {
+            mainHandler.post(callback::onSuccess);
+        }
+        notifySessionsChanged();
+    }
+
+    private void handleRoomUpdate(JSONObject frame) {
+        JSONObject data = frame.optJSONObject("data");
+        if (data == null) {
+            return;
+        }
+        long sessionId = activeSessionId;
+        String name = data.optString("name", "");
+        String announcement = data.optString("announcement", "");
+        String avatarId = data.optString("avatarId", "");
+        int avatarVersion = data.optInt("avatarVersion", 0);
+        RoomUpdateCallback callback;
+        synchronized (adminAuthLock) {
+            callback = pendingRoomUpdateCallback;
+            pendingRoomUpdateCallback = null;
+        }
+
+        if (!name.isEmpty()) {
+            activeRoomName = name;
+            updatePersistentRoom(name);
+        }
+        database.execute(() -> {
+            if (sessionId > 0) {
+                sessionDao.updateRoomInfo(
+                        sessionId, name, announcement, avatarId, avatarVersion);
+            }
+            database.runOnMain(() -> {
+                notifySessionsChanged();
+                notifyChatFrame(frame);
+                if (callback != null) {
+                    callback.onSuccess();
+                }
+            });
+        });
+    }
+
+    private void handleServerError(JSONObject frame, JSONObject data) {
+        AdminAuthCallback adminCallback;
+        RoomUpdateCallback roomCallback;
+        synchronized (adminAuthLock) {
+            adminCallback = pendingAdminAuthCallback;
+            roomCallback = pendingRoomUpdateCallback;
+            pendingAdminAuthCallback = null;
+            pendingAdminKey = "";
+            pendingAdminConnection = null;
+            pendingRoomUpdateCallback = null;
+        }
+        String message = data == null
+                ? "服务器错误"
+                : data.optString("message", "服务器错误");
+        int code = data == null ? 0 : data.optInt("code", 0);
+        if (adminCallback != null) {
+            postAdminError(adminCallback, message, code);
+            return;
+        }
+        if (roomCallback != null) {
+            postRoomError(roomCallback, message, code);
+            return;
+        }
+        notifyConnectionError(message);
+        notifyChatFrame(frame);
     }
 
     public void updateLocalSummary(long sessionId,
@@ -360,6 +691,7 @@ public class SessionManager {
 
                 selfUserId = self == null ? "" : self.optString("id", "");
                 selfAvatarVersion = self == null ? 0 : self.optInt("avatarVersion", 0);
+                selfAdmin = self != null && self.optBoolean("admin", false);
                 activeSessionId = session.id;
                 activeRoomName = roomName;
                 this.pushEnabled = pushEnabled;
@@ -396,7 +728,9 @@ public class SessionManager {
                 activeSessionId = -1;
                 activeRoomName = "";
                 selfUserId = "";
+                selfAdmin = false;
                 connecting = false;
+                failPendingOperations("连接服务器失败");
                 String message = e.getMessage() == null
                         ? "连接服务器失败"
                         : e.getMessage();
@@ -435,7 +769,9 @@ public class SessionManager {
         activeSessionId = -1;
         activeRoomName = "";
         selfUserId = "";
+        selfAdmin = false;
         connecting = false;
+        failPendingOperations("连接已断开");
         if (old != null) {
             old.close();
         }
@@ -481,7 +817,9 @@ public class SessionManager {
         activeRoomName = "";
         selfUserId = "";
         selfAvatarVersion = 0;
+        selfAdmin = false;
         connecting = false;
+        failPendingOperations("连接已断开");
         if (old != null) {
             old.close();
         }
@@ -630,6 +968,8 @@ public class SessionManager {
         activeSessionId = -1;
         activeRoomName = "";
         selfUserId = "";
+        selfAdmin = false;
+        failPendingOperations("连接已断开");
         if (old != null) {
             old.close();
         }
@@ -644,6 +984,21 @@ public class SessionManager {
         }
         String type = frame.optString("type", "");
 
+        if (Protocol.ADMIN_AUTH_CHALLENGE.equals(type)) {
+            handleAdminChallenge(source, frame);
+            return;
+        }
+
+        if (Protocol.ADMIN_AUTH_OK.equals(type)) {
+            handleAdminAuthOk();
+            return;
+        }
+
+        if (Protocol.ROOM_UPDATE.equals(type)) {
+            handleRoomUpdate(frame);
+            return;
+        }
+
         if (Protocol.MEMBER_LIST.equals(type)) {
             long sessionId = activeSessionId;
             if (sessionId <= 0) {
@@ -655,6 +1010,7 @@ public class SessionManager {
             for (Member member : members) {
                 if (!selfUserId.isEmpty() && selfUserId.equals(member.userId)) {
                     selfAvatarVersion = member.avatarVersion;
+                    selfAdmin = member.admin;
                     break;
                 }
             }
@@ -729,10 +1085,7 @@ public class SessionManager {
         }
 
         if (Protocol.ERROR.equals(type)) {
-            JSONObject data = frame.optJSONObject("data");
-            String message = data == null ? "服务器错误" : data.optString("message", "服务器错误");
-            notifyConnectionError(message);
-            notifyChatFrame(frame);
+            handleServerError(frame, frame.optJSONObject("data"));
         }
     }
 
@@ -787,7 +1140,9 @@ public class SessionManager {
         activeSessionId = -1;
         activeRoomName = "";
         selfUserId = "";
+        selfAdmin = false;
         connecting = false;
+        failPendingOperations("连接已断开");
         updatePersistentRoom("");
 
         boolean canReconnect = shouldReconnect
@@ -935,6 +1290,10 @@ public class SessionManager {
 
     public String getActiveRoomName() {
         return activeRoomName;
+    }
+
+    public boolean isSelfAdmin() {
+        return selfAdmin;
     }
 
     public String getSelfUserId() {

@@ -38,6 +38,17 @@ public final class ImageUtil {
 
     public static String saveAvatar(Context context, Uri uri, long userId)
             throws IOException {
+        return saveSquareAvatar(context, uri, "local_" + userId + ".jpg");
+    }
+
+    public static String saveRoomAvatar(Context context, Uri uri)
+            throws IOException {
+        return saveSquareAvatar(context, uri, "local_room.jpg");
+    }
+
+    private static String saveSquareAvatar(Context context,
+                                           Uri uri,
+                                           String fileName) throws IOException {
         Bitmap bitmap = decodeSampled(context, uri);
         if (bitmap == null) {
             throw new IOException("无法读取图片");
@@ -51,7 +62,7 @@ public final class ImageUtil {
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("无法创建头像目录");
         }
-        File output = new File(dir, "local_" + userId + ".jpg");
+        File output = new File(dir, fileName);
         try (FileOutputStream out = new FileOutputStream(output)) {
             if (!scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)) {
                 throw new IOException("头像压缩失败");

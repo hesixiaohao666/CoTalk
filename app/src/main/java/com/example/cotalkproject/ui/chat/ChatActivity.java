@@ -2204,6 +2204,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                     toggleEmpty();
                 }
             }
+        } else if (Protocol.ROOM_UPDATE.equals(type)) {
+            loadSessionTitle();
         } else if (Protocol.SYSTEM.equals(type)) {
             JSONObject data = frame.optJSONObject("data");
             if (data != null) {

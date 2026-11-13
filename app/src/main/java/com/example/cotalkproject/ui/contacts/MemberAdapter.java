@@ -59,6 +59,7 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
         bindAvatar(holder.tvAvatar, member);
         holder.tvName.setText(member.nickname);
         holder.tvAi.setVisibility(member.ai ? View.VISIBLE : View.GONE);
+        holder.tvAdmin.setVisibility(member.admin ? View.VISIBLE : View.GONE);
 
         boolean self = !TextUtils.isEmpty(selfUserId)
                 && selfUserId.equals(member.userId);
@@ -97,6 +98,7 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
         final AvatarView tvAvatar;
         final TextView tvName;
         final TextView tvAi;
+        final TextView tvAdmin;
         final TextView tvMe;
         final View vStatus;
 
@@ -105,6 +107,7 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
             tvAvatar = itemView.findViewById(R.id.tv_member_avatar);
             tvName = itemView.findViewById(R.id.tv_member_name);
             tvAi = itemView.findViewById(R.id.tv_member_ai);
+            tvAdmin = itemView.findViewById(R.id.tv_member_admin);
             tvMe = itemView.findViewById(R.id.tv_member_me);
             vStatus = itemView.findViewById(R.id.v_member_status);
         }

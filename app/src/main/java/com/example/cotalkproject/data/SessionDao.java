@@ -121,6 +121,21 @@ public class SessionDao {
         return sessions;
     }
 
+    public void updateRoomInfo(long sessionId,
+                               String roomName,
+                               String announcement,
+                               String avatarId,
+                               int avatarVersion) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("room_name", roomName == null ? "" : roomName);
+        values.put("announcement", announcement == null ? "" : announcement);
+        values.put("room_avatar_id", avatarId == null ? "" : avatarId);
+        values.put("room_avatar_version", Math.max(0, avatarVersion));
+        db.update(TABLE, values, "id = ?",
+                new String[]{String.valueOf(sessionId)});
+    }
+
     public void updateLastMessage(long sessionId,
                                   String message,
                                   long time,

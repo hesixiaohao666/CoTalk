@@ -286,6 +286,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                 message.fileExpired = false;
                 message.localPath = null;
                 message.isSelf = false;
+                message.senderAdmin = false;
                 message.status = Message.STATUS_SENT;
                 if (seq > 0) {
                     message.seq = seq;
@@ -316,6 +317,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                 && left.fileExpired == right.fileExpired
                 && left.fileSize == right.fileSize
                 && left.isSelf == right.isSelf
+                && left.senderAdmin == right.senderAdmin
                 && equals(left.msgId, right.msgId)
                 && equals(left.clientMsgId, right.clientMsgId)
                 && equals(left.senderName, right.senderName)
@@ -398,6 +400,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             other.tvName.setText(senderName);
             other.tvNameAi.setVisibility("ai".equals(message.msgType)
                     ? View.VISIBLE : View.GONE);
+            other.tvNameAdmin.setVisibility(
+                    message.senderAdmin ? View.VISIBLE : View.GONE);
             bindContent(other, message);
         } else if (holder instanceof SystemHolder) {
             SystemHolder system = (SystemHolder) holder;
@@ -617,12 +621,14 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         final AvatarView tvAvatar;
         final TextView tvName;
         final TextView tvNameAi;
+        final TextView tvNameAdmin;
 
         OtherHolder(@NonNull View itemView) {
             super(itemView);
             tvAvatar = itemView.findViewById(R.id.tv_avatar);
             tvName = itemView.findViewById(R.id.tv_name);
             tvNameAi = itemView.findViewById(R.id.tv_name_ai);
+            tvNameAdmin = itemView.findViewById(R.id.tv_name_admin);
         }
     }
 

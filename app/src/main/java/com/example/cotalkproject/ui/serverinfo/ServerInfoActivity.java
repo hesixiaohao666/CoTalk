@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,6 +21,7 @@ import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
+import com.example.cotalkproject.ui.admin.RoomAdminActivity;
 import com.example.cotalkproject.ui.contacts.MemberAdapter;
 import com.example.cotalkproject.ui.widget.AvatarView;
 import com.example.cotalkproject.util.UiUtil;
@@ -46,6 +48,7 @@ public class ServerInfoActivity extends AppCompatActivity
     private TextView tvMemberTitle;
     private TextView tvMembersEmpty;
     private RecyclerView rvMembers;
+    private View roomAdminButton;
 
     private AppDatabase database;
     private SessionDao sessionDao;
@@ -81,6 +84,20 @@ public class ServerInfoActivity extends AppCompatActivity
         btnBack.setOnClickListener(v -> finish());
         TextView title = findViewById(R.id.tv_title);
         title.setText(R.string.server_info_title);
+
+        View actions = findViewById(R.id.ll_actions);
+        actions.setVisibility(View.VISIBLE);
+        roomAdminButton = findViewById(R.id.btn_action_room_admin);
+        roomAdminButton.setOnClickListener(v -> {
+            if (!sessionManager.isActive(sessionId)
+                    || !sessionManager.isSelfAdmin()) {
+                Toast.makeText(this, R.string.room_admin_not_admin,
+                        Toast.LENGTH_SHORT).show();
+                updateAdminEntry();
+                return;
+            }
+            startActivity(RoomAdminActivity.createIntent(this, sessionId));
+        });
 
         ivRoomAvatar = findViewById(R.id.iv_room_avatar);
         tvRoomName = findViewById(R.id.tv_room_name);
@@ -139,6 +156,7 @@ public class ServerInfoActivity extends AppCompatActivity
     }
 
     private void bindSession(Session session) {
+        updateAdminEntry();
         bindRoomAvatar(session);
         tvRoomName.setText(session.displayName());
         tvAnnouncement.setText(TextUtils.isEmpty(session.announcement)
@@ -183,6 +201,15 @@ public class ServerInfoActivity extends AppCompatActivity
                         ivRoomAvatar.setAvatar(name, bitmap);
                     }
                 });
+    }
+
+    private void updateAdminEntry() {
+        if (roomAdminButton == null) {
+            return;
+        }
+        boolean visible = sessionManager.isActive(sessionId)
+                && sessionManager.isSelfAdmin();
+        roomAdminButton.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     private void loadMembers() {
@@ -237,6 +264,7 @@ public class ServerInfoActivity extends AppCompatActivity
     @Override
     public void onMembersChanged(long changedSessionId) {
         if (changedSessionId == sessionId) {
+            updateAdminEntry();
             loadMembers();
         }
     }
