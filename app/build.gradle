@@ -29,11 +29,13 @@ android {
         debug {
             applicationIdSuffix ".debug"
             versionNameSuffix "-debug"
+            manifestPlaceholders = [appName: "CoTalk-开发版"]
         }
         release {
             optimization {
                 enable false
             }
+            manifestPlaceholders = [appName: "@string/app_name"]
         }
     }
     compileOptions {
