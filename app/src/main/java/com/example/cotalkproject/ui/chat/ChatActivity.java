@@ -63,6 +63,7 @@ import com.example.cotalkproject.util.ChatFileStore;
 import com.example.cotalkproject.util.EmojiStore;
 import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.MediaSaver;
+import com.example.cotalkproject.util.NotificationHelper;
 import com.example.cotalkproject.util.UiUtil;
 import com.example.cotalkproject.util.VoicePlayer;
 import com.example.cotalkproject.util.VoiceRecorder;
@@ -910,6 +911,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         super.onStart();
         sessionManager.setChatListener(this);
         sessionManager.setOpenChatSession(sessionId);
+        NotificationHelper.cancelMessage(this, sessionId);
         loadSessionTitle();
         if (sessionManager.isActive(sessionId)) {
             hideBanner();

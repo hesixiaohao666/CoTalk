@@ -4,6 +4,7 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.example.cotalkproject.BuildConfig;
+import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.LocalUserDao;
 import com.example.cotalkproject.data.MemberDao;
@@ -14,7 +15,9 @@ import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.model.Session;
+import com.example.cotalkproject.util.AppForegroundTracker;
 import com.example.cotalkproject.util.ImageUtil;
+import com.example.cotalkproject.util.NotificationHelper;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -86,8 +89,10 @@ public class SessionManager {
 
     private volatile ServerConnection connection;
     private volatile long activeSessionId = -1;
+    private volatile String activeRoomName = "";
     private volatile String selfUserId = "";
     private volatile int selfAvatarVersion;
+    private volatile boolean pushEnabled = true;
     private volatile boolean imageEnabled = true;
     private volatile boolean voiceEnabled = true;
     private volatile boolean emojiEnabled = true;
@@ -318,6 +323,8 @@ public class SessionManager {
                 selfUserId = self == null ? "" : self.optString("id", "");
                 selfAvatarVersion = self == null ? 0 : self.optInt("avatarVersion", 0);
                 activeSessionId = session.id;
+                activeRoomName = roomName;
+                this.pushEnabled = pushEnabled;
                 connection = conn;
                 connecting = false;
                 shouldReconnect = true;
@@ -327,6 +334,10 @@ public class SessionManager {
                 reconnectSessionId = session.id;
                 reconnectAttempt = 0;
                 conn.start();
+                CoTalkApp app = CoTalkApp.getInstance();
+                if (app != null) {
+                    NotificationHelper.updatePersistent(app, activeRoomName);
+                }
 
                 database.runOnMain(() -> {
                     if (callback != null) {
@@ -345,6 +356,7 @@ public class SessionManager {
                 }
                 connection = null;
                 activeSessionId = -1;
+                activeRoomName = "";
                 selfUserId = "";
                 connecting = false;
                 String message = e.getMessage() == null
@@ -383,11 +395,13 @@ public class SessionManager {
         long sessionId = activeSessionId;
         connection = null;
         activeSessionId = -1;
+        activeRoomName = "";
         selfUserId = "";
         connecting = false;
         if (old != null) {
             old.close();
         }
+        updatePersistentRoom("");
         notifyChatDisconnected("已断开连接");
 
         database.execute(() -> {
@@ -426,12 +440,14 @@ public class SessionManager {
         ServerConnection old = connection;
         connection = null;
         activeSessionId = -1;
+        activeRoomName = "";
         selfUserId = "";
         selfAvatarVersion = 0;
         connecting = false;
         if (old != null) {
             old.close();
         }
+        updatePersistentRoom("");
         notifyChatDisconnected("已断开连接");
 
         database.execute(() -> {
@@ -536,11 +552,45 @@ public class SessionManager {
         return object.optString("content", "");
     }
 
+    private void maybeNotifyMessage(JSONObject data,
+                                    long sessionId,
+                                    String preview,
+                                    boolean system) {
+        if (system
+                || !prefs.isMessageNotify()
+                || !pushEnabled
+                || AppForegroundTracker.isForeground()) {
+            return;
+        }
+        String senderId = data.optString("senderId", "");
+        if (!selfUserId.isEmpty() && selfUserId.equals(senderId)) {
+            return;
+        }
+        CoTalkApp app = CoTalkApp.getInstance();
+        if (app == null) {
+            return;
+        }
+        NotificationHelper.notifyMessage(
+                app,
+                sessionId,
+                activeRoomName,
+                data.optString("senderName", ""),
+                preview);
+    }
+
+    private void updatePersistentRoom(String roomName) {
+        CoTalkApp app = CoTalkApp.getInstance();
+        if (app != null) {
+            NotificationHelper.updatePersistent(app, roomName);
+        }
+    }
+
     private void closeActiveOnIo() {
         ServerConnection old = connection;
         long oldSessionId = activeSessionId;
         connection = null;
         activeSessionId = -1;
+        activeRoomName = "";
         selfUserId = "";
         if (old != null) {
             old.close();
@@ -593,6 +643,7 @@ public class SessionManager {
             long seq = data.optLong("seq", 0);
             // 系统提示更新摘要；聊天页打开时也不计未读。
             boolean incrementUnread = !system && openChatSessionId != sessionId;
+            maybeNotifyMessage(data, sessionId, content, system);
             Message stored = messageFromJson(data, sessionId, false);
             database.execute(() -> {
                 if (stored != null) {
@@ -696,8 +747,10 @@ public class SessionManager {
         connection = null;
         long sessionId = activeSessionId;
         activeSessionId = -1;
+        activeRoomName = "";
         selfUserId = "";
         connecting = false;
+        updatePersistentRoom("");
 
         boolean canReconnect = shouldReconnect
                 && prefs.isAutoReconnect()
@@ -837,6 +890,10 @@ public class SessionManager {
 
     public long getActiveSessionId() {
         return activeSessionId;
+    }
+
+    public String getActiveRoomName() {
+        return activeRoomName;
     }
 
     public String getSelfUserId() {

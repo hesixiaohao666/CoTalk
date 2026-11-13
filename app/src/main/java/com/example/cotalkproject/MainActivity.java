@@ -19,6 +19,7 @@ import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
+import com.example.cotalkproject.service.CoTalkConnectionService;
 import com.example.cotalkproject.ui.chat.ChatActivity;
 import com.example.cotalkproject.ui.contacts.ContactsFragment;
 import com.example.cotalkproject.ui.home.HomeFragment;
@@ -83,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
             initialItem = navigation.getSelectedItemId();
         }
         showTab(initialItem);
+        CoTalkConnectionService.sync(this, prefs);
         maybeAutoConnect();
     }
 

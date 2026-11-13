@@ -1,16 +1,22 @@
 package com.example.cotalkproject.ui.settings;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
+import androidx.core.content.ContextCompat;
 
 import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.CoTalkApp;
@@ -21,6 +27,7 @@ import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.net.SessionManager;
+import com.example.cotalkproject.service.CoTalkConnectionService;
 import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.login.RegisterActivity;
 import com.example.cotalkproject.ui.widget.BottomSheetMenu;
@@ -36,10 +43,20 @@ public class SettingsActivity extends AppCompatActivity {
     private Prefs prefs;
     private SessionManager sessionManager;
     private boolean updatingSwitches;
+    private ActivityResultLauncher<String> notificationPermissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        notificationPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                granted -> {
+                    if (!granted) {
+                        Toast.makeText(this,
+                                R.string.notification_permission_denied,
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_settings);
 
@@ -65,6 +82,19 @@ public class SettingsActivity extends AppCompatActivity {
         prefs = CoTalkApp.getInstance().getPrefs();
         sessionManager = CoTalkApp.getInstance().getSessionManager();
 
+        SwitchCompat backgroundResident =
+                findViewById(R.id.switch_background_resident);
+        backgroundResident.setChecked(prefs.isBackgroundResident());
+        backgroundResident.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            prefs.setBackgroundResident(isChecked);
+            if (isChecked) {
+                ensureNotificationPermission();
+                CoTalkConnectionService.start(this);
+            } else {
+                CoTalkConnectionService.stop(this);
+            }
+        });
+
         SwitchCompat autoReconnect = findViewById(R.id.switch_auto_reconnect);
         autoReconnect.setChecked(prefs.isAutoReconnect());
         autoReconnect.setOnCheckedChangeListener((buttonView, isChecked) ->
@@ -72,8 +102,12 @@ public class SettingsActivity extends AppCompatActivity {
 
         SwitchCompat messageNotify = findViewById(R.id.switch_message_notify);
         messageNotify.setChecked(prefs.isMessageNotify());
-        messageNotify.setOnCheckedChangeListener((buttonView, isChecked) ->
-                prefs.setMessageNotify(isChecked));
+        messageNotify.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                ensureNotificationPermission();
+            }
+            prefs.setMessageNotify(isChecked);
+        });
 
         SwitchCompat autoConnectAfterLogin = findViewById(
                 R.id.switch_auto_connect_after_login);
@@ -156,6 +190,19 @@ public class SettingsActivity extends AppCompatActivity {
         return mode == Configuration.UI_MODE_NIGHT_YES;
     }
 
+    private void ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        if (ContextCompat.checkSelfPermission(
+                this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        notificationPermissionLauncher.launch(
+                Manifest.permission.POST_NOTIFICATIONS);
+    }
+
     private void showDarkExperimentalToast() {
         Toast.makeText(this, R.string.dark_experimental_warning,
                 Toast.LENGTH_SHORT).show();
@@ -219,6 +266,7 @@ public class SettingsActivity extends AppCompatActivity {
             }
 
             sessionManager.removeAllSessions();
+            CoTalkConnectionService.stop(this);
             database.clearAllLocalData();
             ImageUtil.deleteAllAvatarCache(this);
             CoTalkApp.getInstance().setAuthenticated(false);
@@ -247,6 +295,7 @@ public class SettingsActivity extends AppCompatActivity {
                 getString(R.string.confirm),
                 () -> {
                     sessionManager.disconnect();
+                    CoTalkConnectionService.stop(this);
                     CoTalkApp.getInstance().setAuthenticated(false);
                     prefs.logout();
                     prefs.setAutoLogin(false);

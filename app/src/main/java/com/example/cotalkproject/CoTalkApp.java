@@ -1,13 +1,19 @@
 package com.example.cotalkproject;
 
+import android.app.Activity;
 import android.app.Application;
+import android.os.Bundle;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatDelegate;
 
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.net.SessionManager;
+import com.example.cotalkproject.util.AppForegroundTracker;
 import com.example.cotalkproject.util.AvatarLoader;
+import com.example.cotalkproject.util.NotificationHelper;
 
 public class CoTalkApp extends Application {
 
@@ -28,6 +34,43 @@ public class CoTalkApp extends Application {
         applyNightMode(prefs);
         sessionManager = new SessionManager(database, prefs);
         avatarLoader = new AvatarLoader(this, sessionManager);
+        NotificationHelper.createChannels(this);
+        registerActivityLifecycleCallbacks(new ForegroundCallbacks());
+    }
+
+    private static final class ForegroundCallbacks implements ActivityLifecycleCallbacks {
+
+        @Override
+        public void onActivityCreated(@NonNull Activity activity,
+                                      @Nullable Bundle savedInstanceState) {
+        }
+
+        @Override
+        public void onActivityStarted(@NonNull Activity activity) {
+            AppForegroundTracker.onActivityStarted();
+        }
+
+        @Override
+        public void onActivityResumed(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityPaused(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityStopped(@NonNull Activity activity) {
+            AppForegroundTracker.onActivityStopped();
+        }
+
+        @Override
+        public void onActivitySaveInstanceState(@NonNull Activity activity,
+                                                @NonNull Bundle outState) {
+        }
+
+        @Override
+        public void onActivityDestroyed(@NonNull Activity activity) {
+        }
     }
 
     public static void applyNightMode(Prefs prefs) {
