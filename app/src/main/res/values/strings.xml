@@ -73,6 +73,11 @@
     <string name="admin_auth_success">管理员身份已绑定</string>
     <string name="admin_auth_failed">管理员绑定失败：%1$s</string>
     <string name="admin_authenticating">正在验证管理员密钥…</string>
+    <string name="admin_unbind_confirm">关闭后将解除与服务器的管理员绑定，房间管理入口将关闭。</string>
+    <string name="admin_unbind_action">解除绑定</string>
+    <string name="admin_unbind_success">已解除管理员绑定</string>
+    <string name="admin_unbind_failed">解除绑定失败：%1$s</string>
+    <string name="admin_revoked_message">管理员身份已被服务器解除</string>
     <string name="room_admin_title">房间管理</string>
     <string name="room_admin_avatar">房间头像</string>
     <string name="room_admin_change_avatar">更换房间头像</string>

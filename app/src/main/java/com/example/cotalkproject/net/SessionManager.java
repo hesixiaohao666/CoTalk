@@ -116,6 +116,7 @@ public class SessionManager {
     private volatile boolean pushEnabled = true;
     private volatile boolean selfAdmin;
     private volatile AdminAuthCallback pendingAdminAuthCallback;
+    private volatile AdminAuthCallback pendingAdminUnbindCallback;
     private volatile String pendingAdminKey = "";
     private volatile ServerConnection pendingAdminConnection;
     private volatile RoomUpdateCallback pendingRoomUpdateCallback;
@@ -248,8 +249,9 @@ public class SessionManager {
             return;
         }
         synchronized (adminAuthLock) {
-            if (pendingAdminAuthCallback != null) {
-                postAdminError(callback, "正在验证管理员密钥，请稍候", 0);
+            if (pendingAdminAuthCallback != null
+                    || pendingAdminUnbindCallback != null) {
+                postAdminError(callback, "正在处理管理员身份，请稍候", 0);
                 return;
             }
             pendingAdminAuthCallback = callback;
@@ -276,6 +278,47 @@ public class SessionManager {
         } catch (Exception e) {
             if (clearPendingAdmin(callback)) {
                 postAdminError(callback, "管理员认证请求失败", 0);
+            }
+        }
+    }
+
+    public void unbindAdmin(AdminAuthCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        ServerConnection current = connection;
+        if (current == null || !current.isConnected() || activeSessionId <= 0) {
+            postAdminError(callback, "请先连接房间", 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingAdminAuthCallback != null
+                    || pendingAdminUnbindCallback != null) {
+                postAdminError(callback, "正在处理管理员身份，请稍候", 0);
+                return;
+            }
+            pendingAdminUnbindCallback = callback;
+        }
+
+        try {
+            JSONObject data = new JSONObject();
+            JSONObject frame = Protocol.frame(Protocol.ADMIN_UNBIND, data);
+            frame.put("reqId", "admin-unbind-" + System.currentTimeMillis());
+            sendFrame(frame, new SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String message) {
+                    if (clearPendingAdminUnbind(callback)) {
+                        postAdminError(callback, message, 0);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            if (clearPendingAdminUnbind(callback)) {
+                postAdminError(callback, "解除管理员绑定请求失败", 0);
             }
         }
     }
@@ -344,6 +387,16 @@ public class SessionManager {
         }
     }
 
+    private boolean clearPendingAdminUnbind(AdminAuthCallback callback) {
+        synchronized (adminAuthLock) {
+            if (pendingAdminUnbindCallback != callback) {
+                return false;
+            }
+            pendingAdminUnbindCallback = null;
+            return true;
+        }
+    }
+
     private boolean clearPendingRoom(RoomUpdateCallback callback) {
         synchronized (adminAuthLock) {
             if (pendingRoomUpdateCallback != callback) {
@@ -368,17 +421,23 @@ public class SessionManager {
 
     private void failPendingOperations(String message) {
         AdminAuthCallback adminCallback;
+        AdminAuthCallback unbindCallback;
         RoomUpdateCallback roomCallback;
         synchronized (adminAuthLock) {
             adminCallback = pendingAdminAuthCallback;
+            unbindCallback = pendingAdminUnbindCallback;
             roomCallback = pendingRoomUpdateCallback;
             pendingAdminAuthCallback = null;
+            pendingAdminUnbindCallback = null;
             pendingAdminKey = "";
             pendingAdminConnection = null;
             pendingRoomUpdateCallback = null;
         }
         if (adminCallback != null) {
             postAdminError(adminCallback, message, 0);
+        }
+        if (unbindCallback != null) {
+            postAdminError(unbindCallback, message, 0);
         }
         if (roomCallback != null) {
             postRoomError(roomCallback, message, 0);
@@ -483,6 +542,47 @@ public class SessionManager {
         notifySessionsChanged();
     }
 
+    private void handleAdminUnbindOk() {
+        AdminAuthCallback callback;
+        synchronized (adminAuthLock) {
+            callback = pendingAdminUnbindCallback;
+            pendingAdminUnbindCallback = null;
+        }
+        selfAdmin = false;
+        notifySessionsChanged();
+        if (callback != null) {
+            mainHandler.post(callback::onSuccess);
+        }
+    }
+
+    private void handleAdminRevoked(JSONObject frame) {
+        AdminAuthCallback authCallback;
+        AdminAuthCallback unbindCallback;
+        RoomUpdateCallback roomCallback;
+        synchronized (adminAuthLock) {
+            authCallback = pendingAdminAuthCallback;
+            unbindCallback = pendingAdminUnbindCallback;
+            roomCallback = pendingRoomUpdateCallback;
+            pendingAdminAuthCallback = null;
+            pendingAdminUnbindCallback = null;
+            pendingRoomUpdateCallback = null;
+            pendingAdminKey = "";
+            pendingAdminConnection = null;
+        }
+        selfAdmin = false;
+        if (authCallback != null) {
+            postAdminError(authCallback, "管理员身份已被解除", 0);
+        }
+        if (unbindCallback != null) {
+            mainHandler.post(unbindCallback::onSuccess);
+        }
+        if (roomCallback != null) {
+            postRoomError(roomCallback, "管理员身份已被解除", 0);
+        }
+        notifySessionsChanged();
+        notifyChatFrame(frame);
+    }
+
     private void handleRoomUpdate(JSONObject frame) {
         JSONObject data = frame.optJSONObject("data");
         if (data == null) {
@@ -520,11 +620,14 @@ public class SessionManager {
 
     private void handleServerError(JSONObject frame, JSONObject data) {
         AdminAuthCallback adminCallback;
+        AdminAuthCallback unbindCallback;
         RoomUpdateCallback roomCallback;
         synchronized (adminAuthLock) {
             adminCallback = pendingAdminAuthCallback;
+            unbindCallback = pendingAdminUnbindCallback;
             roomCallback = pendingRoomUpdateCallback;
             pendingAdminAuthCallback = null;
+            pendingAdminUnbindCallback = null;
             pendingAdminKey = "";
             pendingAdminConnection = null;
             pendingRoomUpdateCallback = null;
@@ -535,6 +638,10 @@ public class SessionManager {
         int code = data == null ? 0 : data.optInt("code", 0);
         if (adminCallback != null) {
             postAdminError(adminCallback, message, code);
+            return;
+        }
+        if (unbindCallback != null) {
+            postAdminError(unbindCallback, message, code);
             return;
         }
         if (roomCallback != null) {
@@ -991,6 +1098,16 @@ public class SessionManager {
 
         if (Protocol.ADMIN_AUTH_OK.equals(type)) {
             handleAdminAuthOk();
+            return;
+        }
+
+        if (Protocol.ADMIN_UNBIND_OK.equals(type)) {
+            handleAdminUnbindOk();
+            return;
+        }
+
+        if (Protocol.ADMIN_REVOKED.equals(type)) {
+            handleAdminRevoked(frame);
             return;
         }
 

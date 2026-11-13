@@ -45,7 +45,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SettingsActivity extends AppCompatActivity {
+public class SettingsActivity extends AppCompatActivity
+        implements SessionManager.Listener {
 
     private AppDatabase database;
     private LocalUserDao userDao;
@@ -252,17 +253,28 @@ public class SettingsActivity extends AppCompatActivity {
             boolean isAdmin = sessionManager.isSelfAdmin();
             adminModeSwitch.setChecked(isAdmin);
             if (isAdmin) {
-                Toast.makeText(this, R.string.admin_already_bound,
-                        Toast.LENGTH_SHORT).show();
-                return;
+                confirmAdminUnbind();
+            } else {
+                showAdminRoomPicker();
             }
-            showAdminRoomPicker();
         });
 
         findViewById(R.id.btn_clear_history).setOnClickListener(v -> confirmClearHistory());
         findViewById(R.id.btn_remove_all_servers).setOnClickListener(v -> confirmRemoveAllServers());
         findViewById(R.id.btn_reset_account).setOnClickListener(v -> showResetDialog());
         findViewById(R.id.btn_logout).setOnClickListener(v -> confirmLogout());
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        sessionManager.addListener(this);
+    }
+
+    @Override
+    protected void onStop() {
+        sessionManager.removeListener(this);
+        super.onStop();
     }
 
     @Override
@@ -399,6 +411,67 @@ public class SettingsActivity extends AppCompatActivity {
                                 Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    private void confirmAdminUnbind() {
+        BottomSheetMenu.showConfirm(
+                this,
+                getString(R.string.admin_mode),
+                getString(R.string.admin_unbind_confirm),
+                getString(R.string.admin_unbind_action),
+                this::unbindAdmin);
+    }
+
+    private void unbindAdmin() {
+        if (adminModeSwitch == null) {
+            return;
+        }
+        adminModeSwitch.setEnabled(false);
+        sessionManager.unbindAdmin(new SessionManager.AdminAuthCallback() {
+            @Override
+            public void onSuccess() {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                adminModeSwitch.setEnabled(true);
+                adminModeSwitch.setChecked(false);
+                Toast.makeText(SettingsActivity.this,
+                        R.string.admin_unbind_success,
+                        Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                adminModeSwitch.setEnabled(true);
+                adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
+                Toast.makeText(SettingsActivity.this,
+                        getString(R.string.admin_unbind_failed, message),
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    @Override
+    public void onSessionsChanged() {
+        updateAdminSwitch();
+    }
+
+    @Override
+    public void onMembersChanged(long changedSessionId) {
+        updateAdminSwitch();
+    }
+
+    @Override
+    public void onConnectionError(String message) {
+    }
+
+    private void updateAdminSwitch() {
+        if (adminModeSwitch != null) {
+            adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
+        }
     }
 
     private void showNotificationPushHint() {
