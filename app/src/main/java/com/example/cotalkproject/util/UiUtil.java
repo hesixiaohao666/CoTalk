@@ -56,7 +56,7 @@ public final class UiUtil {
     }
 
     /**
-     * 有标题栏 + 输入法避让（注册页、聊天页后续可复用）。
+     * 有标题栏 + 输入法避让（注册页、聊天页等）。
      */
     public static void applyEdgeToEdgeInsetsWithIme(View root, View titleBar, ScrollView scrollView) {
         applyInsets(root, titleBar, scrollView, true);

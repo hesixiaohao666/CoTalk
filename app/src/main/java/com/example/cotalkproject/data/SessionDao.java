@@ -36,7 +36,8 @@ public class SessionDao {
                           String roomAvatarId,
                           int roomAvatarVersion,
                           boolean adminEnabled,
-                          boolean pushEnabled) {
+                          boolean pushEnabled,
+                          boolean aiProEnabled) {
         SQLiteDatabase db = helper.getWritableDatabase();
         Session existing = getByHostPort(host, port);
 
@@ -55,6 +56,7 @@ public class SessionDao {
         values.put("room_avatar_version", Math.max(0, roomAvatarVersion));
         values.put("admin_enabled", adminEnabled ? 1 : 0);
         values.put("push_enabled", pushEnabled ? 1 : 0);
+        values.put("ai_pro_enabled", aiProEnabled ? 1 : 0);
 
         if (existing == null) {
             values.put("last_seq", lastSeq);
@@ -213,6 +215,8 @@ public class SessionDao {
                 cursor.getColumnIndexOrThrow("admin_enabled")) == 1;
         session.pushEnabled = cursor.getInt(
                 cursor.getColumnIndexOrThrow("push_enabled")) == 1;
+        session.aiProEnabled = cursor.getInt(
+                cursor.getColumnIndexOrThrow("ai_pro_enabled")) == 1;
         return session;
     }
 }

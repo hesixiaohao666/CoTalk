@@ -61,7 +61,6 @@
     <string name="dark_mode">深色模式</string>
     <string name="dark_experimental_warning">深色模式为实验性功能，请酌情开启</string>
     <string name="admin_mode">管理员模式</string>
-    <string name="admin_mode_not_available">管理员模式暂未实装，敬请期待</string>
     <string name="admin_badge">管理员</string>
     <string name="admin_room_required">暂无已连接且启用管理员模式的群聊</string>
     <string name="admin_room_connect_first">请先连接该房间</string>
@@ -156,8 +155,8 @@
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n- 修复了一些已知问题\n- 此次更新兼容 v0.3.1(beta)-v0.3.3(beta) 版本的服务端</string>
-    <string name="about_changelog_date">2026-11-11</string>
+    <string name="about_changelog_body">更新内容：\n- 新增后台常驻与消息通知\n- 新增连接稳定性优化\n- 新增管理员模式与房间管理\n- 新增 AI 群友 Pro 标识与实验性标签\n- 此次更新仅兼容 v0.3.5(beta) 版本的服务端</string>
+    <string name="about_changelog_date">2026-11-13</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
     <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>
@@ -199,7 +198,10 @@
     <string name="remove_server_message">将删除本机保存的会话、消息和成员缓存，不影响服务器数据。</string>
     <string name="me_suffix">（我）</string>
     <string name="ai_badge">AI</string>
+    <string name="ai_pro_badge">AI Pro</string>
+    <string name="experimental_badge">实验性</string>
     <string name="server_supports_ai">支持 AI</string>
+    <string name="server_supports_ai_pro">支持 AI Pro</string>
     <string name="chat_title_default">聊天</string>
     <string name="server_info">房间信息</string>
     <string name="server_info_title">房间信息</string>
@@ -211,6 +213,7 @@
     <string name="server_info_ai">AI 功能</string>
     <string name="server_info_version">服务端版本</string>
     <string name="server_info_ai_enabled">已启用</string>
+    <string name="server_info_ai_pro_enabled">已启用Pro（实验性功能）</string>
     <string name="server_info_ai_disabled">未启用</string>
     <string name="server_info_no_announcement">暂无公告</string>
     <string name="server_info_unknown_version">未知版本</string>
@@ -263,7 +266,7 @@
     <string name="message_copied">消息已复制</string>
     <string name="message_copy">复制</string>
     <string name="message_reply">回复</string>
-    <string name="reply_not_available">回复功能暂未实装，敬请期待</string>
+    <string name="reply_not_available">回复功能暂不可用</string>
     <string name="message_recall">撤回</string>
     <string name="message_recall_failed">撤回失败：%1$s</string>
     <string name="poke_failed">拍一拍失败，请稍后再试</string>

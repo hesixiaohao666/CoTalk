@@ -91,6 +91,7 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "room_avatar_version INTEGER NOT NULL DEFAULT 0, "
                 + "admin_enabled INTEGER NOT NULL DEFAULT 0, "
                 + "push_enabled INTEGER NOT NULL DEFAULT 1, "
+                + "ai_pro_enabled INTEGER NOT NULL DEFAULT 0, "
                 + "UNIQUE(host, port)"
                 + ")");
 
@@ -134,6 +135,33 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "PRIMARY KEY(session_id, user_id), "
                 + "FOREIGN KEY(session_id) REFERENCES t_session(id) ON DELETE CASCADE"
                 + ")");
+    }
+
+    @Override
+    public void onOpen(@NonNull SQLiteDatabase db) {
+        super.onOpen(db);
+        // DB_VERSION 保持 3200；新字段通过列检查补齐，避免破坏版本统一约定。
+        if (!hasColumn(db, "t_session", "ai_pro_enabled")) {
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "ai_pro_enabled INTEGER NOT NULL DEFAULT 0");
+        }
+    }
+
+    private static boolean hasColumn(SQLiteDatabase db,
+                                     String table,
+                                     String column) {
+        try (android.database.Cursor cursor = db.rawQuery(
+                "PRAGMA table_info(" + table + ")", null)) {
+            int nameIndex = cursor.getColumnIndex("name");
+            while (cursor.moveToNext()) {
+                if (nameIndex >= 0
+                        && column.equalsIgnoreCase(
+                        cursor.getString(nameIndex))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override

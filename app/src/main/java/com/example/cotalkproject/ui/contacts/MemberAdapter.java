@@ -23,6 +23,7 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
     private final AvatarLoader avatarLoader;
     private long sessionId;
     private String selfUserId = "";
+    private boolean aiProEnabled;
 
     public MemberAdapter(AvatarLoader avatarLoader) {
         this.avatarLoader = avatarLoader;
@@ -45,6 +46,11 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
         notifyDataSetChanged();
     }
 
+    public void setAiProEnabled(boolean enabled) {
+        this.aiProEnabled = enabled;
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -59,6 +65,8 @@ public class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.ViewHolder
         bindAvatar(holder.tvAvatar, member);
         holder.tvName.setText(member.nickname);
         holder.tvAi.setVisibility(member.ai ? View.VISIBLE : View.GONE);
+        holder.tvAi.setText(aiProEnabled
+                ? R.string.ai_pro_badge : R.string.ai_badge);
         holder.tvAdmin.setVisibility(member.admin ? View.VISIBLE : View.GONE);
 
         boolean self = !TextUtils.isEmpty(selfUserId)

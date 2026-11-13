@@ -23,6 +23,7 @@ public class Session {
     public int roomAvatarVersion;
     public boolean adminEnabled;
     public boolean pushEnabled = true;
+    public boolean aiProEnabled;
 
     public String endpoint() {
         return host + ":" + port;

@@ -986,8 +986,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 if (isFinishing() || isDestroyed()) {
                     return;
                 }
-                if (session != null && !TextUtils.isEmpty(session.displayName())) {
-                    roomName = session.displayName();
+                if (session != null) {
+                    if (!TextUtils.isEmpty(session.displayName())) {
+                        roomName = session.displayName();
+                    }
+                    if (adapter != null) {
+                        adapter.setAiProEnabled(session.aiProEnabled);
+                    }
                 }
                 tvTitle.setText(roomName);
             });

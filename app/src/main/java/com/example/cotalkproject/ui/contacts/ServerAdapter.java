@@ -62,6 +62,12 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ViewHolder
 
         holder.tvRoom.setText(session.displayName());
         holder.tvAi.setVisibility(session.aiEnabled ? View.VISIBLE : View.GONE);
+        holder.tvAi.setText(session.aiProEnabled
+                ? R.string.server_supports_ai_pro
+                : R.string.server_supports_ai);
+        holder.tvExperimental.setVisibility(
+                session.aiProEnabled || session.adminEnabled
+                        ? View.VISIBLE : View.GONE);
         holder.tvEndpoint.setText(session.endpoint());
         holder.tvStatus.setText(active ? R.string.server_online : R.string.server_offline);
         holder.tvStatus.setTextColor(ContextCompat.getColor(
@@ -101,6 +107,7 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ViewHolder
     static class ViewHolder extends RecyclerView.ViewHolder {
         final TextView tvRoom;
         final TextView tvAi;
+        final TextView tvExperimental;
         final TextView tvEndpoint;
         final TextView tvStatus;
         final TextView btnConnect;
@@ -110,6 +117,8 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ViewHolder
             super(itemView);
             tvRoom = itemView.findViewById(R.id.tv_server_room);
             tvAi = itemView.findViewById(R.id.tv_server_ai);
+            tvExperimental = itemView.findViewById(
+                    R.id.tv_server_experimental);
             tvEndpoint = itemView.findViewById(R.id.tv_server_endpoint);
             tvStatus = itemView.findViewById(R.id.tv_server_status);
             btnConnect = itemView.findViewById(R.id.btn_server_connect);

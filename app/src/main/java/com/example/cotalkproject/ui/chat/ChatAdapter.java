@@ -78,6 +78,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Map<String, Long> lastAvatarTap = new HashMap<>();
     private String playingMessageKey = "";
+    private boolean aiProEnabled;
 
     public ChatAdapter(long sessionId,
                        AvatarLoader avatarLoader,
@@ -98,6 +99,14 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         this.voiceClickListener = voiceClickListener;
         this.mediaLoader = mediaLoader;
         setHasStableIds(true);
+    }
+
+    public void setAiProEnabled(boolean enabled) {
+        if (aiProEnabled == enabled) {
+            return;
+        }
+        aiProEnabled = enabled;
+        notifyDataSetChanged();
     }
 
     public void setPlayingMessage(String key) {
@@ -400,6 +409,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             other.tvName.setText(senderName);
             other.tvNameAi.setVisibility("ai".equals(message.msgType)
                     ? View.VISIBLE : View.GONE);
+            other.tvNameAi.setText(aiProEnabled
+                    ? R.string.ai_pro_badge : R.string.ai_badge);
             other.tvNameAdmin.setVisibility(
                     message.senderAdmin ? View.VISIBLE : View.GONE);
             bindContent(other, message);

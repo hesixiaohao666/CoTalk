@@ -53,6 +53,22 @@
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_experimental_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_ai_badge"
+                android:paddingStart="5dp"
+                android:paddingTop="1dp"
+                android:paddingEnd="5dp"
+                android:paddingBottom="1dp"
+                android:text="@string/experimental_badge"
+                android:textColor="@color/blue_dark"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
         </LinearLayout>
 
         <TextView
