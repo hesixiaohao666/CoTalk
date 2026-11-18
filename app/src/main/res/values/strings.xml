@@ -139,8 +139,8 @@
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n【常规更新】\n- 新增群聊身份验证、入群审核与成员管理\n- 管理员支持强制撤回与移出成员\n- 成员列表显示在线状态与用户名\n- 表情包支持批量添加与 GIF 表情\n- 设置新增显示区，深色模式正式支持\n- 服务端日志按日归档并保留 30 天\n【实验性功能更新】\n- AI 群友 Pro 支持系统消息、图片消息触发与拍一拍必回\n- AI 群友 Pro 无法回答时保持静默</string>
-    <string name="about_changelog_date">2026-11-18</string>
+    <string name="about_changelog_body">更新内容：\n【常规更新】\n- 支持添加和发送 GIF 动图表情包，聊天页面点击即可播放\n- 添加表情包时支持多选，单次最多可添加 9 张\n- 正式实装深色模式，位于设置的显示分区\n- 修复了一些已知问题\n- 此次更新不兼容旧版本的客户端与服务端，请及时进行更新\n【实验性功能更新】\n- 新增身份验证系统：在开启管理员模式的群聊自动启用，支持服务端独立账号登录与注册\n- 增强管理员权限：支持客户端强制撤回消息，新增成员管理页面，支持入群审核与移除用户\n- 成员列表将同步展示用户名区分身份，新增离线成员展示\n- 移除了设置中的管理员模式入口</string>
+    <string name="about_changelog_date">2026-11-19</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
     <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>
