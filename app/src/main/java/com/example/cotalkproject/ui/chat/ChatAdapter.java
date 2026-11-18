@@ -148,16 +148,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                 .contains("gif"));
     }
 
-    @Override
-    public void onViewRecycled(@NonNull BaseHolder holder) {
-        super.onViewRecycled(holder);
-        String key = holder.gifKey;
-        if (!TextUtils.isEmpty(key) && key.equals(playingGifKey)
-                && mediaLoader != null) {
-            mediaLoader.onGifDetached(key);
-        }
-    }
-
     public void setAiProEnabled(boolean enabled) {
         if (aiProEnabled == enabled) {
             return;

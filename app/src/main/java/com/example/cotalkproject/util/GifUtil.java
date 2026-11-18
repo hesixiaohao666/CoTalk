@@ -9,6 +9,7 @@ import android.graphics.drawable.AnimatedImageDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.ImageDecoder;
 import android.graphics.Movie;
+import android.graphics.Paint;
 import android.graphics.drawable.Animatable;
 import android.net.Uri;
 import android.os.Build;
@@ -164,6 +165,10 @@ public final class GifUtil {
         if (file == null || !file.isFile()) {
             return null;
         }
+        GifAnimator decoded = createFrameAnimator(file, onEnd);
+        if (decoded != null) {
+            return decoded;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 return createAnimatedImageDrawable(file, onEnd);
@@ -172,6 +177,99 @@ public final class GifUtil {
             }
         }
         return createMovieAnimator(file, onEnd);
+    }
+
+    /**
+     * 优先使用自有帧解码器播放，避免部分设备 ImageDecoder/Movie 对 GIF
+     * 只显示首帧或直接停止的问题。
+     */
+    private static GifAnimator createFrameAnimator(File file,
+                                                   Runnable onEnd) {
+        byte[] bytes;
+        try {
+            bytes = readFileBytes(file);
+        } catch (IOException e) {
+            return null;
+        }
+        GifDecoder.GifImage image = GifDecoder.decode(bytes, MAX_FRAMES);
+        if (image == null || image.frames.isEmpty()) {
+            return null;
+        }
+        float scale = Math.min(1f, 512f
+                / (float) Math.max(image.width, image.height));
+        int targetWidth = Math.max(1, Math.round(image.width * scale));
+        int targetHeight = Math.max(1, Math.round(image.height * scale));
+        Bitmap[] frames = new Bitmap[image.frames.size()];
+        int[] delays = new int[frames.length];
+        int count = 0;
+        for (int i = 0; i < image.frames.size(); i++) {
+            GifDecoder.GifFrame frame = image.frames.get(i);
+            if (frame == null) {
+                continue;
+            }
+            Bitmap bitmap = Bitmap.createBitmap(image.width, image.height,
+                    Bitmap.Config.ARGB_8888);
+            bitmap.setPixels(frame.pixels, 0, image.width,
+                    0, 0, image.width, image.height);
+            image.frames.set(i, null);
+            if (targetWidth != image.width || targetHeight != image.height) {
+                Bitmap scaled = Bitmap.createScaledBitmap(bitmap,
+                        targetWidth, targetHeight, true);
+                bitmap.recycle();
+                bitmap = scaled;
+            }
+            frames[count] = bitmap;
+            delays[count] = Math.max(20, frame.delayCs * 10);
+            count++;
+        }
+        if (count == 0) {
+            return null;
+        }
+        if (count != frames.length) {
+            Bitmap[] trimmed = new Bitmap[count];
+            int[] trimmedDelays = new int[count];
+            System.arraycopy(frames, 0, trimmed, 0, count);
+            System.arraycopy(delays, 0, trimmedDelays, 0, count);
+            frames = trimmed;
+            delays = trimmedDelays;
+        }
+        FrameDrawable drawable = new FrameDrawable(frames, delays, onEnd);
+        return new GifAnimator() {
+            @Override
+            public Drawable drawable() {
+                return drawable;
+            }
+
+            @Override
+            public void start() {
+                drawable.start();
+            }
+
+            @Override
+            public void stop() {
+                drawable.stop();
+            }
+
+            @Override
+            public void release() {
+                drawable.stop();
+            }
+        };
+    }
+
+    private static byte[] readFileBytes(File file) throws IOException {
+        try (InputStream in = new FileInputStream(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = in.read(buffer)) != -1) {
+                out.write(buffer, 0, length);
+                if (out.size() > MAX_SOURCE_BYTES) {
+                    throw new IOException("GIF 文件过大");
+                }
+            }
+            return out.toByteArray();
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.P)
@@ -258,43 +356,35 @@ public final class GifUtil {
 
     private static List<Bitmap> decodeFrames(byte[] source)
             throws IOException {
-        Movie movie = Movie.decodeByteArray(source, 0, source.length);
-        if (movie == null || movie.width() <= 0 || movie.height() <= 0) {
+        GifDecoder.GifImage image = GifDecoder.decode(source, MAX_FRAMES);
+        if (image == null || image.frames.isEmpty()) {
             throw new IOException("GIF 帧解码失败");
         }
-        int width = movie.width();
-        int height = movie.height();
         float scale = Math.min(1f, MAX_DIMENSION
-                / (float) Math.max(width, height));
-        int targetWidth = Math.max(1, Math.round(width * scale));
-        int targetHeight = Math.max(1, Math.round(height * scale));
-        int duration = Math.max(0, movie.duration());
-        int count = duration <= 0 ? 1
-                : Math.min(MAX_FRAMES, Math.max(1, duration / 50));
+                / (float) Math.max(image.width, image.height));
+        int targetWidth = Math.max(1, Math.round(image.width * scale));
+        int targetHeight = Math.max(1, Math.round(image.height * scale));
         List<Bitmap> frames = new ArrayList<>();
-        Bitmap previous = null;
-        for (int i = 0; i < count; i++) {
-            int time = count == 1 ? 0 : (int) ((long) duration * i / count);
-            Bitmap frame = Bitmap.createBitmap(targetWidth, targetHeight,
-                    Bitmap.Config.ARGB_8888);
-            frame.eraseColor(Color.TRANSPARENT);
-            Canvas canvas = new Canvas(frame);
-            canvas.scale(targetWidth / (float) width,
-                    targetHeight / (float) height);
-            movie.setTime(time);
-            movie.draw(canvas, 0, 0);
-            if (previous != null && previous.sameAs(frame)) {
-                frame.recycle();
+        for (int i = 0; i < image.frames.size(); i++) {
+            GifDecoder.GifFrame frame = image.frames.get(i);
+            if (frame == null) {
                 continue;
             }
-            frames.add(frame);
-            previous = frame;
+            Bitmap bitmap = Bitmap.createBitmap(image.width, image.height,
+                    Bitmap.Config.ARGB_8888);
+            bitmap.setPixels(frame.pixels, 0, image.width,
+                    0, 0, image.width, image.height);
+            image.frames.set(i, null);
+            if (targetWidth != image.width || targetHeight != image.height) {
+                Bitmap scaled = Bitmap.createScaledBitmap(bitmap,
+                        targetWidth, targetHeight, true);
+                bitmap.recycle();
+                bitmap = scaled;
+            }
+            frames.add(bitmap);
         }
         if (frames.isEmpty()) {
-            Bitmap frame = Bitmap.createBitmap(targetWidth, targetHeight,
-                    Bitmap.Config.ARGB_8888);
-            frame.eraseColor(Color.TRANSPARENT);
-            frames.add(frame);
+            throw new IOException("GIF 帧解码失败");
         }
         return frames;
     }
@@ -549,6 +639,115 @@ public final class GifUtil {
         void stop();
 
         void release();
+    }
+
+    /**
+     * 自有帧播放器：按 GIF 帧延迟播放一轮，结束后回调。
+     */
+    private static final class FrameDrawable extends Drawable
+            implements Animatable, Runnable {
+        private final Bitmap[] frames;
+        private final int[] delays;
+        private final Runnable onEnd;
+        private final Handler handler =
+                new Handler(Looper.getMainLooper());
+        private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
+        private final AtomicBoolean finished = new AtomicBoolean();
+        private final Runnable finishTask = this::finish;
+        private boolean running;
+        private int index;
+
+        FrameDrawable(Bitmap[] frames, int[] delays, Runnable onEnd) {
+            this.frames = frames;
+            this.delays = delays;
+            this.onEnd = onEnd;
+        }
+
+        @Override
+        public void start() {
+            if (running || frames.length == 0) {
+                return;
+            }
+            running = true;
+            index = 0;
+            finished.set(false);
+            handler.removeCallbacks(this);
+            handler.removeCallbacks(finishTask);
+            handler.post(this);
+        }
+
+        @Override
+        public void stop() {
+            running = false;
+            handler.removeCallbacks(this);
+            handler.removeCallbacks(finishTask);
+        }
+
+        @Override
+        public boolean isRunning() {
+            return running;
+        }
+
+        @Override
+        public void run() {
+            if (!running || frames.length == 0) {
+                return;
+            }
+            invalidateSelf();
+            int delay = delays[Math.max(0, Math.min(index,
+                    delays.length - 1))];
+            if (index >= frames.length - 1) {
+                handler.postDelayed(finishTask, delay);
+                return;
+            }
+            handler.postDelayed(this, delay);
+            index++;
+        }
+
+        private void finish() {
+            running = false;
+            if (finished.compareAndSet(false, true) && onEnd != null) {
+                onEnd.run();
+            }
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            if (frames.length == 0) {
+                return;
+            }
+            Bitmap frame = frames[Math.min(index, frames.length - 1)];
+            if (frame != null && !frame.isRecycled()) {
+                canvas.drawBitmap(frame, null, getBounds(), paint);
+            }
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            paint.setAlpha(alpha);
+            invalidateSelf();
+        }
+
+        @Override
+        public void setColorFilter(android.graphics.ColorFilter colorFilter) {
+            paint.setColorFilter(colorFilter);
+            invalidateSelf();
+        }
+
+        @Override
+        public int getOpacity() {
+            return android.graphics.PixelFormat.TRANSLUCENT;
+        }
+
+        @Override
+        public int getIntrinsicWidth() {
+            return frames.length == 0 ? 0 : frames[0].getWidth();
+        }
+
+        @Override
+        public int getIntrinsicHeight() {
+            return frames.length == 0 ? 0 : frames[0].getHeight();
+        }
     }
 
     /**

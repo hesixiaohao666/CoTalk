@@ -23,7 +23,7 @@ import com.example.cotalkproject.model.JoinRequest;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.util.UiUtil;
-import com.google.android.material.button.MaterialButton;
+import androidx.appcompat.widget.AppCompatButton;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -160,11 +160,11 @@ public class AdminModerationActivity extends AppCompatActivity {
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         Button approve = smallButton(getString(
-                R.string.admin_moderation_approve));
+                R.string.admin_moderation_approve), true);
         approve.setOnClickListener(v -> review(request, true));
         row.addView(approve);
         Button reject = smallButton(getString(
-                R.string.admin_moderation_reject));
+                R.string.admin_moderation_reject), false);
         reject.setOnClickListener(v -> review(request, false));
         row.addView(reject);
         pendingCard.addView(row);
@@ -211,7 +211,8 @@ public class AdminModerationActivity extends AppCompatActivity {
                 && selfId.equals(member.userId);
         if (!self && !member.ai && !TextUtils.isEmpty(member.userId)) {
             Button kick = smallButton(getString(
-                    R.string.admin_moderation_kick));
+                    R.string.admin_moderation_kick), false);
+            kick.setTextColor(getColor(R.color.danger));
             kick.setOnClickListener(v -> confirmKick(member));
             row.addView(kick);
         }
@@ -280,18 +281,21 @@ public class AdminModerationActivity extends AppCompatActivity {
         card.addView(note);
     }
 
-    private Button smallButton(String text) {
-        MaterialButton button = new MaterialButton(this);
+    private Button smallButton(String text, boolean primary) {
+        AppCompatButton button = new AppCompatButton(this);
         button.setText(text);
-        button.setTextSize(13);
-        button.setMinWidth(dp * 64);
+        button.setTextSize(14);
+        button.setAllCaps(false);
+        button.setMinWidth(dp * 68);
         button.setMinHeight(0);
-        button.setInsetTop(0);
-        button.setInsetBottom(0);
-        button.setCornerRadius(dp * 10);
-        button.setTextColor(getColor(R.color.text_primary));
+        button.setPadding(dp * 12, 0, dp * 12, 0);
+        button.setBackgroundResource(primary
+                ? R.drawable.btn_round_dark : R.drawable.btn_round_light);
+        button.setTextColor(getColor(primary
+                ? R.color.text_on_accent : R.color.text_primary));
+        button.setStateListAnimator(null);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp * 36);
+                LinearLayout.LayoutParams.WRAP_CONTENT, dp * 38);
         params.setMarginStart(dp * 6);
         button.setLayoutParams(params);
         return button;
