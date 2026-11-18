@@ -51,15 +51,14 @@
 
     <string name="settings_title">设置</string>
     <string name="settings_general">通用</string>
+    <string name="settings_display">显示</string>
     <string name="settings_chat">聊天</string>
     <string name="settings_account">账号</string>
-    <string name="settings_experimental">实验性功能</string>
     <string name="auto_reconnect">自动重连</string>
     <string name="auto_connect_after_login">登录后自动连接</string>
     <string name="auto_save_draft">自动保存草稿</string>
     <string name="dark_follow_system">深色跟随系统</string>
     <string name="dark_mode">深色模式</string>
-    <string name="dark_experimental_warning">深色模式为实验性功能，请酌情开启</string>
     <string name="admin_mode">管理员模式</string>
     <string name="admin_badge">管理员</string>
     <string name="admin_room_required">暂无已连接且启用管理员模式的群聊</string>

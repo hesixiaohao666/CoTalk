@@ -228,7 +228,6 @@ public class SettingsActivity extends AppCompatActivity
                 darkMode.setEnabled(false);
                 AppCompatDelegate.setDefaultNightMode(
                         AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
-                showDarkExperimentalToast();
             } else {
                 darkMode.setEnabled(true);
                 boolean enabled = prefs.isDarkMode();
@@ -249,9 +248,6 @@ public class SettingsActivity extends AppCompatActivity
             AppCompatDelegate.setDefaultNightMode(checked
                     ? AppCompatDelegate.MODE_NIGHT_YES
                     : AppCompatDelegate.MODE_NIGHT_NO);
-            if (checked) {
-                showDarkExperimentalToast();
-            }
         });
 
         adminModeSwitch.setOnClickListener(v -> {
@@ -607,11 +603,6 @@ public class SettingsActivity extends AppCompatActivity
                         Toast.LENGTH_LONG).show();
             }
         }
-    }
-
-    private void showDarkExperimentalToast() {
-        Toast.makeText(this, R.string.dark_experimental_warning,
-                Toast.LENGTH_SHORT).show();
     }
 
     private void confirmClearHistory() {
