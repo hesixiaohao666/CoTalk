@@ -30,7 +30,7 @@
     <string name="register_title">注册本地账号</string>
     <string name="show_password">显示密码</string>
     <string name="hide_password">隐藏密码</string>
-    <string name="local_account_note">本地账号仅保存在本机\n聊天身份为临时游客</string>
+    <string name="local_account_note">本地账号仅保存在本机\n加入群聊后使用独立的群聊身份</string>
     <string name="register_note">本地账号只用于进入 App 和保存资料，不会上传到服务器</string>
     <string name="version_format">CoTalk v%1$s</string>
 
@@ -59,22 +59,7 @@
     <string name="auto_save_draft">自动保存草稿</string>
     <string name="dark_follow_system">深色跟随系统</string>
     <string name="dark_mode">深色模式</string>
-    <string name="admin_mode">管理员模式</string>
     <string name="admin_badge">管理员</string>
-    <string name="admin_room_required">暂无已连接且启用管理员模式的群聊</string>
-    <string name="admin_room_connect_first">请先连接该房间</string>
-    <string name="admin_already_bound">当前已是管理员身份</string>
-    <string name="admin_key_title">管理员密钥</string>
-    <string name="admin_key_message">输入「%1$s」的管理员密钥</string>
-    <string name="admin_key_hint">由服务器管理员提供</string>
-    <string name="admin_key_required">请输入管理员密钥</string>
-    <string name="admin_auth_success">管理员身份已绑定</string>
-    <string name="admin_auth_failed">管理员绑定失败：%1$s</string>
-    <string name="admin_authenticating">正在验证管理员密钥…</string>
-    <string name="admin_unbind_confirm">关闭后将解除与服务器的管理员绑定，房间管理入口将关闭。</string>
-    <string name="admin_unbind_action">解除绑定</string>
-    <string name="admin_unbind_success">已解除管理员绑定</string>
-    <string name="admin_unbind_failed">解除绑定失败：%1$s</string>
     <string name="admin_revoked_message">管理员身份已被服务器解除</string>
     <string name="room_admin_title">房间管理</string>
     <string name="room_admin_avatar">房间头像</string>
@@ -148,14 +133,14 @@
     <string name="about_tech_title">技术栈</string>
     <string name="about_tech_body">客户端：Android Java / XML\n服务端：Java / Swing / Headless\n数据存储：SQLite\n网络通信：TCP Socket (NDJSON)</string>
     <string name="about_identity_title">隐私与安全</string>
-    <string name="about_identity_body">您的账号信息完全保存在本机，并经过加密存储。\n连接服务器时，将由服务端分配临时的内部 UUID，界面将全程仅展示您的昵称，保障您的隐私安全。</string>
+    <string name="about_identity_body">本地账号信息保存在本机并加密存储。\n启用身份验证的房间使用独立的群聊账号，密码仅保存加密校验值，不会明文存储。</string>
     <string name="about_ai_title">AI 功能</string>
-    <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 智能群友，由服务端 AI 接口驱动。\n- 被 @ 时必定回复；\n- 未被 @ 时，将结合上下文智能判断是否参与聊天；\n- 若服务端未启用 AI 功能或未配置 API Key，AI 群友将不会出现在房间中。</string>
+    <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 智能群友，由服务端 AI 接口驱动。\n- 被 @ 或拍一拍时会尝试回复；\n- 其他消息会结合上下文判断是否参与；\n- 若服务端未启用 AI 功能或未配置 API Key，AI 群友将不会出现在房间中。</string>
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n【常规更新】\n- 新增后台常驻功能，优化升级消息通知功能，新增支持状态栏的新消息推送\n- 优化底层网络心跳与断线重连，减少频繁进出群聊提示\n- 修复了一些已知问题\n- 此次更新不兼容旧版本的客户端与服务端，请及时进行更新\n【实验性功能更新】\n- 实装管理员模式，支持密钥绑定，新增专属头衔及房间管理界面\n- 房间管理支持修改房间头像、房间名称与房间公告\n- 服务端引入全新升级的 AI 群友 Pro 引擎，支持多层记忆结构、性格情绪系统、表情待办拓展功能\n- 开启实验性功能的房间，新增“AI Pro”与“实验性”标签</string>
-    <string name="about_changelog_date">2026-11-13</string>
+    <string name="about_changelog_body">更新内容：\n- 新增群聊身份验证、入群审核与成员管理\n- 管理员支持强制撤回与移出成员\n- 成员列表显示在线状态与用户名\n- 表情包支持批量添加与 GIF 表情\n- 设置新增显示区，深色模式正式支持\n- 优化 AI 群友的消息识别与回复稳定性\n- 服务端日志按日归档并保留 30 天</string>
+    <string name="about_changelog_date">2026-11-18</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
     <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>
@@ -185,7 +170,7 @@
     <string name="auth_key_remember_cancelled">已取消记住密钥</string>
     <string name="connect_and_join">连接并加入</string>
     <string name="my_servers">我的服务器</string>
-    <string name="online_members">在线成员</string>
+    <string name="online_members">群聊成员</string>
     <string name="no_saved_servers">还没有保存的服务器</string>
     <string name="connect_success">已加入房间</string>
     <string name="connect_failed">连接失败：%1$s</string>
@@ -198,7 +183,6 @@
     <string name="me_suffix">（我）</string>
     <string name="ai_badge">AI</string>
     <string name="ai_pro_badge">AI Pro</string>
-    <string name="experimental_badge">实验性</string>
     <string name="server_supports_ai">支持 AI</string>
     <string name="server_supports_ai_pro">支持 AI Pro</string>
     <string name="chat_title_default">聊天</string>
@@ -212,13 +196,13 @@
     <string name="server_info_ai">AI 功能</string>
     <string name="server_info_version">服务端版本</string>
     <string name="server_info_ai_enabled">已启用</string>
-    <string name="server_info_ai_pro_enabled">已启用Pro（实验性功能）</string>
+    <string name="server_info_ai_pro_enabled">已启用 AI Pro</string>
     <string name="server_info_ai_disabled">未启用</string>
     <string name="server_info_no_announcement">暂无公告</string>
     <string name="server_info_unknown_version">未知版本</string>
-    <string name="server_info_members_format">在线成员（%1$d）</string>
-    <string name="server_info_offline_members">当前离线，无法获取在线成员</string>
-    <string name="server_info_no_members">暂无在线成员</string>
+    <string name="server_info_members_format">群聊成员（%1$d）</string>
+    <string name="server_info_offline_members">当前离线，显示本地缓存的成员</string>
+    <string name="server_info_no_members">暂无成员</string>
     <string name="message_hint">输入消息…</string>
     <string name="chat_voice_button">语音</string>
     <string name="chat_keyboard_button">键盘</string>
@@ -289,7 +273,7 @@
     <string name="offline_banner">当前离线，仅显示本地历史</string>
     <string name="connection_banner">连接已断开：%1$s</string>
     <string name="member_default">成员</string>
-    <string name="message_too_long">消息最多 500 字</string>
+    <string name="message_too_long">消息最多 1000 字</string>
     <string name="send_offline">当前离线，无法发送</string>
     <string name="send_failed">发送失败</string>
     <string name="send_failed_connection">发送失败 请检查服务器连接</string>
@@ -320,9 +304,8 @@
     <string name="identity_failed">身份验证失败：%1$s</string>
     <string name="identity_cancelled">已取消身份验证</string>
 
-    <string name="room_admin_review">入群审核</string>
     <string name="room_admin_members">成员管理</string>
-    <string name="admin_moderation_title">成员与审核</string>
+    <string name="admin_moderation_title">成员管理</string>
     <string name="admin_moderation_pending">入群申请</string>
     <string name="admin_moderation_members">群聊成员</string>
     <string name="admin_moderation_no_pending">暂无待审核申请</string>

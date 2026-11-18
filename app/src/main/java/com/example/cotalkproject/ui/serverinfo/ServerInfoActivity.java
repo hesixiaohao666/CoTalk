@@ -261,11 +261,24 @@ public class ServerInfoActivity extends AppCompatActivity
     private void showOfflineMembers() {
         memberAdapter.setSessionId(sessionId);
         memberAdapter.setSelfUserId("");
-        memberAdapter.setMembers(new ArrayList<>());
-        tvMemberTitle.setText(R.string.online_members);
-        tvMembersEmpty.setText(R.string.server_info_offline_members);
-        tvMembersEmpty.setVisibility(View.VISIBLE);
-        rvMembers.setVisibility(View.GONE);
+        database.execute(() -> {
+            List<Member> cached = memberDao.queryBySession(sessionId);
+            for (Member member : cached) {
+                member.online = false;
+            }
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                memberAdapter.setMembers(cached);
+                tvMemberTitle.setText(getString(
+                        R.string.server_info_members_format, cached.size()));
+                boolean empty = cached.isEmpty();
+                tvMembersEmpty.setText(R.string.server_info_offline_members);
+                tvMembersEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+                rvMembers.setVisibility(empty ? View.GONE : View.VISIBLE);
+            });
+        });
     }
 
     @Override

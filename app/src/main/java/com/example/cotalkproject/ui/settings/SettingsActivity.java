@@ -28,9 +28,7 @@ import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.LocalUserDao;
 import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
-import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.LocalUser;
-import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.service.CoTalkConnectionService;
 import com.example.cotalkproject.ui.login.LoginActivity;
@@ -42,7 +40,6 @@ import com.example.cotalkproject.util.SecurityUtil;
 import com.example.cotalkproject.util.UiUtil;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class SettingsActivity extends AppCompatActivity
@@ -51,13 +48,8 @@ public class SettingsActivity extends AppCompatActivity
     private AppDatabase database;
     private LocalUserDao userDao;
     private MessageDao messageDao;
-    private SessionDao sessionDao;
     private Prefs prefs;
     private SessionManager sessionManager;
-    private SwitchCompat adminModeSwitch;
-    private View adminModeRow;
-    private View adminModeDivider;
-    private boolean sessionIdentityRequired;
     private boolean updatingSwitches;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
     private SwitchCompat messageNotifySwitch;
@@ -121,7 +113,6 @@ public class SettingsActivity extends AppCompatActivity
         database = CoTalkApp.getInstance().getDatabase();
         userDao = new LocalUserDao(database);
         messageDao = new MessageDao(database);
-        sessionDao = new SessionDao(database);
         prefs = CoTalkApp.getInstance().getPrefs();
         sessionManager = CoTalkApp.getInstance().getSessionManager();
 
@@ -203,9 +194,6 @@ public class SettingsActivity extends AppCompatActivity
 
         SwitchCompat darkFollow = findViewById(R.id.switch_dark_follow_system);
         SwitchCompat darkMode = findViewById(R.id.switch_dark_mode);
-        adminModeSwitch = findViewById(R.id.switch_admin_mode);
-        adminModeRow = findViewById(R.id.row_admin_mode);
-        adminModeDivider = findViewById(R.id.divider_admin_mode);
 
         boolean followSystem = prefs.isDarkFollowSystem();
         boolean darkEnabled = prefs.isDarkMode();
@@ -213,7 +201,6 @@ public class SettingsActivity extends AppCompatActivity
         darkFollow.setChecked(followSystem);
         darkMode.setEnabled(!followSystem);
         darkMode.setChecked(followSystem ? isSystemNight() : darkEnabled);
-        adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
         updatingSwitches = false;
 
         darkFollow.setOnCheckedChangeListener((buttonView, checked) -> {
@@ -250,16 +237,6 @@ public class SettingsActivity extends AppCompatActivity
                     : AppCompatDelegate.MODE_NIGHT_NO);
         });
 
-        adminModeSwitch.setOnClickListener(v -> {
-            boolean isAdmin = sessionManager.isSelfAdmin();
-            adminModeSwitch.setChecked(isAdmin);
-            if (isAdmin) {
-                confirmAdminUnbind();
-            } else {
-                showAdminRoomPicker();
-            }
-        });
-
         findViewById(R.id.btn_clear_history).setOnClickListener(v -> confirmClearHistory());
         findViewById(R.id.btn_remove_all_servers).setOnClickListener(v -> confirmRemoveAllServers());
         findViewById(R.id.btn_reset_account).setOnClickListener(v -> showResetDialog());
@@ -290,44 +267,6 @@ public class SettingsActivity extends AppCompatActivity
             showPushHintOnResume = false;
             showNotificationPushHint();
         }
-        if (adminModeSwitch != null) {
-            adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
-        }
-        updateAdminModeVisibility();
-        loadSessionIdentityMode();
-    }
-
-    private void loadSessionIdentityMode() {
-        long sessionId = sessionManager.getActiveSessionId();
-        if (sessionId <= 0) {
-            return;
-        }
-        database.execute(() -> {
-            Session session = sessionDao.getById(sessionId);
-            boolean required = session != null && session.identityRequired;
-            database.runOnMain(() -> {
-                if (isFinishing() || isDestroyed()) {
-                    return;
-                }
-                sessionIdentityRequired = required;
-                updateAdminModeVisibility();
-            });
-        });
-    }
-
-    /**
-     * 身份模式下管理员权限来自身份账号，隐藏旧的房间管理员密钥绑定入口。
-     */
-    private void updateAdminModeVisibility() {
-        boolean visible = !sessionManager.isIdentityMode()
-                && !sessionIdentityRequired;
-        int visibility = visible ? View.VISIBLE : View.GONE;
-        if (adminModeRow != null) {
-            adminModeRow.setVisibility(visibility);
-        }
-        if (adminModeDivider != null) {
-            adminModeDivider.setVisibility(visibility);
-        }
     }
 
     private void applyMessageNotifyEnabled(boolean showHint) {
@@ -351,163 +290,16 @@ public class SettingsActivity extends AppCompatActivity
         prefs.setMessageNotify(false);
     }
 
-    private void showAdminRoomPicker() {
-        database.execute(() -> {
-            List<Session> all = sessionDao.queryAll();
-            List<Session> adminSessions = new ArrayList<>();
-            for (Session session : all) {
-                if (session.adminEnabled) {
-                    adminSessions.add(session);
-                }
-            }
-            database.runOnMain(() -> {
-                if (isFinishing() || isDestroyed()) {
-                    return;
-                }
-                if (adminSessions.isEmpty()) {
-                    Toast.makeText(this, R.string.admin_room_required,
-                            Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                ArrayList<BottomSheetMenu.Action> actions = new ArrayList<>();
-                for (Session session : adminSessions) {
-                    actions.add(new BottomSheetMenu.Action(
-                            session.displayName(),
-                            () -> {
-                                if (!sessionManager.isActive(session.id)) {
-                                    Toast.makeText(this,
-                                            R.string.admin_room_connect_first,
-                                            Toast.LENGTH_SHORT).show();
-                                    return;
-                                }
-                                showAdminKeyInput(session);
-                            }));
-                }
-                BottomSheetMenu.showActions(
-                        this, getString(R.string.admin_mode), actions);
-            });
-        });
-    }
-
-    private void showAdminKeyInput(Session session) {
-        BottomSheetMenu.showInput(
-                this,
-                getString(R.string.admin_key_title),
-                getString(R.string.admin_key_message,
-                        session.displayName()),
-                getString(R.string.admin_key_hint),
-                true,
-                new BottomSheetMenu.InputCallback() {
-                    @Override
-                    public boolean onInput(String text) {
-                        String key = text == null ? "" : text.trim();
-                        if (key.isEmpty()) {
-                            Toast.makeText(SettingsActivity.this,
-                                    R.string.admin_key_required,
-                                    Toast.LENGTH_SHORT).show();
-                            return false;
-                        }
-                        authenticateAdmin(key);
-                        return true;
-                    }
-                });
-    }
-
-    private void authenticateAdmin(String adminKey) {
-        if (adminModeSwitch == null) {
-            return;
-        }
-        adminModeSwitch.setEnabled(false);
-        Toast.makeText(this, R.string.admin_authenticating,
-                Toast.LENGTH_SHORT).show();
-        sessionManager.authenticateAdmin(adminKey,
-                new SessionManager.AdminAuthCallback() {
-                    @Override
-                    public void onSuccess() {
-                        if (isFinishing() || isDestroyed()) {
-                            return;
-                        }
-                        adminModeSwitch.setEnabled(true);
-                        adminModeSwitch.setChecked(true);
-                        Toast.makeText(SettingsActivity.this,
-                                R.string.admin_auth_success,
-                                Toast.LENGTH_SHORT).show();
-                    }
-
-                    @Override
-                    public void onError(String message, int code) {
-                        if (isFinishing() || isDestroyed()) {
-                            return;
-                        }
-                        adminModeSwitch.setEnabled(true);
-                        adminModeSwitch.setChecked(
-                                sessionManager.isSelfAdmin());
-                        Toast.makeText(SettingsActivity.this,
-                                getString(R.string.admin_auth_failed, message),
-                                Toast.LENGTH_LONG).show();
-                    }
-                });
-    }
-
-    private void confirmAdminUnbind() {
-        BottomSheetMenu.showConfirm(
-                this,
-                getString(R.string.admin_mode),
-                getString(R.string.admin_unbind_confirm),
-                getString(R.string.admin_unbind_action),
-                this::unbindAdmin);
-    }
-
-    private void unbindAdmin() {
-        if (adminModeSwitch == null) {
-            return;
-        }
-        adminModeSwitch.setEnabled(false);
-        sessionManager.unbindAdmin(new SessionManager.AdminAuthCallback() {
-            @Override
-            public void onSuccess() {
-                if (isFinishing() || isDestroyed()) {
-                    return;
-                }
-                adminModeSwitch.setEnabled(true);
-                adminModeSwitch.setChecked(false);
-                Toast.makeText(SettingsActivity.this,
-                        R.string.admin_unbind_success,
-                        Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onError(String message, int code) {
-                if (isFinishing() || isDestroyed()) {
-                    return;
-                }
-                adminModeSwitch.setEnabled(true);
-                adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
-                Toast.makeText(SettingsActivity.this,
-                        getString(R.string.admin_unbind_failed, message),
-                        Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
     @Override
     public void onSessionsChanged() {
-        updateAdminSwitch();
     }
 
     @Override
     public void onMembersChanged(long changedSessionId) {
-        updateAdminSwitch();
     }
 
     @Override
     public void onConnectionError(String message) {
-    }
-
-    private void updateAdminSwitch() {
-        if (adminModeSwitch != null) {
-            adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
-        }
     }
 
     private void showNotificationPushHint() {

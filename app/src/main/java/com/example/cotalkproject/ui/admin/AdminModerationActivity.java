@@ -67,8 +67,8 @@ public class AdminModerationActivity extends AppCompatActivity {
         back.setOnClickListener(v -> finish());
         TextView title = findViewById(R.id.tv_title);
         title.setText(R.string.admin_moderation_title);
-        android.view.View refresh = findViewById(
-                R.id.btn_admin_moderation_refresh);
+        TextView refresh = findViewById(R.id.btn_action_refresh);
+        refresh.setVisibility(View.VISIBLE);
         refresh.setOnClickListener(v -> refresh());
 
         content = findViewById(R.id.admin_moderation_content);

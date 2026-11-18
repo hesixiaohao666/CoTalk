@@ -40,6 +40,15 @@
     </LinearLayout>
 
     <TextView
+        android:id="@+id/tv_member_me"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/me_suffix"
+        android:textColor="@color/text_hint"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <TextView
         android:id="@+id/tv_member_ai"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -69,15 +78,6 @@
         android:textColor="@color/blue_dark"
         android:textSize="10sp"
         android:textStyle="bold"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/tv_member_me"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/me_suffix"
-        android:textColor="@color/text_hint"
-        android:textSize="12sp"
         android:visibility="gone" />
 
     <View

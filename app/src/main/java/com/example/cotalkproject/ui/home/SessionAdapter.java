@@ -67,9 +67,6 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
                 ? View.VISIBLE : View.GONE);
         holder.tvAiBadge.setText(session.aiProEnabled
                 ? R.string.ai_pro_badge : R.string.ai_badge);
-        holder.tvExperimentalBadge.setVisibility(
-                session.aiProEnabled || session.adminEnabled
-                        ? View.VISIBLE : View.GONE);
         holder.tvEndpoint.setText(session.endpoint());
         holder.tvLastMessage.setText(TextUtils.isEmpty(session.lastMessage)
                 ? context.getString(R.string.home_no_message)
@@ -134,7 +131,6 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
         final AvatarView tvAvatar;
         final TextView tvRoomName;
         final TextView tvAiBadge;
-        final TextView tvExperimentalBadge;
         final TextView tvEndpoint;
         final TextView tvLastMessage;
         final TextView tvTime;
@@ -146,8 +142,6 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
             tvAvatar = itemView.findViewById(R.id.tv_session_avatar);
             tvRoomName = itemView.findViewById(R.id.tv_room_name);
             tvAiBadge = itemView.findViewById(R.id.tv_ai_badge);
-            tvExperimentalBadge = itemView.findViewById(
-                    R.id.tv_experimental_badge);
             tvEndpoint = itemView.findViewById(R.id.tv_endpoint);
             tvLastMessage = itemView.findViewById(R.id.tv_last_message);
             tvTime = itemView.findViewById(R.id.tv_time);
