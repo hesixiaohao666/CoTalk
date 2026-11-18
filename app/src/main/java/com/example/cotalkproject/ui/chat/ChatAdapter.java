@@ -53,11 +53,19 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         void onVoiceClick(Message message);
     }
 
+    public interface OnGifClickListener {
+        void onGifClick(Message message);
+    }
+
     public interface MediaLoader {
         void loadMedia(Message message,
                        ShapeableImageView imageView,
                        TextView placeholder,
-                       boolean emoji);
+                       boolean emoji,
+                       boolean playGif);
+
+        default void onGifDetached(String key) {
+        }
     }
 
     private static final int TYPE_OTHER = 0;
@@ -74,10 +82,12 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     private final OnMessageLongClickListener messageLongClickListener;
     private final OnImageClickListener imageClickListener;
     private final OnVoiceClickListener voiceClickListener;
+    private final OnGifClickListener gifClickListener;
     private final MediaLoader mediaLoader;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Map<String, Long> lastAvatarTap = new HashMap<>();
     private String playingMessageKey = "";
+    private String playingGifKey = "";
     private boolean aiProEnabled;
 
     public ChatAdapter(long sessionId,
@@ -88,6 +98,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                        OnMessageLongClickListener messageLongClickListener,
                        OnImageClickListener imageClickListener,
                        OnVoiceClickListener voiceClickListener,
+                       OnGifClickListener gifClickListener,
                        MediaLoader mediaLoader) {
         this.sessionId = sessionId;
         this.avatarLoader = avatarLoader;
@@ -97,8 +108,54 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         this.messageLongClickListener = messageLongClickListener;
         this.imageClickListener = imageClickListener;
         this.voiceClickListener = voiceClickListener;
+        this.gifClickListener = gifClickListener;
         this.mediaLoader = mediaLoader;
         setHasStableIds(true);
+    }
+
+    public void setPlayingGif(String key) {
+        String next = key == null ? "" : key;
+        if (next.equals(playingGifKey)) {
+            return;
+        }
+        String previous = playingGifKey;
+        playingGifKey = next;
+        int oldPosition = findPosition(previous);
+        if (oldPosition >= 0) {
+            notifyItemChanged(oldPosition);
+        }
+        int newPosition = findPosition(next);
+        if (newPosition >= 0 && newPosition != oldPosition) {
+            notifyItemChanged(newPosition);
+        }
+    }
+
+    /**
+     * 视图回收时静默清除播放键，避免滚动回来自动重播。
+     */
+    public void clearPlayingGifIf(String key) {
+        if (key != null && key.equals(playingGifKey)) {
+            playingGifKey = "";
+        }
+    }
+
+    public static boolean isGifMessage(Message message) {
+        return message != null
+                && (("image".equals(message.msgType)
+                || "emoji".equals(message.msgType))
+                && message.fileMime != null
+                && message.fileMime.toLowerCase(java.util.Locale.ROOT)
+                .contains("gif"));
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull BaseHolder holder) {
+        super.onViewRecycled(holder);
+        String key = holder.gifKey;
+        if (!TextUtils.isEmpty(key) && key.equals(playingGifKey)
+                && mediaLoader != null) {
+            mediaLoader.onGifDetached(key);
+        }
     }
 
     public void setAiProEnabled(boolean enabled) {
@@ -370,6 +427,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     @Override
     public void onBindViewHolder(@NonNull BaseHolder holder, int position) {
         Message message = messages.get(position);
+        holder.gifKey = "";
         bindTime(holder, message, position);
 
         if (holder instanceof SelfHolder) {
@@ -433,6 +491,11 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
         if ("image".equals(type) || "emoji".equals(type)) {
             boolean emoji = "emoji".equals(type);
+            boolean gif = isGifMessage(message);
+            String key = messageKey(message);
+            if (gif) {
+                holder.gifKey = key;
+            }
             holder.ivMedia.setVisibility(View.GONE);
             if (message.fileExpired) {
                 showPlaceholder(holder.tvContent, R.string.file_expired);
@@ -445,7 +508,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
             holder.ivMedia.setMaxHeight(dp(holder.itemView, emoji ? 120 : 260));
             holder.tvContent.setVisibility(View.GONE);
             bindMessageLongClick(holder.ivMedia, message);
-            if (!emoji && imageClickListener != null) {
+            if (gif && gifClickListener != null) {
+                holder.ivMedia.setOnClickListener(
+                        v -> gifClickListener.onGifClick(message));
+            } else if (!emoji && imageClickListener != null) {
                 holder.ivMedia.setOnClickListener(
                         v -> imageClickListener.onImageClick(message));
             }
@@ -454,8 +520,9 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                 showPlaceholder(holder.tvContent, R.string.chat_image_unavailable);
                 bindMessageLongClick(holder.tvContent, message);
             } else {
-                mediaLoader.loadMedia(
-                        message, holder.ivMedia, holder.tvContent, emoji);
+                boolean playGif = gif && key.equals(playingGifKey);
+                mediaLoader.loadMedia(message, holder.ivMedia,
+                        holder.tvContent, emoji, playGif);
                 bindMessageLongClick(holder.tvContent, message);
             }
             return;
@@ -597,6 +664,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
     static class BaseHolder extends RecyclerView.ViewHolder {
         final TextView tvTime;
+        String gifKey = "";
 
         BaseHolder(@NonNull View itemView) {
             super(itemView);

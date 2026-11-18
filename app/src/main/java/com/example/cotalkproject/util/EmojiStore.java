@@ -38,9 +38,13 @@ public class EmojiStore {
         if (!directory.exists() && !directory.mkdirs()) {
             throw new IOException("无法创建表情包目录");
         }
-        File output = ImageUtil.createImageFile(directory, ".jpg");
+        boolean gif = GifUtil.isGifUri(context, uri);
+        File output = ImageUtil.createImageFile(directory,
+                gif ? ".gif" : ".jpg");
         try {
-            return ImageUtil.compressEmojiToFile(context, uri, output);
+            return gif
+                    ? GifUtil.compressToFile(context, uri, output)
+                    : ImageUtil.compressEmojiToFile(context, uri, output);
         } catch (IOException e) {
             //noinspection ResultOfMethodCallIgnored
             output.delete();
@@ -61,9 +65,16 @@ public class EmojiStore {
         if (!directory.exists() && !directory.mkdirs()) {
             throw new IOException("无法创建表情包目录");
         }
-        File output = ImageUtil.createImageFile(directory, ".jpg");
+        boolean gif = GifUtil.isGifFile(source);
+        File output = ImageUtil.createImageFile(directory,
+                gif ? ".gif" : ".jpg");
         try {
-            ImageUtil.compressEmojiToFile(context, Uri.fromFile(source), output);
+            if (gif) {
+                GifUtil.compressToFile(context, Uri.fromFile(source), output);
+            } else {
+                ImageUtil.compressEmojiToFile(
+                        context, Uri.fromFile(source), output);
+            }
             String hash = md5(output);
             if (!hash.isEmpty()) {
                 for (File existing : list()) {
@@ -117,7 +128,8 @@ public class EmojiStore {
     public List<File> list() {
         File[] files = directory.listFiles((dir, name) ->
                 name.endsWith(".jpg") || name.endsWith(".jpeg")
-                        || name.endsWith(".png") || name.endsWith(".webp"));
+                        || name.endsWith(".png") || name.endsWith(".webp")
+                        || name.endsWith(".gif"));
         if (files == null || files.length == 0) {
             return new ArrayList<>();
         }

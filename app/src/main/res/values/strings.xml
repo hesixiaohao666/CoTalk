@@ -248,6 +248,10 @@
     <string name="chat_image_compressing">正在处理图片…</string>
     <string name="chat_image_too_large">图片压缩后仍超过 1MB</string>
     <string name="chat_emoji_added">已添加到表情包</string>
+    <string name="chat_emoji_batch_added">已添加 %1$d 张表情</string>
+    <string name="chat_emoji_batch_partial">已添加 %1$d 张，%2$d 张失败</string>
+    <string name="chat_emoji_batch_limit">一次最多选择 9 张</string>
+    <string name="chat_emoji_batch_failed">表情添加失败</string>
     <string name="chat_emoji_save">保存到表情包</string>
     <string name="chat_emoji_saving">正在保存表情…</string>
     <string name="chat_emoji_saved">表情已保存</string>

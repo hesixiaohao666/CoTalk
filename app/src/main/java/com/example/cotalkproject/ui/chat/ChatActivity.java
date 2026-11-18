@@ -62,6 +62,8 @@ import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 import com.example.cotalkproject.ui.widget.ZoomImageView;
 import com.example.cotalkproject.util.ChatFileStore;
 import com.example.cotalkproject.util.EmojiStore;
+import com.example.cotalkproject.util.GifPlaybackController;
+import com.example.cotalkproject.util.GifUtil;
 import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.MediaSaver;
 import com.example.cotalkproject.util.NotificationHelper;
@@ -153,6 +155,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private File pendingSaveImageFile;
     private String playingVoiceKey = "";
     private String pausedVoiceKey = "";
+    private final GifPlaybackController gifPlayback =
+            new GifPlaybackController();
+    private String pendingGifKey = "";
+    private String pendingGifFileId = "";
 
     private final ActivityResultLauncher<String> storagePermissionLauncher =
             registerForActivityResult(
@@ -195,10 +201,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     private final ActivityResultLauncher<String> emojiPickerLauncher =
             registerForActivityResult(
-                    new ActivityResultContracts.GetContent(),
-                    uri -> {
-                        if (uri != null) {
-                            processPickedImage(uri, true);
+                    new ActivityResultContracts.GetMultipleContents(),
+                    uris -> {
+                        if (uris != null && !uris.isEmpty()) {
+                            processPickedEmojis(uris);
                         }
                     });
 
@@ -313,7 +319,23 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 this::showMessageActions,
                 this::showImageFullscreen,
                 this::playVoice,
-                this::loadMedia);
+                this::onGifClick,
+                new ChatAdapter.MediaLoader() {
+                    @Override
+                    public void loadMedia(Message message,
+                                          ShapeableImageView imageView,
+                                          TextView placeholder,
+                                          boolean emoji,
+                                          boolean playGif) {
+                        ChatActivity.this.loadMedia(message, imageView,
+                                placeholder, emoji, playGif);
+                    }
+
+                    @Override
+                    public void onGifDetached(String key) {
+                        ChatActivity.this.onGifDetached(key);
+                    }
+                });
         rvMessages.setAdapter(adapter);
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -810,6 +832,69 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         prefs.clearDraft(sessionId);
     }
 
+    /**
+     * 批量添加表情：单次最多 9 张；单个失败不影响同批其他文件。
+     */
+    private void processPickedEmojis(List<Uri> uris) {
+        if (uris == null || uris.isEmpty()) {
+            return;
+        }
+        int max = 9;
+        boolean truncated = uris.size() > max;
+        List<Uri> batch = new ArrayList<>(
+                uris.subList(0, Math.min(max, uris.size())));
+        Toast.makeText(this, R.string.chat_image_compressing,
+                Toast.LENGTH_SHORT).show();
+        database.execute(() -> {
+            int added = 0;
+            int failed = 0;
+            boolean stockLimit = false;
+            for (Uri uri : batch) {
+                try {
+                    emojiStore.add(uri);
+                    added++;
+                } catch (IOException e) {
+                    if (EmojiStore.ERROR_LIMIT.equals(e.getMessage())) {
+                        stockLimit = true;
+                        break;
+                    }
+                    failed++;
+                }
+            }
+            int addedCount = added;
+            int failedCount = failed;
+            boolean limitReached = stockLimit;
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                emojiAdapter.setFiles(emojiStore.list());
+                if (truncated) {
+                    Toast.makeText(this, R.string.chat_emoji_batch_limit,
+                            Toast.LENGTH_SHORT).show();
+                }
+                if (addedCount > 0 && failedCount == 0) {
+                    Toast.makeText(this,
+                            getString(R.string.chat_emoji_batch_added,
+                                    addedCount),
+                            Toast.LENGTH_SHORT).show();
+                } else if (addedCount > 0) {
+                    Toast.makeText(this,
+                            getString(R.string.chat_emoji_batch_partial,
+                                    addedCount, failedCount),
+                            Toast.LENGTH_SHORT).show();
+                } else if (!limitReached) {
+                    Toast.makeText(this, R.string.chat_emoji_batch_failed,
+                            Toast.LENGTH_SHORT).show();
+                }
+                if (limitReached) {
+                    Toast.makeText(this, R.string.chat_emoji_limit,
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
+    }
+
     private void processPickedImage(Uri uri, boolean addEmoji) {
         Toast.makeText(this, R.string.chat_image_compressing,
                 Toast.LENGTH_SHORT).show();
@@ -932,6 +1017,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     protected void onStop() {
         cancelVoiceRecording();
         stopVoicePlayback();
+        gifPlayback.stop();
+        if (adapter != null) {
+            adapter.setPlayingGif("");
+        }
         pendingEmojiSave = null;
         pendingImageSaveMessage = null;
         pendingSaveImageFile = null;
@@ -945,6 +1034,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     @Override
     protected void onDestroy() {
+        gifPlayback.release();
         sessionManager.clearChatListener(this);
         if (draftSaveRunnable != null) {
             handler.removeCallbacks(draftSaveRunnable);
@@ -1025,13 +1115,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private void loadMedia(Message message,
                            ShapeableImageView imageView,
                            TextView placeholder,
-                           boolean emoji) {
-        String token = !TextUtils.isEmpty(message.msgId)
-                ? message.msgId
-                : message.clientMsgId;
-        if (TextUtils.isEmpty(token)) {
-            token = "msg-" + message.id;
-        }
+                           boolean emoji,
+                           boolean playGif) {
+        String token = ChatAdapter.messageKey(message);
         imageView.setTag(token);
         imageView.setVisibility(View.VISIBLE);
         imageView.setImageDrawable(null);
@@ -1046,7 +1132,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
         File local = resolveLocalFile(message);
         if (local != null) {
-            showLocalMedia(local, imageView, placeholder, token, emoji);
+            showLocalMedia(local, imageView, placeholder, token,
+                    emoji, playGif);
             return;
         }
 
@@ -1091,8 +1178,26 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                                 ShapeableImageView imageView,
                                 TextView placeholder,
                                 String token,
-                                boolean emoji) {
+                                boolean emoji,
+                                boolean playGif) {
         database.execute(() -> {
+            if (playGif && GifUtil.isGifFile(file)) {
+                GifUtil.GifAnimator animator = GifUtil.createAnimator(
+                        this, file, () -> onGifFinished(token));
+                if (animator != null) {
+                    database.runOnMain(() -> {
+                        if (!token.equals(imageView.getTag())) {
+                            animator.release();
+                            return;
+                        }
+                        imageView.setImageDrawable(animator.drawable());
+                        imageView.setVisibility(View.VISIBLE);
+                        placeholder.setVisibility(View.GONE);
+                        gifPlayback.start(token, animator);
+                    });
+                    return;
+                }
+            }
             Bitmap bitmap = ImageUtil.decodeFileSampled(
                     file, emoji ? 512 : 1600);
             database.runOnMain(() -> {
@@ -1109,6 +1214,55 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 placeholder.setVisibility(View.GONE);
             });
         });
+    }
+
+    private void onGifClick(Message message) {
+        if (message == null || message.fileExpired) {
+            return;
+        }
+        String key = ChatAdapter.messageKey(message);
+        pendingGifKey = "";
+        pendingGifFileId = "";
+        if (gifPlayback.isPlaying(key)) {
+            gifPlayback.stop();
+            adapter.setPlayingGif("");
+            return;
+        }
+        File local = resolveLocalFile(message);
+        if (local == null) {
+            if (sessionManager.isActive(sessionId)
+                    && !TextUtils.isEmpty(message.fileId)) {
+                pendingGifKey = key;
+                pendingGifFileId = message.fileId;
+                failedFileRequests.remove(message.fileId);
+                if (!pendingFileRequests.contains(message.fileId)) {
+                    requestFile(message.fileId);
+                }
+                Toast.makeText(this, R.string.chat_image_loading,
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, R.string.chat_image_unavailable,
+                        Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        gifPlayback.stop();
+        adapter.setPlayingGif(key);
+    }
+
+    private void onGifFinished(String key) {
+        if (!gifPlayback.isPlaying(key)) {
+            return;
+        }
+        gifPlayback.stop();
+        adapter.setPlayingGif("");
+    }
+
+    private void onGifDetached(String key) {
+        if (gifPlayback.isPlaying(key)) {
+            gifPlayback.stop();
+        }
+        adapter.clearPlayingGifIf(key);
     }
 
     private void showMediaPlaceholder(ShapeableImageView imageView,
@@ -1190,6 +1344,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 Toast.makeText(this, R.string.chat_image_unavailable,
                         Toast.LENGTH_SHORT).show();
             }
+            if (fileId.equals(pendingGifFileId)) {
+                pendingGifKey = "";
+                pendingGifFileId = "";
+            }
             database.execute(() -> messageDao.markFileExpiredByFileId(
                     sessionId, fileId));
             adapter.markFileExpired(fileId);
@@ -1200,6 +1358,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         String mime = data.optString("mime", "image/jpeg");
         if (encoded.isEmpty()) {
             failedFileRequests.add(fileId);
+            if (fileId.equals(pendingGifFileId)) {
+                pendingGifKey = "";
+                pendingGifFileId = "";
+            }
             if (pendingVoicePlayback != null
                     && fileId.equals(pendingVoicePlayback.fileId)) {
                 pendingVoicePlayback = null;
@@ -1230,6 +1392,16 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 database.runOnMain(() -> {
                     failedFileRequests.remove(fileId);
                     adapter.updateFilePath(fileId, file.getAbsolutePath());
+                    if (!pendingGifFileId.isEmpty()
+                            && fileId.equals(pendingGifFileId)) {
+                        String key = pendingGifKey;
+                        pendingGifKey = "";
+                        pendingGifFileId = "";
+                        if (!key.isEmpty()) {
+                            gifPlayback.stop();
+                            adapter.setPlayingGif(key);
+                        }
+                    }
                     Message pendingEmoji = pendingEmojiSave;
                     if (pendingEmoji != null
                             && fileId.equals(pendingEmoji.fileId)) {
@@ -1255,6 +1427,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             } catch (Exception e) {
                 database.runOnMain(() -> {
                     failedFileRequests.add(fileId);
+                    if (fileId.equals(pendingGifFileId)) {
+                        pendingGifKey = "";
+                        pendingGifFileId = "";
+                    }
                     adapter.notifyFileChanged(fileId);
                 });
             }
@@ -1278,6 +1454,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         String fileId = reqId.substring("file|".length());
         pendingFileRequests.remove(fileId);
         failedFileRequests.add(fileId);
+        if (fileId.equals(pendingGifFileId)) {
+            pendingGifKey = "";
+            pendingGifFileId = "";
+        }
         if (pendingVoicePlayback != null
                 && fileId.equals(pendingVoicePlayback.fileId)) {
             pendingVoicePlayback = null;
@@ -1731,7 +1911,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     }
 
     private void sendMediaFile(File file, String type) {
-        sendMediaFile(file, type, "image/jpeg", "", file == null
+        String mime = file != null && GifUtil.isGifFile(file)
+                ? "image/gif" : "image/jpeg";
+        sendMediaFile(file, type, mime, "", file == null
                 ? "" : file.getName());
     }
 

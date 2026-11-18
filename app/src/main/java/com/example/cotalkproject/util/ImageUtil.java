@@ -88,6 +88,16 @@ public final class ImageUtil {
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("无法创建聊天图片目录");
         }
+        if (GifUtil.isGifUri(context, uri)) {
+            File gif = createImageFile(dir, ".gif");
+            try {
+                return GifUtil.compressToFile(context, uri, gif);
+            } catch (IOException e) {
+                //noinspection ResultOfMethodCallIgnored
+                gif.delete();
+                throw e;
+            }
+        }
         File output = createImageFile(dir, ".jpg");
         try {
             return compressToFile(context, uri, output, CHAT_MAX_DIMENSION);
