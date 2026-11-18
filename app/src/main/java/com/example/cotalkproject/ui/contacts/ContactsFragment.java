@@ -93,9 +93,12 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                     } else {
                         pendingIdentityHost = null;
                         btnConnect.setEnabled(true);
-                        Toast.makeText(requireContext(),
-                                R.string.identity_cancelled,
-                                Toast.LENGTH_SHORT).show();
+                        if (result.getResultCode()
+                                != IdentityActivity.RESULT_PENDING) {
+                            Toast.makeText(requireContext(),
+                                    R.string.identity_cancelled,
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
 

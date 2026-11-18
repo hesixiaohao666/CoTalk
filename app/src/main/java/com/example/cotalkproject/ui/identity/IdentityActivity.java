@@ -40,6 +40,9 @@ import java.util.concurrent.Executors;
  */
 public class IdentityActivity extends AppCompatActivity {
 
+    /** 待审核：页面已给出 Toast，调用方不要显示“已取消”提示。 */
+    public static final int RESULT_PENDING = 2;
+
     public static final String EXTRA_HOST = "host";
     public static final String EXTRA_PORT = "port";
     public static final String EXTRA_AUTH_KEY = "auth_key";
@@ -60,14 +63,12 @@ public class IdentityActivity extends AppCompatActivity {
     private EditText etConfirm;
     private EditText etAdminKey;
     private TextView tvNickname;
-    private TextView tvStatus;
     private ProgressBar progress;
     private RadioGroup modeGroup;
     private RadioButton modeLogin;
     private InsetCheckBox cbRemember;
     private InsetCheckBox cbAuto;
     private View btnSubmit;
-    private View btnCancel;
 
     private String host;
     private int port;
@@ -97,28 +98,31 @@ public class IdentityActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_identity);
         UiUtil.applyLightSystemBars(this);
+        TextView title = findViewById(R.id.tv_title);
+        title.setText(R.string.identity_title);
+        TextView back = findViewById(R.id.btn_back);
+        back.setVisibility(View.VISIBLE);
+        back.setOnClickListener(v -> {
+            setResult(RESULT_CANCELED);
+            finish();
+        });
         UiUtil.applyEdgeToEdgeInsetsWithIme(
-                findViewById(R.id.identity_root), null,
-                (ScrollView) findViewById(R.id.identity_root));
+                findViewById(R.id.identity_root),
+                findViewById(R.id.title_bar),
+                (ScrollView) findViewById(R.id.identity_scroll));
 
         etUsername = findViewById(R.id.et_identity_username);
         etPassword = findViewById(R.id.et_identity_password);
         etConfirm = findViewById(R.id.et_identity_confirm);
         etAdminKey = findViewById(R.id.et_identity_admin_key);
         tvNickname = findViewById(R.id.tv_identity_nickname);
-        tvStatus = findViewById(R.id.tv_identity_status);
         progress = findViewById(R.id.pb_identity);
         modeGroup = findViewById(R.id.rg_identity_mode);
         modeLogin = findViewById(R.id.rb_identity_login);
         cbRemember = findViewById(R.id.cb_identity_remember);
         cbAuto = findViewById(R.id.cb_identity_auto);
         btnSubmit = findViewById(R.id.btn_identity_submit);
-        btnCancel = findViewById(R.id.btn_identity_cancel);
 
-        findViewById(R.id.btn_identity_cancel).setOnClickListener(v -> {
-            setResult(RESULT_CANCELED);
-            finish();
-        });
         modeGroup.setOnCheckedChangeListener((group, checkedId) ->
                 updateMode());
         cbAuto.setOnCheckedChangeListener((buttonView, checked) -> {
@@ -210,7 +214,7 @@ public class IdentityActivity extends AppCompatActivity {
         String adminKey = register
                 ? etAdminKey.getText().toString().trim() : "";
         setLoading(true);
-        setStatus(getString(R.string.identity_submitting));
+        toast(getString(R.string.identity_submitting));
         executor.execute(() -> runAuth(register, username, password,
                 adminKey));
     }
@@ -260,9 +264,18 @@ public class IdentityActivity extends AppCompatActivity {
             }
             String type = response.optString("type", "");
             if (Protocol.IDENTITY_PENDING.equals(type)) {
-                postStatus(getString(R.string.identity_pending));
-                conn.waitForIdentityApproved();
-            } else if (!Protocol.IDENTITY_OK.equals(type)) {
+                conn.close();
+                connection = null;
+                if (register) {
+                    finishWithMessage(
+                            getString(R.string.identity_register_pending));
+                } else {
+                    finishWithMessage(
+                            getString(R.string.identity_login_pending));
+                }
+                return;
+            }
+            if (!Protocol.IDENTITY_OK.equals(type)) {
                 throw new IllegalStateException("身份服务返回异常");
             }
             saveAndFinish(username, password, register);
@@ -316,23 +329,20 @@ public class IdentityActivity extends AppCompatActivity {
                 return;
             }
             setLoading(false);
-            setStatus(message);
             toast(message);
         });
     }
 
-    private void postStatus(String message) {
+    private void finishWithMessage(String message) {
         databaseRunOnMain(() -> {
-            if (!isFinishing() && !isDestroyed()) {
-                setStatus(message);
+            if (finished || isFinishing() || isDestroyed()) {
+                return;
             }
+            finished = true;
+            toast(message);
+            setResult(RESULT_PENDING);
+            finish();
         });
-    }
-
-    private void setStatus(String message) {
-        tvStatus.setText(message);
-        tvStatus.setVisibility(TextUtils.isEmpty(message)
-                ? View.GONE : View.VISIBLE);
     }
 
     private void setLoading(boolean loading) {
@@ -344,7 +354,6 @@ public class IdentityActivity extends AppCompatActivity {
         cbRemember.setEnabled(!loading);
         cbAuto.setEnabled(!loading);
         btnSubmit.setEnabled(!loading);
-        btnCancel.setEnabled(!loading);
         progress.setVisibility(loading ? View.VISIBLE : View.GONE);
     }
 

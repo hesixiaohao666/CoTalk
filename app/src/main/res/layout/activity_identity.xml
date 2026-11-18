@@ -1,244 +1,221 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/identity_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_page"
-    android:clipToPadding="false"
-    android:fillViewport="true"
-    android:overScrollMode="never"
+    android:orientation="vertical"
     tools:context=".ui.identity.IdentityActivity">
 
-    <LinearLayout
+    <include
+        android:id="@+id/title_bar"
+        layout="@layout/layout_title_bar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="24dp"
-        android:paddingTop="32dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="24dp">
+        android:layout_height="wrap_content" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/identity_title"
-            android:textColor="@color/text_primary"
-            android:textSize="28sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/identity_subtitle"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
+    <ScrollView
+        android:id="@+id/identity_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/bg_card"
             android:orientation="vertical"
-            android:padding="20dp">
-
-            <RadioGroup
-                android:id="@+id/rg_identity_mode"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <RadioButton
-                    android:id="@+id/rb_identity_login"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:checked="true"
-                    android:text="@string/identity_mode_login"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp" />
-
-                <RadioButton
-                    android:id="@+id/rb_identity_register"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/identity_mode_register"
-                    android:textColor="@color/text_primary"
-                    android:textSize="16sp" />
-            </RadioGroup>
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="@string/identity_username_label"
+                android:text="@string/identity_subtitle"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp" />
-
-            <EditText
-                android:id="@+id/et_identity_username"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/et_round"
-                android:hint="@string/identity_username_hint"
-                android:inputType="text"
-                android:maxLines="1"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_hint"
-                android:textSize="16sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="@string/identity_password_label"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
-
-            <EditText
-                android:id="@+id/et_identity_password"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/et_round"
-                android:hint="@string/identity_password_hint"
-                android:inputType="textPassword"
-                android:maxLines="1"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_hint"
-                android:textSize="16sp" />
-
-            <EditText
-                android:id="@+id/et_identity_confirm"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/et_round"
-                android:hint="@string/identity_confirm_hint"
-                android:inputType="textPassword"
-                android:maxLines="1"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_hint"
-                android:textSize="16sp"
-                android:visibility="gone" />
-
-            <EditText
-                android:id="@+id/et_identity_admin_key"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/et_round"
-                android:hint="@string/identity_admin_key_hint"
-                android:inputType="textVisiblePassword"
-                android:maxLines="1"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_hint"
-                android:textSize="16sp"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/tv_identity_nickname"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:textColor="@color/text_hint"
-                android:textSize="13sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="20dp">
 
-                <com.example.cotalkproject.ui.widget.InsetCheckBox
-                    android:id="@+id/cb_identity_remember"
-                    android:layout_width="wrap_content"
+                <RadioGroup
+                    android:id="@+id/rg_identity_mode"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingStart="0dp"
-                    android:text="@string/identity_remember"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/rb_identity_login"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:checked="true"
+                        android:text="@string/identity_mode_login"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+
+                    <RadioButton
+                        android:id="@+id/rb_identity_register"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/identity_mode_register"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+                </RadioGroup>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/identity_username_label"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
 
-                <com.example.cotalkproject.ui.widget.InsetCheckBox
-                    android:id="@+id/cb_identity_auto"
-                    android:layout_width="wrap_content"
+                <EditText
+                    android:id="@+id/et_identity_username"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/et_round"
+                    android:hint="@string/identity_username_hint"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_hint"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="18dp"
-                    android:paddingStart="0dp"
-                    android:text="@string/identity_auto_login"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/identity_password_label"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/et_identity_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/et_round"
+                    android:hint="@string/identity_password_hint"
+                    android:inputType="textPassword"
+                    android:maxLines="1"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_hint"
+                    android:textSize="16sp" />
+
+                <EditText
+                    android:id="@+id/et_identity_confirm"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/et_round"
+                    android:hint="@string/identity_confirm_hint"
+                    android:inputType="textPassword"
+                    android:maxLines="1"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_hint"
+                    android:textSize="16sp"
+                    android:visibility="gone" />
+
+                <EditText
+                    android:id="@+id/et_identity_admin_key"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/et_round"
+                    android:hint="@string/identity_admin_key_hint"
+                    android:inputType="textVisiblePassword"
+                    android:maxLines="1"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_hint"
+                    android:textSize="16sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_identity_nickname"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/text_hint"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.example.cotalkproject.ui.widget.InsetCheckBox
+                        android:id="@+id/cb_identity_remember"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="0dp"
+                        android:text="@string/identity_remember"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp" />
+
+                    <com.example.cotalkproject.ui.widget.InsetCheckBox
+                        android:id="@+id/cb_identity_auto"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="18dp"
+                        android:paddingStart="0dp"
+                        android:text="@string/identity_auto_login"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_identity_submit"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="14dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:stateListAnimator="@null"
+                    android:text="@string/identity_mode_login"
+                    android:textColor="@color/text_on_accent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@color/blue_ty"
+                    app:cornerRadius="12dp"
+                    app:rippleColor="@color/blue_dark"
+                    app:strokeColor="@color/blue_dark"
+                    app:strokeWidth="2dp" />
+
+                <ProgressBar
+                    android:id="@+id/pb_identity"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="8dp"
+                    android:indeterminateTint="@color/blue_dark"
+                    android:visibility="gone" />
+
             </LinearLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_identity_submit"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="14dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:stateListAnimator="@null"
-                android:text="@string/identity_mode_login"
-                android:textColor="@color/text_on_accent"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:backgroundTint="@color/blue_ty"
-                app:cornerRadius="12dp"
-                app:rippleColor="@color/blue_dark"
-                app:strokeColor="@color/blue_dark"
-                app:strokeWidth="2dp" />
-
-            <ProgressBar
-                android:id="@+id/pb_identity"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="8dp"
-                android:indeterminateTint="@color/blue_dark"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/tv_identity_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:visibility="gone" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_identity_cancel"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:stateListAnimator="@null"
-                android:text="@string/identity_cancel"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                app:backgroundTint="@color/bg_page"
-                app:cornerRadius="12dp"
-                app:strokeColor="@color/line"
-                app:strokeWidth="1dp" />
-
         </LinearLayout>
-    </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</LinearLayout>

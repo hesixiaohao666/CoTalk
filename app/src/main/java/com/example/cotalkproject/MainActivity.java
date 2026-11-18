@@ -69,8 +69,11 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         pendingIdentityHost = null;
                         pendingIdentityCallback = null;
-                        Toast.makeText(this, R.string.identity_cancelled,
-                                Toast.LENGTH_SHORT).show();
+                        if (result.getResultCode()
+                                != IdentityActivity.RESULT_PENDING) {
+                            Toast.makeText(this, R.string.identity_cancelled,
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
         notificationPermissionLauncher = registerForActivityResult(

@@ -37,6 +37,8 @@ public class AdminModerationActivity extends AppCompatActivity {
 
     private long sessionId;
     private LinearLayout content;
+    private LinearLayout pendingCard;
+    private LinearLayout membersCard;
     private SessionManager sessionManager;
     private MemberDao memberDao;
     private int dp;
@@ -89,7 +91,8 @@ public class AdminModerationActivity extends AppCompatActivity {
 
     private void refresh() {
         content.removeAllViews();
-        addHeader(getString(R.string.admin_moderation_pending));
+        pendingCard = addSection(R.string.admin_moderation_pending);
+        membersCard = addSection(R.string.admin_moderation_members);
         sessionManager.requestJoinRequests(
                 new SessionManager.JoinRequestsCallback() {
                     @Override
@@ -98,7 +101,7 @@ public class AdminModerationActivity extends AppCompatActivity {
                             return;
                         }
                         if (requests.isEmpty()) {
-                            addNote(getString(
+                            addNote(pendingCard, getString(
                                     R.string.admin_moderation_no_pending));
                         } else {
                             for (JoinRequest request : requests) {
@@ -113,7 +116,7 @@ public class AdminModerationActivity extends AppCompatActivity {
                         if (isFinishing() || isDestroyed()) {
                             return;
                         }
-                        addNote(getString(
+                        addNote(pendingCard, getString(
                                 R.string.admin_moderation_action_failed,
                                 message));
                         loadMembers();
@@ -129,9 +132,9 @@ public class AdminModerationActivity extends AppCompatActivity {
                 if (isFinishing() || isDestroyed()) {
                     return;
                 }
-                addHeader(getString(R.string.admin_moderation_members));
                 if (members.isEmpty()) {
-                    addNote(getString(R.string.admin_moderation_no_members));
+                    addNote(membersCard,
+                            getString(R.string.admin_moderation_no_members));
                     return;
                 }
                 String selfId = sessionManager.getSelfUserId();
@@ -146,7 +149,7 @@ public class AdminModerationActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp * 6, 0, dp * 6);
+        row.setPadding(0, dp * 8, 0, dp * 8);
 
         TextView info = new TextView(this);
         info.setText(getString(R.string.admin_moderation_pending_item,
@@ -164,7 +167,7 @@ public class AdminModerationActivity extends AppCompatActivity {
                 R.string.admin_moderation_reject));
         reject.setOnClickListener(v -> review(request, false));
         row.addView(reject);
-        content.addView(row);
+        pendingCard.addView(row);
     }
 
     private void review(JoinRequest request, boolean approve) {
@@ -190,7 +193,7 @@ public class AdminModerationActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp * 6, 0, dp * 6);
+        row.setPadding(0, dp * 8, 0, dp * 8);
 
         TextView info = new TextView(this);
         String username = TextUtils.isEmpty(member.username)
@@ -212,7 +215,7 @@ public class AdminModerationActivity extends AppCompatActivity {
             kick.setOnClickListener(v -> confirmKick(member));
             row.addView(kick);
         }
-        content.addView(row);
+        membersCard.addView(row);
     }
 
     private void confirmKick(Member member) {
@@ -249,22 +252,32 @@ public class AdminModerationActivity extends AppCompatActivity {
                 });
     }
 
-    private void addHeader(String text) {
+    private LinearLayout addSection(int titleRes) {
         TextView header = new TextView(this);
-        header.setText(text);
-        header.setTextSize(18);
-        header.setTextColor(getColor(R.color.text_primary));
+        header.setText(titleRes);
+        header.setTextSize(14);
+        header.setTextColor(getColor(R.color.text_secondary));
         header.setPadding(0, dp * 12, 0, dp * 8);
         content.addView(header);
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.bg_card);
+        card.setPadding(dp * 16, dp * 12, dp * 16, dp * 12);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        content.addView(card, params);
+        return card;
     }
 
-    private void addNote(String text) {
+    private void addNote(LinearLayout card, String text) {
         TextView note = new TextView(this);
         note.setText(text);
         note.setTextSize(14);
         note.setTextColor(getColor(R.color.text_hint));
         note.setPadding(0, dp * 6, 0, dp * 6);
-        content.addView(note);
+        card.addView(note);
     }
 
     private Button smallButton(String text) {

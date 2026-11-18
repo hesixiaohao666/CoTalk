@@ -139,7 +139,7 @@
     <string name="about_changelog_title">更新日志</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n- 新增群聊身份验证、入群审核与成员管理\n- 管理员支持强制撤回与移出成员\n- 成员列表显示在线状态与用户名\n- 表情包支持批量添加与 GIF 表情\n- 设置新增显示区，深色模式正式支持\n- 优化 AI 群友的消息识别与回复稳定性\n- 服务端日志按日归档并保留 30 天</string>
+    <string name="about_changelog_body">更新内容：\n【常规更新】\n- 新增群聊身份验证、入群审核与成员管理\n- 管理员支持强制撤回与移出成员\n- 成员列表显示在线状态与用户名\n- 表情包支持批量添加与 GIF 表情\n- 设置新增显示区，深色模式正式支持\n- 服务端日志按日归档并保留 30 天\n【实验性功能更新】\n- AI 群友 Pro 支持系统消息、图片消息触发与拍一拍必回\n- AI 群友 Pro 无法回答时保持静默</string>
     <string name="about_changelog_date">2026-11-18</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
@@ -183,6 +183,7 @@
     <string name="me_suffix">（我）</string>
     <string name="ai_badge">AI</string>
     <string name="ai_pro_badge">AI Pro</string>
+    <string name="experimental_badge">实验性</string>
     <string name="server_supports_ai">支持 AI</string>
     <string name="server_supports_ai_pro">支持 AI Pro</string>
     <string name="chat_title_default">聊天</string>
@@ -196,7 +197,7 @@
     <string name="server_info_ai">AI 功能</string>
     <string name="server_info_version">服务端版本</string>
     <string name="server_info_ai_enabled">已启用</string>
-    <string name="server_info_ai_pro_enabled">已启用 AI Pro</string>
+    <string name="server_info_ai_pro_enabled">已启用Pro（实验性功能）</string>
     <string name="server_info_ai_disabled">未启用</string>
     <string name="server_info_no_announcement">暂无公告</string>
     <string name="server_info_unknown_version">未知版本</string>
@@ -280,7 +281,7 @@
     <string name="room_feature_disabled">房间未启用该功能</string>
     <string name="send_timeout">发送超时，点击重试</string>
 
-    <string name="identity_title">群聊身份验证</string>
+    <string name="identity_title">身份验证</string>
     <string name="identity_subtitle">当前房间已启用身份验证，请登录或注册群聊账号</string>
     <string name="identity_mode_login">登录</string>
     <string name="identity_mode_register">注册</string>
@@ -293,8 +294,8 @@
     <string name="identity_nickname_format">当前昵称：%1$s</string>
     <string name="identity_remember">记住账号密码</string>
     <string name="identity_auto_login">自动登录</string>
-    <string name="identity_cancel">取消</string>
-    <string name="identity_pending">等待管理员审核，通过后将自动进入群聊</string>
+    <string name="identity_register_pending">已发送入群申请，管理员通过后即可登录群聊</string>
+    <string name="identity_login_pending">账号尚未通过管理员审核，暂时无法登录</string>
     <string name="identity_submitting">正在验证…</string>
     <string name="identity_username_invalid">用户名需为 3–16 位，字母开头，仅字母和数字</string>
     <string name="identity_password_invalid">密码需为 8–16 位，且至少包含两类字符</string>
