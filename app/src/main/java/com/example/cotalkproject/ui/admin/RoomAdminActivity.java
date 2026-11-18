@@ -94,6 +94,12 @@ public class RoomAdminActivity extends AppCompatActivity {
         findViewById(R.id.btn_room_admin_avatar).setOnClickListener(
                 v -> pickImage.launch("image/*"));
         btnSave.setOnClickListener(v -> save());
+        findViewById(R.id.btn_room_admin_review).setOnClickListener(v ->
+                startActivity(AdminModerationActivity.createIntent(
+                        this, sessionId)));
+        findViewById(R.id.btn_room_admin_members).setOnClickListener(v ->
+                startActivity(AdminModerationActivity.createIntent(
+                        this, sessionId)));
 
         loadSession();
     }

@@ -165,6 +165,22 @@ public class SessionDao {
         );
     }
 
+    public void setKicked(long sessionId, boolean kicked) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("kicked", kicked ? 1 : 0);
+        db.update(TABLE, values, "id = ?",
+                new String[]{String.valueOf(sessionId)});
+    }
+
+    public void setIdentityRequired(long sessionId, boolean required) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("identity_required", required ? 1 : 0);
+        db.update(TABLE, values, "id = ?",
+                new String[]{String.valueOf(sessionId)});
+    }
+
     public void markRead(long sessionId) {
         SQLiteDatabase db = helper.getWritableDatabase();
         db.execSQL(

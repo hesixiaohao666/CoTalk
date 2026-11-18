@@ -17,6 +17,7 @@ import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.LocalUser;
+import com.example.cotalkproject.model.JoinRequest;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.model.Session;
@@ -123,6 +124,12 @@ public class SessionManager {
         void onError(String message, int code);
     }
 
+    public interface JoinRequestsCallback {
+        void onSuccess(List<JoinRequest> requests);
+
+        void onError(String message, int code);
+    }
+
     public interface AvatarListener {
         void onAvatarFrame(JSONObject frame);
     }
@@ -157,6 +164,9 @@ public class SessionManager {
     private volatile String pendingAdminKey = "";
     private volatile ServerConnection pendingAdminConnection;
     private volatile RoomUpdateCallback pendingRoomUpdateCallback;
+    private volatile JoinRequestsCallback pendingJoinRequestsCallback;
+    private volatile AdminAuthCallback pendingJoinReviewCallback;
+    private volatile AdminAuthCallback pendingKickCallback;
     private volatile boolean imageEnabled = true;
     private volatile boolean voiceEnabled = true;
     private volatile boolean emojiEnabled = true;
@@ -371,6 +381,164 @@ public class SessionManager {
                 postAdminError(callback, "解除管理员绑定请求失败", 0);
             }
         }
+    }
+
+    public void requestJoinRequests(JoinRequestsCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        if (!canModerate()) {
+            postJoinRequestsError(callback, moderationError(), 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingJoinRequestsCallback != null) {
+                postJoinRequestsError(callback, "正在读取申请，请稍候", 0);
+                return;
+            }
+            pendingJoinRequestsCallback = callback;
+        }
+        sendModerationFrame(Protocol.ADMIN_JOIN_REQUESTS_REQ,
+                new JSONObject(), callback);
+    }
+
+    public void reviewJoinRequest(String identityId,
+                                  boolean approve,
+                                  AdminAuthCallback callback) {
+        if (!canModerate()) {
+            postAdminError(callback, moderationError(), 0);
+            return;
+        }
+        if (identityId == null || identityId.isEmpty()) {
+            postAdminError(callback, "申请不存在", 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingJoinReviewCallback != null) {
+                postAdminError(callback, "正在处理申请，请稍候", 0);
+                return;
+            }
+            pendingJoinReviewCallback = callback;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("identityId", identityId);
+            data.put("approve", approve);
+            sendModerationFrame(Protocol.ADMIN_JOIN_REVIEW_REQ,
+                    data, callback);
+        } catch (Exception e) {
+            clearJoinReview(callback);
+            postAdminError(callback, "提交审核失败", 0);
+        }
+    }
+
+    public void kickMember(String identityId, AdminAuthCallback callback) {
+        if (!canModerate()) {
+            postAdminError(callback, moderationError(), 0);
+            return;
+        }
+        if (identityId == null || identityId.isEmpty()) {
+            postAdminError(callback, "用户不存在", 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingKickCallback != null) {
+                postAdminError(callback, "正在移除用户，请稍候", 0);
+                return;
+            }
+            pendingKickCallback = callback;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("identityId", identityId);
+            sendModerationFrame(Protocol.ADMIN_KICK_REQ, data, callback);
+        } catch (Exception e) {
+            clearKick(callback);
+            postAdminError(callback, "移除用户失败", 0);
+        }
+    }
+
+    private boolean canModerate() {
+        ServerConnection current = connection;
+        return current != null && current.isConnected()
+                && activeSessionId > 0 && selfAdmin;
+    }
+
+    private String moderationError() {
+        ServerConnection current = connection;
+        if (current == null || !current.isConnected() || activeSessionId <= 0) {
+            return "请先连接房间";
+        }
+        return "当前不是管理员";
+    }
+
+    private void sendModerationFrame(String type,
+                                     JSONObject data,
+                                     Object callback) {
+        try {
+            JSONObject frame = Protocol.frame(type, data);
+            frame.put("reqId", "moderation-" + System.currentTimeMillis());
+            sendFrame(frame, new SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String message) {
+                    if (Protocol.ADMIN_JOIN_REQUESTS_REQ.equals(type)) {
+                        JoinRequestsCallback cb = pendingJoinRequestsCallback;
+                        pendingJoinRequestsCallback = null;
+                        if (cb != null) {
+                            postJoinRequestsError(cb, message, 0);
+                        }
+                    } else if (Protocol.ADMIN_JOIN_REVIEW_REQ.equals(type)) {
+                        AdminAuthCallback cb = pendingJoinReviewCallback;
+                        pendingJoinReviewCallback = null;
+                        if (cb != null) {
+                            postAdminError(cb, message, 0);
+                        }
+                    } else if (Protocol.ADMIN_KICK_REQ.equals(type)) {
+                        AdminAuthCallback cb = pendingKickCallback;
+                        pendingKickCallback = null;
+                        if (cb != null) {
+                            postAdminError(cb, message, 0);
+                        }
+                    }
+                }
+            });
+        } catch (Exception e) {
+            if (callback instanceof JoinRequestsCallback) {
+                pendingJoinRequestsCallback = null;
+                postJoinRequestsError((JoinRequestsCallback) callback,
+                        "请求发送失败", 0);
+            } else if (callback instanceof AdminAuthCallback) {
+                AdminAuthCallback cb = (AdminAuthCallback) callback;
+                clearJoinReview(cb);
+                clearKick(cb);
+                postAdminError(cb, "请求发送失败", 0);
+            }
+        }
+    }
+
+    private void clearJoinReview(AdminAuthCallback callback) {
+        synchronized (adminAuthLock) {
+            if (pendingJoinReviewCallback == callback) {
+                pendingJoinReviewCallback = null;
+            }
+        }
+    }
+
+    private void clearKick(AdminAuthCallback callback) {
+        synchronized (adminAuthLock) {
+            if (pendingKickCallback == callback) {
+                pendingKickCallback = null;
+            }
+        }
+    }
+
+    private void postJoinRequestsError(JoinRequestsCallback callback,
+                                       String message, int code) {
+        mainHandler.post(() -> callback.onError(message, code));
     }
 
     public void updateRoomInfo(String name,
@@ -696,6 +864,29 @@ public class SessionManager {
         }
         if (roomCallback != null) {
             postRoomError(roomCallback, message, code);
+            return;
+        }
+        JoinRequestsCallback joinRequests;
+        AdminAuthCallback joinReview;
+        AdminAuthCallback kick;
+        synchronized (adminAuthLock) {
+            joinRequests = pendingJoinRequestsCallback;
+            joinReview = pendingJoinReviewCallback;
+            kick = pendingKickCallback;
+            pendingJoinRequestsCallback = null;
+            pendingJoinReviewCallback = null;
+            pendingKickCallback = null;
+        }
+        if (joinRequests != null) {
+            postJoinRequestsError(joinRequests, message, code);
+            return;
+        }
+        if (joinReview != null) {
+            postAdminError(joinReview, message, code);
+            return;
+        }
+        if (kick != null) {
+            postAdminError(kick, message, code);
             return;
         }
         notifyConnectionError(message);
@@ -1242,6 +1433,40 @@ public class SessionManager {
             return;
         }
 
+        if (Protocol.ADMIN_JOIN_REQUESTS_RES.equals(type)) {
+            handleJoinRequests(frame);
+            return;
+        }
+
+        if (Protocol.ADMIN_JOIN_REVIEW_RES.equals(type)) {
+            AdminAuthCallback callback;
+            synchronized (adminAuthLock) {
+                callback = pendingJoinReviewCallback;
+                pendingJoinReviewCallback = null;
+            }
+            if (callback != null) {
+                mainHandler.post(callback::onSuccess);
+            }
+            return;
+        }
+
+        if (Protocol.ADMIN_KICK_RES.equals(type)) {
+            AdminAuthCallback callback;
+            synchronized (adminAuthLock) {
+                callback = pendingKickCallback;
+                pendingKickCallback = null;
+            }
+            if (callback != null) {
+                mainHandler.post(callback::onSuccess);
+            }
+            return;
+        }
+
+        if (Protocol.KICKED.equals(type)) {
+            handleKicked(frame);
+            return;
+        }
+
         if (Protocol.MEMBER_LIST.equals(type)) {
             long sessionId = activeSessionId;
             if (sessionId <= 0) {
@@ -1330,6 +1555,58 @@ public class SessionManager {
         if (Protocol.ERROR.equals(type)) {
             handleServerError(frame, frame.optJSONObject("data"));
         }
+    }
+
+    private void handleJoinRequests(JSONObject frame) {
+        JSONObject data = frame.optJSONObject("data");
+        JSONArray array = data == null ? null
+                : data.optJSONArray("requests");
+        List<JoinRequest> requests = new ArrayList<>();
+        if (array != null) {
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject item = array.optJSONObject(i);
+                if (item == null) {
+                    continue;
+                }
+                JoinRequest request = new JoinRequest();
+                request.identityId = item.optString("identityId", "");
+                request.username = item.optString("username", "");
+                request.nickname = item.optString("nickname", "");
+                request.admin = item.optBoolean("admin", false);
+                request.requestedAt = item.optLong("requestedAt", 0);
+                requests.add(request);
+            }
+        }
+        JoinRequestsCallback callback;
+        synchronized (adminAuthLock) {
+            callback = pendingJoinRequestsCallback;
+            pendingJoinRequestsCallback = null;
+        }
+        if (callback != null) {
+            final List<JoinRequest> result = requests;
+            mainHandler.post(() -> callback.onSuccess(result));
+        }
+    }
+
+    private void handleKicked(JSONObject frame) {
+        long sessionId = activeSessionId;
+        shouldReconnect = false;
+        cancelReconnect();
+        closeActiveOnIo();
+        selfAdmin = false;
+        if (sessionId > 0) {
+            database.execute(() -> {
+                sessionDao.setKicked(sessionId, true);
+                memberDao.markAllOffline(sessionId);
+                database.runOnMain(() -> {
+                    notifySessionsChanged();
+                    notifyMembersChanged(sessionId);
+                });
+            });
+        }
+        notifyConnectionError("您已被移出群聊");
+        notifyChatFrame(frame);
+        notifyChatDisconnected("您已被移出群聊");
     }
 
     private void handleMessageRecall(JSONObject frame) {
@@ -1431,7 +1708,7 @@ public class SessionManager {
             member.nickname = object.optString("nickname", "");
             member.username = object.optString("username", "");
             member.avatarVersion = object.optInt("avatarVersion", 0);
-            member.online = true;
+            member.online = object.optBoolean("online", true);
             member.ai = object.optBoolean("ai", false);
             member.admin = object.optBoolean("admin", false);
             members.add(member);

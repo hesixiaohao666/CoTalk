@@ -313,4 +313,27 @@
     <string name="identity_failed">身份验证失败：%1$s</string>
     <string name="identity_cancelled">已取消身份验证</string>
 
+    <string name="room_admin_review">入群审核</string>
+    <string name="room_admin_members">成员管理</string>
+    <string name="admin_moderation_title">成员与审核</string>
+    <string name="admin_moderation_pending">入群申请</string>
+    <string name="admin_moderation_members">群聊成员</string>
+    <string name="admin_moderation_no_pending">暂无待审核申请</string>
+    <string name="admin_moderation_no_members">暂无成员</string>
+    <string name="admin_moderation_approve">通过</string>
+    <string name="admin_moderation_reject">拒绝</string>
+    <string name="admin_moderation_kick">移出</string>
+    <string name="admin_moderation_kick_title">移出成员</string>
+    <string name="admin_moderation_kick_message">确定将 %1$s 移出群聊？该用户需要重新注册并审核。</string>
+    <string name="admin_moderation_kick_done">已移出 %1$s</string>
+    <string name="admin_moderation_action_failed">操作失败：%1$s</string>
+    <string name="admin_moderation_online">在线</string>
+    <string name="admin_moderation_offline">离线</string>
+    <string name="admin_moderation_pending_item">%1$s（%2$s）</string>
+    <string name="admin_moderation_refresh">刷新</string>
+
+    <string name="kicked_banner">您已被移出群聊</string>
+    <string name="kicked_send">您已被移出群聊，无法发送消息</string>
+    <string name="server_info_kicked">您已被移出群聊，只能查看本地聊天记录</string>
+
 </resources>

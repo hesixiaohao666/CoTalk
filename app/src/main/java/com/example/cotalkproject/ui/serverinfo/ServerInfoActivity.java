@@ -146,7 +146,9 @@ public class ServerInfoActivity extends AppCompatActivity
                     return;
                 }
                 bindSession(session);
-                if (sessionManager.isActive(sessionId)) {
+                if (session.kicked) {
+                    showKickedInfo();
+                } else if (sessionManager.isActive(sessionId)) {
                     loadMembers();
                 } else {
                     showOfflineMembers();
@@ -159,7 +161,9 @@ public class ServerInfoActivity extends AppCompatActivity
         updateAdminEntry();
         bindRoomAvatar(session);
         tvRoomName.setText(session.displayName());
-        tvAnnouncement.setText(TextUtils.isEmpty(session.announcement)
+        tvAnnouncement.setText(session.kicked
+                ? getString(R.string.server_info_kicked)
+                : TextUtils.isEmpty(session.announcement)
                 ? getString(R.string.server_info_no_announcement)
                 : session.announcement);
         tvServerIp.setText(TextUtils.isEmpty(session.host) ? "-" : session.host);
@@ -224,12 +228,6 @@ public class ServerInfoActivity extends AppCompatActivity
         }
         database.execute(() -> {
             List<Member> all = memberDao.queryBySession(sessionId);
-            List<Member> online = new ArrayList<>();
-            for (Member member : all) {
-                if (member.online) {
-                    online.add(member);
-                }
-            }
             database.runOnMain(() -> {
                 if (isFinishing() || isDestroyed()) {
                     return;
@@ -240,15 +238,24 @@ public class ServerInfoActivity extends AppCompatActivity
                 }
                 memberAdapter.setSessionId(sessionId);
                 memberAdapter.setSelfUserId(sessionManager.getSelfUserId());
-                memberAdapter.setMembers(online);
+                memberAdapter.setMembers(all);
                 tvMemberTitle.setText(getString(
-                        R.string.server_info_members_format, online.size()));
-                boolean empty = online.isEmpty();
+                        R.string.server_info_members_format, all.size()));
+                boolean empty = all.isEmpty();
                 tvMembersEmpty.setText(R.string.server_info_no_members);
                 tvMembersEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
                 rvMembers.setVisibility(empty ? View.GONE : View.VISIBLE);
             });
         });
+    }
+
+    private void showKickedInfo() {
+        roomAdminButton.setVisibility(View.GONE);
+        memberAdapter.setMembers(new ArrayList<>());
+        tvMemberTitle.setText(R.string.admin_moderation_members);
+        tvMembersEmpty.setText(R.string.server_info_kicked);
+        tvMembersEmpty.setVisibility(View.VISIBLE);
+        rvMembers.setVisibility(View.GONE);
     }
 
     private void showOfflineMembers() {

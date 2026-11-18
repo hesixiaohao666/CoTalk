@@ -147,6 +147,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private Runnable voiceTimerRunnable;
     private Message pendingVoicePlayback;
     private Message pendingEmojiSave;
+    private boolean kicked;
     private Message pendingImageSaveMessage;
     private File pendingSaveImageFile;
     private String playingVoiceKey = "";
@@ -993,8 +994,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                     if (adapter != null) {
                         adapter.setAiProEnabled(session.aiProEnabled);
                     }
+                    kicked = session.kicked;
                 }
                 tvTitle.setText(roomName);
+                applyKickedState();
             });
         });
     }
@@ -1630,7 +1633,24 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         });
     }
 
+    private void applyKickedState() {
+        if (!kicked) {
+            return;
+        }
+        showBanner(getString(R.string.kicked_banner));
+        etMessage.setEnabled(false);
+        btnSend.setEnabled(false);
+        btnEmoji.setEnabled(false);
+        btnMore.setEnabled(false);
+        btnVoice.setEnabled(false);
+    }
+
     private void sendMessage() {
+        if (kicked) {
+            Toast.makeText(this, R.string.kicked_send,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) {
             return;
@@ -2246,8 +2266,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         }
         pendingTimeouts.clear();
         pendingPreviews.clear();
-        showBanner(getString(R.string.connection_banner, reason));
-        btnSend.setEnabled(true);
+        if (reason != null && reason.contains("移出群聊")) {
+            kicked = true;
+            applyKickedState();
+        } else {
+            showBanner(getString(R.string.connection_banner, reason));
+            btnSend.setEnabled(true);
+        }
         loadingHistory = false;
         tvHistoryHint.setVisibility(View.GONE);
         adapter.markAllSendingFailed();

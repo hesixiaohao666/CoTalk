@@ -169,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
         AppDatabase database = CoTalkApp.getInstance().getDatabase();
         database.execute(() -> {
             Session session = sessionDao.findLatestConnected();
-            if (session == null) {
+            if (session == null || session.kicked) {
                 return;
             }
             String authKey = prefs.getServerAuthKey(
