@@ -37,6 +37,7 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -1384,12 +1385,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         boolean canSaveImage = "image".equals(type) && !message.fileExpired;
         boolean canSaveEmoji = "emoji".equals(type) && !message.fileExpired;
         boolean canReply = !system;
-        boolean canRecall = message.isSelf
-                && !system
+        boolean admin = sessionManager.isSelfAdmin() && !kicked;
+        boolean canRecall = !system
                 && !TextUtils.isEmpty(message.msgId)
                 && message.status == Message.STATUS_SENT
+                && (admin || (message.isSelf
                 && System.currentTimeMillis() - message.timestamp
-                <= RECALL_WINDOW_MS;
+                <= RECALL_WINDOW_MS));
 
         ArrayList<BottomSheetMenu.Action> actions = new ArrayList<>();
         if (canCopy) {
@@ -1415,7 +1417,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (canRecall) {
             actions.add(new BottomSheetMenu.Action(
                     getString(R.string.message_recall),
-                    () -> requestRecall(message)));
+                    () -> {
+                        if (admin && !message.isSelf) {
+                            confirmAdminRecall(message);
+                        } else {
+                            requestRecall(message);
+                        }
+                    }));
         }
         if (!actions.isEmpty()) {
             BottomSheetMenu.showActions(this, null, actions);
@@ -1513,6 +1521,19 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             Toast.makeText(this, R.string.message_copied,
                     Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void confirmAdminRecall(Message message) {
+        String sender = TextUtils.isEmpty(message.senderName)
+                ? getString(R.string.admin_recall_unknown_sender)
+                : message.senderName;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.admin_recall_title)
+                .setMessage(getString(R.string.admin_recall_message, sender))
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.admin_recall_action,
+                        (dialog, which) -> requestRecall(message))
+                .show();
     }
 
     private void requestRecall(Message message) {

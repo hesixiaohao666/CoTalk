@@ -269,6 +269,10 @@
     <string name="reply_not_available">回复功能暂不可用</string>
     <string name="message_recall">撤回</string>
     <string name="message_recall_failed">撤回失败：%1$s</string>
+    <string name="admin_recall_title">强制撤回</string>
+    <string name="admin_recall_message">确定撤回 %1$s 的消息？所有成员将看到管理员撤回提示。</string>
+    <string name="admin_recall_action">撤回</string>
+    <string name="admin_recall_unknown_sender">该成员</string>
     <string name="poke_failed">拍一拍失败，请稍后再试</string>
     <string name="chat_image_loading_failed">图片尚未加载完成</string>
     <string name="chat_image_save">保存到相册</string>

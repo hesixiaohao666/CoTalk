@@ -350,6 +350,7 @@
                 </LinearLayout>
 
                 <View
+                    android:id="@+id/divider_admin_mode"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginStart="16dp"
@@ -357,6 +358,7 @@
                     android:background="@color/divider" />
 
                 <LinearLayout
+                    android:id="@+id/row_admin_mode"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
                     android:gravity="center_vertical"

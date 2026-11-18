@@ -159,6 +159,7 @@ public class SessionManager {
     private volatile int selfAvatarVersion;
     private volatile boolean pushEnabled = true;
     private volatile boolean selfAdmin;
+    private volatile boolean identityMode;
     private volatile AdminAuthCallback pendingAdminAuthCallback;
     private volatile AdminAuthCallback pendingAdminUnbindCallback;
     private volatile String pendingAdminKey = "";
@@ -1108,6 +1109,7 @@ public class SessionManager {
                 if (session == null) {
                     throw new IllegalStateException("保存会话失败");
                 }
+                sessionDao.setIdentityRequired(session.id, identityRequired);
 
                 List<Member> members = parseMembers(membersArray, session.id);
                 memberDao.replaceAll(session.id, members);
@@ -1116,6 +1118,7 @@ public class SessionManager {
                 selfUserId = self == null ? "" : self.optString("id", "");
                 selfAvatarVersion = self == null ? 0 : self.optInt("avatarVersion", 0);
                 selfAdmin = self != null && self.optBoolean("admin", false);
+                identityMode = identityRequired;
                 activeSessionId = session.id;
                 activeRoomName = roomName;
                 this.pushEnabled = pushEnabled;
@@ -1153,6 +1156,7 @@ public class SessionManager {
                 activeRoomName = "";
                 selfUserId = "";
                 selfAdmin = false;
+                identityMode = false;
                 connecting = false;
                 failPendingOperations("连接服务器失败");
                 String message = e.getMessage() == null
@@ -1194,6 +1198,7 @@ public class SessionManager {
         activeRoomName = "";
         selfUserId = "";
         selfAdmin = false;
+        identityMode = false;
         connecting = false;
         failPendingOperations("连接已断开");
         if (old != null) {
@@ -1242,6 +1247,7 @@ public class SessionManager {
         selfUserId = "";
         selfAvatarVersion = 0;
         selfAdmin = false;
+        identityMode = false;
         connecting = false;
         failPendingOperations("连接已断开");
         if (old != null) {
@@ -1393,6 +1399,7 @@ public class SessionManager {
         activeRoomName = "";
         selfUserId = "";
         selfAdmin = false;
+        identityMode = false;
         failPendingOperations("连接已断开");
         if (old != null) {
             old.close();
@@ -1594,6 +1601,7 @@ public class SessionManager {
         cancelReconnect();
         closeActiveOnIo();
         selfAdmin = false;
+        identityMode = false;
         if (sessionId > 0) {
             database.execute(() -> {
                 sessionDao.setKicked(sessionId, true);
@@ -1661,6 +1669,7 @@ public class SessionManager {
         activeRoomName = "";
         selfUserId = "";
         selfAdmin = false;
+        identityMode = false;
         connecting = false;
         failPendingOperations("连接已断开");
         updatePersistentRoom("");
@@ -1815,6 +1824,13 @@ public class SessionManager {
 
     public boolean isSelfAdmin() {
         return selfAdmin;
+    }
+
+    /**
+     * 当前连接是否由服务端身份系统接管（此时隐藏旧的房间管理员密钥绑定）。
+     */
+    public boolean isIdentityMode() {
+        return identityMode;
     }
 
     public String getSelfUserId() {

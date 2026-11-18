@@ -55,6 +55,9 @@ public class SettingsActivity extends AppCompatActivity
     private Prefs prefs;
     private SessionManager sessionManager;
     private SwitchCompat adminModeSwitch;
+    private View adminModeRow;
+    private View adminModeDivider;
+    private boolean sessionIdentityRequired;
     private boolean updatingSwitches;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
     private SwitchCompat messageNotifySwitch;
@@ -201,6 +204,8 @@ public class SettingsActivity extends AppCompatActivity
         SwitchCompat darkFollow = findViewById(R.id.switch_dark_follow_system);
         SwitchCompat darkMode = findViewById(R.id.switch_dark_mode);
         adminModeSwitch = findViewById(R.id.switch_admin_mode);
+        adminModeRow = findViewById(R.id.row_admin_mode);
+        adminModeDivider = findViewById(R.id.divider_admin_mode);
 
         boolean followSystem = prefs.isDarkFollowSystem();
         boolean darkEnabled = prefs.isDarkMode();
@@ -291,6 +296,41 @@ public class SettingsActivity extends AppCompatActivity
         }
         if (adminModeSwitch != null) {
             adminModeSwitch.setChecked(sessionManager.isSelfAdmin());
+        }
+        updateAdminModeVisibility();
+        loadSessionIdentityMode();
+    }
+
+    private void loadSessionIdentityMode() {
+        long sessionId = sessionManager.getActiveSessionId();
+        if (sessionId <= 0) {
+            return;
+        }
+        database.execute(() -> {
+            Session session = sessionDao.getById(sessionId);
+            boolean required = session != null && session.identityRequired;
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                sessionIdentityRequired = required;
+                updateAdminModeVisibility();
+            });
+        });
+    }
+
+    /**
+     * 身份模式下管理员权限来自身份账号，隐藏旧的房间管理员密钥绑定入口。
+     */
+    private void updateAdminModeVisibility() {
+        boolean visible = !sessionManager.isIdentityMode()
+                && !sessionIdentityRequired;
+        int visibility = visible ? View.VISIBLE : View.GONE;
+        if (adminModeRow != null) {
+            adminModeRow.setVisibility(visibility);
+        }
+        if (adminModeDivider != null) {
+            adminModeDivider.setVisibility(visibility);
         }
     }
 
