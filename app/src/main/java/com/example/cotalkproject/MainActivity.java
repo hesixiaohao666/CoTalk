@@ -29,6 +29,7 @@ import com.example.cotalkproject.service.CoTalkConnectionService;
 import com.example.cotalkproject.ui.chat.ChatActivity;
 import com.example.cotalkproject.ui.contacts.ContactsFragment;
 import com.example.cotalkproject.ui.home.HomeFragment;
+import com.example.cotalkproject.ui.identity.IdentityActivity;
 import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.profile.ProfileFragment;
 import com.example.cotalkproject.util.UiUtil;
@@ -50,10 +51,28 @@ public class MainActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private boolean autoConnectStarted;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
+    private ActivityResultLauncher<Intent> identityLauncher;
+    private String pendingIdentityHost;
+    private int pendingIdentityPort;
+    private String pendingIdentityAuthKey;
+    private SessionManager.ConnectCallback pendingIdentityCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        identityLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK
+                            && pendingIdentityHost != null) {
+                        identityRetry();
+                    } else {
+                        pendingIdentityHost = null;
+                        pendingIdentityCallback = null;
+                        Toast.makeText(this, R.string.identity_cancelled,
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
         notificationPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(),
                 granted -> {
@@ -196,9 +215,39 @@ public class MainActivity extends AppCompatActivity {
                                             Toast.LENGTH_LONG).show();
                                 }
                             }
+
+                            @Override
+                            public void onIdentityRequired(
+                                    SessionManager.IdentityRequest request) {
+                                if (isFinishing() || isDestroyed()) {
+                                    return;
+                                }
+                                pendingIdentityHost = request.host;
+                                pendingIdentityPort = request.port;
+                                pendingIdentityAuthKey = request.authKey;
+                                pendingIdentityCallback = this;
+                                identityLauncher.launch(
+                                        IdentityActivity.createIntent(
+                                                MainActivity.this,
+                                                request.host, request.port,
+                                                request.authKey));
+                            }
                         });
             });
         });
+    }
+
+    private void identityRetry() {
+        String host = pendingIdentityHost;
+        int port = pendingIdentityPort;
+        String key = pendingIdentityAuthKey;
+        SessionManager.ConnectCallback callback = pendingIdentityCallback;
+        pendingIdentityHost = null;
+        pendingIdentityCallback = null;
+        if (host == null || callback == null) {
+            return;
+        }
+        sessionManager.connect(host, port, key, callback);
     }
 
     private void restoreFragments(Bundle savedInstanceState) {

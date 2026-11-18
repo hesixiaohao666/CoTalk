@@ -289,4 +289,28 @@
     <string name="room_feature_disabled">房间未启用该功能</string>
     <string name="send_timeout">发送超时，点击重试</string>
 
+    <string name="identity_title">群聊身份验证</string>
+    <string name="identity_subtitle">当前房间已启用身份验证，请登录或注册群聊账号</string>
+    <string name="identity_mode_login">登录</string>
+    <string name="identity_mode_register">注册</string>
+    <string name="identity_username_label">用户名</string>
+    <string name="identity_username_hint">3–16 位，字母开头，仅字母和数字</string>
+    <string name="identity_password_label">密码</string>
+    <string name="identity_password_hint">8–16 位，至少包含两类字符</string>
+    <string name="identity_confirm_hint">再次输入密码</string>
+    <string name="identity_admin_key_hint">管理员密钥（可选）</string>
+    <string name="identity_nickname_format">当前昵称：%1$s</string>
+    <string name="identity_remember">记住账号密码</string>
+    <string name="identity_auto_login">自动登录</string>
+    <string name="identity_cancel">取消</string>
+    <string name="identity_pending">等待管理员审核，通过后将自动进入群聊</string>
+    <string name="identity_submitting">正在验证…</string>
+    <string name="identity_username_invalid">用户名需为 3–16 位，字母开头，仅字母和数字</string>
+    <string name="identity_password_invalid">密码需为 8–16 位，且至少包含两类字符</string>
+    <string name="identity_confirm_empty">请再次输入密码</string>
+    <string name="identity_password_mismatch">两次输入的密码不一致</string>
+    <string name="identity_local_missing">本地账号不存在</string>
+    <string name="identity_failed">身份验证失败：%1$s</string>
+    <string name="identity_cancelled">已取消身份验证</string>
+
 </resources>

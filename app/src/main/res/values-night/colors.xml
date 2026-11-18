@@ -19,4 +19,5 @@
     <color name="sheet_scrim">#99000000</color>
     <color name="checkbox_gap">#FF1E1E1E</color>
     <color name="text_on_accent">#FF000000</color>
+    <color name="line">#FF3A3A3A</color>
 </resources>

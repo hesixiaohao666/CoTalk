@@ -50,15 +50,11 @@ public class ServerConnection {
     }
 
     /**
-     * 同步连接并完成 join，返回 join_ok 帧。调用方应在 IO 线程执行。
+     * 完成 TCP 连接与连接密钥握手，返回 hello_ok。调用方应在 IO 线程执行。
      */
-    public JSONObject connectAndJoin(String nickname,
-                                     String clientTag,
-                                     String avatarData,
-                                     String signature,
-                                     String authKey,
-                                     int clientVersionCode,
-                                     String clientVersionName) throws Exception {
+    public JSONObject connectHandshake(String authKey,
+                                       int clientVersionCode,
+                                       String clientVersionName) throws Exception {
         socket = new Socket();
         socket.connect(new InetSocketAddress(host, port), 8000);
         socket.setTcpNoDelay(true);
@@ -70,8 +66,19 @@ public class ServerConnection {
         writer = new BufferedWriter(new OutputStreamWriter(
                 socket.getOutputStream(), StandardCharsets.UTF_8));
 
-        handshake(authKey, clientVersionCode, clientVersionName);
+        JSONObject helloOk = handshake(
+                authKey, clientVersionCode, clientVersionName);
+        socket.setSoTimeout(0);
+        return helloOk;
+    }
 
+    /**
+     * 在已完成握手的连接上发送 JOIN，返回 join_ok。
+     */
+    public JSONObject join(String nickname,
+                           String clientTag,
+                           String avatarData,
+                           String signature) throws Exception {
         JSONObject joinData = new JSONObject();
         joinData.put("nickname", nickname);
         joinData.put("clientTag", clientTag);
@@ -93,7 +100,6 @@ public class ServerConnection {
         if (line == null) {
             throw new IOException("服务器关闭了连接");
         }
-
         JSONObject response = new JSONObject(line);
         String type = response.optString("type", "");
         if (Protocol.ERROR.equals(type)) {
@@ -102,14 +108,88 @@ public class ServerConnection {
         if (!Protocol.JOIN_OK.equals(type)) {
             throw new IOException("服务器返回异常：" + type);
         }
-
         socket.setSoTimeout(0);
         return response;
     }
 
-    private void handshake(String authKey,
-                           int clientVersionCode,
-                           String clientVersionName) throws Exception {
+    public JSONObject identityLogin(String username, String password)
+            throws Exception {
+        JSONObject data = new JSONObject();
+        data.put("username", username == null ? "" : username);
+        data.put("password", password == null ? "" : password);
+        return identityRequest(Protocol.IDENTITY_LOGIN, data);
+    }
+
+    public JSONObject identityRegister(String username,
+                                       String password,
+                                       String nickname,
+                                       String adminProof) throws Exception {
+        JSONObject data = new JSONObject();
+        data.put("username", username == null ? "" : username);
+        data.put("password", password == null ? "" : password);
+        data.put("nickname", nickname == null ? "" : nickname);
+        if (adminProof != null && !adminProof.isEmpty()) {
+            data.put("adminProof", adminProof);
+        }
+        return identityRequest(Protocol.IDENTITY_REGISTER, data);
+    }
+
+    public JSONObject identityAdminChallenge() throws Exception {
+        JSONObject frame = Protocol.frame(
+                Protocol.IDENTITY_ADMIN_CHALLENGE_REQ, new JSONObject());
+        frame.put("reqId", "identity-admin-" + System.currentTimeMillis());
+        send(frame);
+        return readFrameChecked();
+    }
+
+    public JSONObject waitForIdentityApproved() throws Exception {
+        for (int i = 0; i < 600; i++) {
+            JSONObject frame = readFrameChecked();
+            String type = frame.optString("type", "");
+            if (Protocol.IDENTITY_APPROVED.equals(type)) {
+                return frame;
+            }
+            if (Protocol.ERROR.equals(type)
+                    || Protocol.IDENTITY_REJECTED.equals(type)) {
+                throwServerError(frame, "身份审核失败");
+            }
+        }
+        throw new IOException("等待身份审核超时");
+    }
+
+    private JSONObject identityRequest(String type, JSONObject data)
+            throws Exception {
+        JSONObject frame = Protocol.frame(type, data);
+        frame.put("reqId", "identity-" + System.currentTimeMillis());
+        send(frame);
+        return readFrameChecked();
+    }
+
+    private JSONObject readFrameChecked() throws Exception {
+        JSONObject frame = readFrame();
+        if (Protocol.ERROR.equals(frame.optString("type", ""))) {
+            throwServerError(frame, "身份验证失败");
+        }
+        return frame;
+    }
+
+    /**
+     * 兼容旧调用：握手后直接 JOIN（无身份验证）。
+     */
+    public JSONObject connectAndJoin(String nickname,
+                                     String clientTag,
+                                     String avatarData,
+                                     String signature,
+                                     String authKey,
+                                     int clientVersionCode,
+                                     String clientVersionName) throws Exception {
+        connectHandshake(authKey, clientVersionCode, clientVersionName);
+        return join(nickname, clientTag, avatarData, signature);
+    }
+
+    private JSONObject handshake(String authKey,
+                                 int clientVersionCode,
+                                 String clientVersionName) throws Exception {
         JSONObject helloData = new JSONObject();
         helloData.put("clientVersionCode", clientVersionCode);
         helloData.put("clientVersionName", clientVersionName);
@@ -151,6 +231,7 @@ public class ServerConnection {
         if (!Protocol.HELLO_OK.equals(ok.optString("type", ""))) {
             throw new IOException("服务器未确认密钥验证");
         }
+        return ok;
     }
 
     private JSONObject readFrame() throws Exception {

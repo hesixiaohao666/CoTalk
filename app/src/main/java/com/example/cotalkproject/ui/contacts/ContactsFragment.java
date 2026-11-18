@@ -1,5 +1,6 @@
 package com.example.cotalkproject.ui.contacts;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -11,6 +12,8 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -25,6 +28,7 @@ import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.chat.ChatActivity;
+import com.example.cotalkproject.ui.identity.IdentityActivity;
 import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 
 import java.util.List;
@@ -45,6 +49,10 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
     private Prefs prefs;
 
     private long selectedSessionId = -1;
+    private ActivityResultLauncher<Intent> identityLauncher;
+    private String pendingIdentityHost;
+    private int pendingIdentityPort;
+    private String pendingIdentityAuthKey;
 
     @Nullable
     @Override
@@ -69,6 +77,27 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
         sessionManager = CoTalkApp.getInstance().getSessionManager();
         prefs = CoTalkApp.getInstance().getPrefs();
         sessionDao = new SessionDao(CoTalkApp.getInstance().getDatabase());
+        identityLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (!isAdded()) {
+                        return;
+                    }
+                    if (result.getResultCode() == android.app.Activity.RESULT_OK
+                            && pendingIdentityHost != null) {
+                        String host = pendingIdentityHost;
+                        int port = pendingIdentityPort;
+                        String key = pendingIdentityAuthKey;
+                        pendingIdentityHost = null;
+                        doConnect(host, port, key, false);
+                    } else {
+                        pendingIdentityHost = null;
+                        btnConnect.setEnabled(true);
+                        Toast.makeText(requireContext(),
+                                R.string.identity_cancelled,
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
 
         rvServers.setLayoutManager(new LinearLayoutManager(requireContext()));
         serverAdapter = new ServerAdapter(sessionManager, new ServerAdapter.Listener() {
@@ -242,6 +271,22 @@ public class ContactsFragment extends Fragment implements SessionManager.Listene
                                 getString(R.string.connect_failed, message),
                                 Toast.LENGTH_LONG).show();
                         loadSessions();
+                    }
+
+                    @Override
+                    public void onIdentityRequired(
+                            SessionManager.IdentityRequest request) {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        pendingIdentityHost = request.host;
+                        pendingIdentityPort = request.port;
+                        pendingIdentityAuthKey = request.authKey;
+                        btnConnect.setEnabled(false);
+                        identityLauncher.launch(
+                                IdentityActivity.createIntent(
+                                        requireContext(), request.host,
+                                        request.port, request.authKey));
                     }
                 });
     }

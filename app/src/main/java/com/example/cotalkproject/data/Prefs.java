@@ -29,6 +29,10 @@ public class Prefs {
     private static final String KEY_DARK_MODE = "dark_mode";
     private static final String KEY_HISTORY_CLEAR_PREFIX = "history_clear_seq_";
     private static final String KEY_SERVER_AUTH_PREFIX = "server_auth_";
+    private static final String KEY_IDENTITY_USERNAME_PREFIX = "identity_username_";
+    private static final String KEY_IDENTITY_PASSWORD_PREFIX = "identity_password_";
+    private static final String KEY_IDENTITY_REMEMBER_PREFIX = "identity_remember_";
+    private static final String KEY_IDENTITY_AUTO_PREFIX = "identity_auto_";
     private static final String KEY_DRAFT_PREFIX = "draft_";
 
     private final SharedPreferences preferences;
@@ -225,6 +229,74 @@ public class Prefs {
             }
         }
         editor.apply();
+    }
+
+    /**
+     * 保存某个服务器的群聊身份凭据。密码使用 Android Keystore 加密。
+     */
+    public boolean saveIdentityCredentials(String host,
+                                           int port,
+                                           String username,
+                                           String password,
+                                           boolean remember,
+                                           boolean autoLogin) {
+        String encrypted = SecurityUtil.encrypt(password);
+        if (encrypted == null) {
+            return false;
+        }
+        preferences.edit()
+                .putString(identityKey(KEY_IDENTITY_USERNAME_PREFIX,
+                        host, port), username == null ? "" : username)
+                .putString(identityKey(KEY_IDENTITY_PASSWORD_PREFIX,
+                        host, port), encrypted)
+                .putBoolean(identityKey(KEY_IDENTITY_REMEMBER_PREFIX,
+                        host, port), remember)
+                .putBoolean(identityKey(KEY_IDENTITY_AUTO_PREFIX,
+                        host, port), remember && autoLogin)
+                .apply();
+        return true;
+    }
+
+    public String getIdentityUsername(String host, int port) {
+        return preferences.getString(identityKey(
+                KEY_IDENTITY_USERNAME_PREFIX, host, port), "");
+    }
+
+    public String getIdentityPassword(String host, int port) {
+        String encrypted = preferences.getString(identityKey(
+                KEY_IDENTITY_PASSWORD_PREFIX, host, port), "");
+        if (encrypted == null || encrypted.isEmpty()) {
+            return "";
+        }
+        String password = SecurityUtil.decrypt(encrypted);
+        if (password == null) {
+            clearIdentityCredentials(host, port);
+            return "";
+        }
+        return password;
+    }
+
+    public boolean isIdentityRemember(String host, int port) {
+        return preferences.getBoolean(identityKey(
+                KEY_IDENTITY_REMEMBER_PREFIX, host, port), false);
+    }
+
+    public boolean isIdentityAutoLogin(String host, int port) {
+        return preferences.getBoolean(identityKey(
+                KEY_IDENTITY_AUTO_PREFIX, host, port), false);
+    }
+
+    public void clearIdentityCredentials(String host, int port) {
+        preferences.edit()
+                .remove(identityKey(KEY_IDENTITY_USERNAME_PREFIX, host, port))
+                .remove(identityKey(KEY_IDENTITY_PASSWORD_PREFIX, host, port))
+                .remove(identityKey(KEY_IDENTITY_REMEMBER_PREFIX, host, port))
+                .remove(identityKey(KEY_IDENTITY_AUTO_PREFIX, host, port))
+                .apply();
+    }
+
+    private static String identityKey(String prefix, String host, int port) {
+        return prefix + host + ":" + port;
     }
 
     public boolean saveServerAuthKey(String host, int port, String authKey) {

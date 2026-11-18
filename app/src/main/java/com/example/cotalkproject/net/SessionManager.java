@@ -30,6 +30,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,6 +60,40 @@ public class SessionManager {
          */
         default void onAuthKeyError(String message) {
             onError(message);
+        }
+
+        /**
+         * 管理员模式房间在密钥验证后需要群聊身份验证。
+         */
+        default void onIdentityRequired(IdentityRequest request) {
+            onError("需要群聊身份验证");
+        }
+    }
+
+    public static final class IdentityCredentials {
+        public final String username;
+        public final String password;
+
+        IdentityCredentials(String username, String password) {
+            this.username = username;
+            this.password = password;
+        }
+    }
+
+    public static final class IdentityRequest {
+        public final String host;
+        public final String portHost;
+        public final int port;
+        public final String authKey;
+        public final boolean joinReviewRequired;
+
+        IdentityRequest(String host, int port, String authKey,
+                        boolean joinReviewRequired) {
+            this.host = host;
+            this.port = port;
+            this.portHost = host + ":" + port;
+            this.authKey = authKey;
+            this.joinReviewRequired = joinReviewRequired;
         }
     }
 
@@ -100,6 +135,8 @@ public class SessionManager {
     private final MessageDao messageDao;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
+    private final ConcurrentHashMap<String, IdentityCredentials> ephemeralIdentities =
+            new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<AvatarListener> avatarListeners =
             new CopyOnWriteArrayList<>();
     private final AtomicLong connectGeneration = new AtomicLong();
@@ -210,6 +247,19 @@ public class SessionManager {
 
     public void setOpenChatSession(long sessionId) {
         openChatSessionId = sessionId;
+    }
+
+    /**
+     * 身份页面完成后提供一个仅本次连接使用的凭据，避免把“记住密码”当作强制持久化。
+     */
+    public void setEphemeralIdentity(String host, int port,
+                                     String username, String password) {
+        ephemeralIdentities.put(host + ":" + port,
+                new IdentityCredentials(username, password));
+    }
+
+    private IdentityCredentials takeEphemeralIdentity(String host, int port) {
+        return ephemeralIdentities.remove(host + ":" + port);
     }
 
     public void sendFrame(JSONObject frame, SendCallback callback) {
@@ -670,6 +720,22 @@ public class SessionManager {
                 callback, false);
     }
 
+    private void promptIdentity(ConnectCallback callback,
+                                String host,
+                                int port,
+                                String authKey,
+                                boolean joinReviewRequired) {
+        connecting = false;
+        final IdentityRequest request = new IdentityRequest(
+                host, port, authKey, joinReviewRequired);
+        database.runOnMain(() -> {
+            notifySessionsChanged();
+            if (callback != null) {
+                callback.onIdentityRequired(request);
+            }
+        });
+    }
+
     private void startConnect(String host,
                               int port,
                               String authKey,
@@ -719,11 +785,65 @@ public class SessionManager {
                 String avatarData = user.avatarPath == null
                         ? ""
                         : ImageUtil.fileToDataUri(user.avatarPath);
-                JSONObject joinOk = conn.connectAndJoin(
-                        user.nickname, user.clientTag, avatarData,
-                        user.signature,
+                JSONObject helloOk = conn.connectHandshake(
                         authKey, BuildConfig.VERSION_CODE,
                         BuildConfig.VERSION_NAME);
+                JSONObject helloData = helloOk.optJSONObject("data");
+                boolean identityRequired = helloData != null
+                        && helloData.optBoolean("identityRequired", false);
+                if (identityRequired) {
+                    IdentityCredentials ephemeral =
+                            takeEphemeralIdentity(host, port);
+                    String identityUsername = ephemeral != null
+                            ? ephemeral.username
+                            : prefs.isIdentityAutoLogin(host, port)
+                            ? prefs.getIdentityUsername(host, port) : "";
+                    String identityPassword = ephemeral != null
+                            ? ephemeral.password
+                            : prefs.isIdentityAutoLogin(host, port)
+                            ? prefs.getIdentityPassword(host, port) : "";
+                    if (!identityUsername.isEmpty()
+                            && !identityPassword.isEmpty()) {
+                        JSONObject identity;
+                        try {
+                            identity = conn.identityLogin(
+                                    identityUsername, identityPassword);
+                            String identityType = identity.optString("type", "");
+                            if (Protocol.IDENTITY_OK.equals(identityType)) {
+                                // 已完成身份验证，继续 JOIN
+                            } else if (Protocol.IDENTITY_PENDING.equals(identityType)) {
+                                conn.close();
+                                promptIdentity(callback, host, port, authKey,
+                                        helloData.optBoolean(
+                                                "joinReviewRequired", true));
+                                return;
+                            } else {
+                                prefs.clearIdentityCredentials(host, port);
+                                conn.close();
+                                promptIdentity(callback, host, port, authKey,
+                                        helloData.optBoolean(
+                                                "joinReviewRequired", true));
+                                return;
+                            }
+                        } catch (Exception loginError) {
+                            prefs.clearIdentityCredentials(host, port);
+                            conn.close();
+                            promptIdentity(callback, host, port, authKey,
+                                    helloData.optBoolean(
+                                            "joinReviewRequired", true));
+                            return;
+                        }
+                    } else {
+                        conn.close();
+                        promptIdentity(callback, host, port, authKey,
+                                helloData.optBoolean(
+                                        "joinReviewRequired", true));
+                        return;
+                    }
+                }
+                JSONObject joinOk = conn.join(
+                        user.nickname, user.clientTag, avatarData,
+                        user.signature);
                 if (generation != connectGeneration.get()) {
                     conn.close();
                     return;
