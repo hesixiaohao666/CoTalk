@@ -33,6 +33,8 @@ public class MemberDao {
                 values.put("session_id", sessionId);
                 values.put("user_id", member.userId);
                 values.put("nickname", member.nickname);
+                values.put("username",
+                        member.username == null ? "" : member.username);
                 values.put("avatar_version", member.avatarVersion);
                 values.put("online", member.online ? 1 : 0);
                 values.put("is_ai", member.ai ? 1 : 0);
@@ -60,6 +62,7 @@ public class MemberDao {
                 member.sessionId = cursor.getLong(cursor.getColumnIndexOrThrow("session_id"));
                 member.userId = cursor.getString(cursor.getColumnIndexOrThrow("user_id"));
                 member.nickname = cursor.getString(cursor.getColumnIndexOrThrow("nickname"));
+                member.username = cursor.getString(cursor.getColumnIndexOrThrow("username"));
                 member.avatarVersion = cursor.getInt(cursor.getColumnIndexOrThrow("avatar_version"));
                 member.online = cursor.getInt(cursor.getColumnIndexOrThrow("online")) == 1;
                 member.ai = cursor.getInt(cursor.getColumnIndexOrThrow("is_ai")) == 1;

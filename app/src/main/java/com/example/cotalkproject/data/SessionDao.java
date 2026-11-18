@@ -217,6 +217,12 @@ public class SessionDao {
                 cursor.getColumnIndexOrThrow("push_enabled")) == 1;
         session.aiProEnabled = cursor.getInt(
                 cursor.getColumnIndexOrThrow("ai_pro_enabled")) == 1;
+        session.identityRequired = cursor.getInt(
+                cursor.getColumnIndexOrThrow("identity_required")) == 1;
+        session.kicked = cursor.getInt(
+                cursor.getColumnIndexOrThrow("kicked")) == 1;
+        session.identityUsername = cursor.getString(
+                cursor.getColumnIndexOrThrow("identity_username"));
         return session;
     }
 }

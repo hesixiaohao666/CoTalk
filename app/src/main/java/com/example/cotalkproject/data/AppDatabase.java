@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 public class AppDatabase extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "cotalk.db";
-    private static final int DB_VERSION = 3200;
+    private static final int DB_VERSION = 3300;
 
     private static volatile AppDatabase instance;
 
@@ -92,6 +92,9 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "admin_enabled INTEGER NOT NULL DEFAULT 0, "
                 + "push_enabled INTEGER NOT NULL DEFAULT 1, "
                 + "ai_pro_enabled INTEGER NOT NULL DEFAULT 0, "
+                + "identity_required INTEGER NOT NULL DEFAULT 0, "
+                + "kicked INTEGER NOT NULL DEFAULT 0, "
+                + "identity_username TEXT NOT NULL DEFAULT '', "
                 + "UNIQUE(host, port)"
                 + ")");
 
@@ -127,6 +130,7 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "session_id INTEGER NOT NULL, "
                 + "user_id TEXT NOT NULL, "
                 + "nickname TEXT NOT NULL, "
+                + "username TEXT NOT NULL DEFAULT '', "
                 + "avatar_version INTEGER NOT NULL DEFAULT 0, "
                 + "online INTEGER NOT NULL DEFAULT 1, "
                 + "is_ai INTEGER NOT NULL DEFAULT 0, "
@@ -140,10 +144,25 @@ public class AppDatabase extends SQLiteOpenHelper {
     @Override
     public void onOpen(@NonNull SQLiteDatabase db) {
         super.onOpen(db);
-        // DB_VERSION 保持 3200；新字段通过列检查补齐，避免破坏版本统一约定。
         if (!hasColumn(db, "t_session", "ai_pro_enabled")) {
             db.execSQL("ALTER TABLE t_session ADD COLUMN "
                     + "ai_pro_enabled INTEGER NOT NULL DEFAULT 0");
+        }
+        if (!hasColumn(db, "t_session", "identity_required")) {
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "identity_required INTEGER NOT NULL DEFAULT 0");
+        }
+        if (!hasColumn(db, "t_session", "kicked")) {
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "kicked INTEGER NOT NULL DEFAULT 0");
+        }
+        if (!hasColumn(db, "t_session", "identity_username")) {
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "identity_username TEXT NOT NULL DEFAULT ''");
+        }
+        if (!hasColumn(db, "t_member", "username")) {
+            db.execSQL("ALTER TABLE t_member ADD COLUMN "
+                    + "username TEXT NOT NULL DEFAULT ''");
         }
     }
 
@@ -203,6 +222,16 @@ public class AppDatabase extends SQLiteOpenHelper {
                     + "is_admin INTEGER NOT NULL DEFAULT 0");
             db.execSQL("ALTER TABLE t_message ADD COLUMN "
                     + "sender_admin INTEGER NOT NULL DEFAULT 0");
+        }
+        if (oldVersion < 3300) {
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "identity_required INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "kicked INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "identity_username TEXT NOT NULL DEFAULT ''");
+            db.execSQL("ALTER TABLE t_member ADD COLUMN "
+                    + "username TEXT NOT NULL DEFAULT ''");
         }
     }
 

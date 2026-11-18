@@ -784,6 +784,10 @@ public class SessionManager {
                 int serverVersionCode = server == null
                         ? 0
                         : server.optInt("versionCode", 0);
+                if (serverVersionCode < Protocol.MIN_SERVER_VERSION_CODE
+                        || serverVersionCode > Protocol.MAX_SERVER_VERSION_CODE) {
+                    throw new IllegalStateException("服务端版本不兼容");
+                }
                 Session session = sessionDao.upsert(
                         host, port, roomName, announcement, lastSeq,
                         lastMessage, lastTime, System.currentTimeMillis(),
@@ -1305,6 +1309,7 @@ public class SessionManager {
             member.sessionId = sessionId;
             member.userId = object.optString("id", "");
             member.nickname = object.optString("nickname", "");
+            member.username = object.optString("username", "");
             member.avatarVersion = object.optInt("avatarVersion", 0);
             member.online = true;
             member.ai = object.optBoolean("ai", false);

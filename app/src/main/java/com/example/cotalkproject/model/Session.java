@@ -24,6 +24,9 @@ public class Session {
     public boolean adminEnabled;
     public boolean pushEnabled = true;
     public boolean aiProEnabled;
+    public boolean identityRequired;
+    public boolean kicked;
+    public String identityUsername = "";
 
     public String endpoint() {
         return host + ":" + port;

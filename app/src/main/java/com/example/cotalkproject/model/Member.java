@@ -8,6 +8,7 @@ public class Member {
     public long sessionId;
     public String userId;
     public String nickname;
+    public String username = "";
     public int avatarVersion;
     public boolean online;
     public boolean ai;
