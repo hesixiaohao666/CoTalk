@@ -1423,9 +1423,6 @@ public class SessionManager {
                         && server.optBoolean("adminEnabled", false);
                 boolean pushEnabled = server == null
                         || server.optBoolean("pushEnabled", true);
-                boolean aiProEnabled = server != null
-                        && server.optBoolean("aiProEnabled", false);
-
                 String lastMessage = null;
                 long lastTime = 0;
                 if (recent != null && recent.length() > 0) {
@@ -1470,7 +1467,7 @@ public class SessionManager {
                         lastMessage, lastTime, System.currentTimeMillis(),
                         aiEnabled, serverVersionName, serverVersionCode,
                         roomAvatarId, roomAvatarVersion,
-                        adminEnabled, pushEnabled, aiProEnabled);
+                        adminEnabled, pushEnabled);
                 if (session == null) {
                     throw new IllegalStateException("保存会话失败");
                 }

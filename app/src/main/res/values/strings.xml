@@ -200,10 +200,8 @@
     <string name="remove_server_message">将删除本机保存的会话、消息和成员缓存，不影响服务器数据。</string>
     <string name="me_suffix">（我）</string>
     <string name="ai_badge">AI</string>
-    <string name="ai_pro_badge">AI Pro</string>
     <string name="experimental_badge">实验性</string>
     <string name="server_supports_ai">支持 AI</string>
-    <string name="server_supports_ai_pro">支持 AI Pro</string>
     <string name="chat_title_default">聊天</string>
     <string name="server_info">房间信息</string>
     <string name="server_info_title">房间信息</string>
@@ -215,7 +213,6 @@
     <string name="server_info_ai">AI 功能</string>
     <string name="server_info_version">服务端版本</string>
     <string name="server_info_ai_enabled">已启用</string>
-    <string name="server_info_ai_pro_enabled">已启用Pro（实验性功能）</string>
     <string name="server_info_ai_disabled">未启用</string>
     <string name="server_info_no_announcement">暂无公告</string>
     <string name="server_info_unknown_version">未知版本</string>

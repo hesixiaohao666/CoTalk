@@ -23,7 +23,6 @@ public class Session {
     public int roomAvatarVersion;
     public boolean adminEnabled;
     public boolean pushEnabled = true;
-    public boolean aiProEnabled;
     public boolean identityRequired;
     public boolean kicked;
     public String identityUsername = "";

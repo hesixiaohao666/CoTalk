@@ -88,7 +88,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     private final Map<String, Long> lastAvatarTap = new HashMap<>();
     private String playingMessageKey = "";
     private String playingGifKey = "";
-    private boolean aiProEnabled;
 
     public ChatAdapter(long sessionId,
                        AvatarLoader avatarLoader,
@@ -139,6 +138,18 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
         }
     }
 
+    private static boolean isAiMessage(Message message) {
+        if (message == null) {
+            return false;
+        }
+        if ("ai".equals(message.msgType)
+                || "ai-90001".equals(message.senderId)) {
+            return true;
+        }
+        return message.senderUsername != null
+                && "AI".equalsIgnoreCase(message.senderUsername.trim());
+    }
+
     public static boolean isGifMessage(Message message) {
         return message != null
                 && (("image".equals(message.msgType)
@@ -146,14 +157,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                 && message.fileMime != null
                 && message.fileMime.toLowerCase(java.util.Locale.ROOT)
                 .contains("gif"));
-    }
-
-    public void setAiProEnabled(boolean enabled) {
-        if (aiProEnabled == enabled) {
-            return;
-        }
-        aiProEnabled = enabled;
-        notifyDataSetChanged();
     }
 
     public void setPlayingMessage(String key) {
@@ -459,10 +462,9 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                     : message.senderName;
             bindAvatar(other.tvAvatar, message);
             other.tvName.setText(senderName);
-            other.tvNameAi.setVisibility("ai".equals(message.msgType)
+            other.tvNameAi.setVisibility(isAiMessage(message)
                     ? View.VISIBLE : View.GONE);
-            other.tvNameAi.setText(aiProEnabled
-                    ? R.string.ai_pro_badge : R.string.ai_badge);
+            other.tvNameAi.setText(R.string.ai_badge);
             other.tvNameAdmin.setVisibility(
                     message.senderAdmin ? View.VISIBLE : View.GONE);
             bindContent(other, message);

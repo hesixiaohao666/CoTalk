@@ -62,12 +62,9 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ViewHolder
 
         holder.tvRoom.setText(session.displayName());
         holder.tvAi.setVisibility(session.aiEnabled ? View.VISIBLE : View.GONE);
-        holder.tvAi.setText(session.aiProEnabled
-                ? R.string.server_supports_ai_pro
-                : R.string.server_supports_ai);
+        holder.tvAi.setText(R.string.server_supports_ai);
         holder.tvExperimental.setVisibility(
-                session.aiProEnabled || session.adminEnabled
-                        ? View.VISIBLE : View.GONE);
+                session.adminEnabled ? View.VISIBLE : View.GONE);
         holder.tvEndpoint.setText(session.endpoint());
         holder.tvStatus.setText(active ? R.string.server_online : R.string.server_offline);
         holder.tvStatus.setTextColor(ContextCompat.getColor(

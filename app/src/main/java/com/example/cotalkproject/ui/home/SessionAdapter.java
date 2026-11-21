@@ -65,11 +65,9 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.ViewHold
         holder.tvRoomName.setText(session.displayName());
         holder.tvAiBadge.setVisibility(session.aiEnabled
                 ? View.VISIBLE : View.GONE);
-        holder.tvAiBadge.setText(session.aiProEnabled
-                ? R.string.ai_pro_badge : R.string.ai_badge);
+        holder.tvAiBadge.setText(R.string.ai_badge);
         holder.tvExperimentalBadge.setVisibility(
-                session.aiProEnabled || session.adminEnabled
-                        ? View.VISIBLE : View.GONE);
+                session.adminEnabled ? View.VISIBLE : View.GONE);
         holder.tvEndpoint.setText(session.endpoint());
         holder.tvLastMessage.setText(TextUtils.isEmpty(session.lastMessage)
                 ? context.getString(R.string.home_no_message)

@@ -97,6 +97,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private static final int MAX_MESSAGE_LENGTH = 500;
     private static final long SEND_TIMEOUT_MS = 10_000L;
     private static final long RECALL_WINDOW_MS = 2 * 60 * 1000L;
+    private static final String AI_USERNAME = "AI";
+    private static final String AI_USER_ID = "ai-90001";
 
     private long sessionId;
     private String roomName;
@@ -1095,9 +1097,6 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                     if (!TextUtils.isEmpty(session.displayName())) {
                         roomName = session.displayName();
                     }
-                    if (adapter != null) {
-                        adapter.setAiProEnabled(session.aiProEnabled);
-                    }
                     kicked = session.kicked;
                     muted = !kicked && (session.selfMuted
                             || (session.muteAll
@@ -1639,9 +1638,24 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (tvComposerReply != null) {
             tvComposerReply.setText(replyLabel(message));
         }
-        String name = TextUtils.isEmpty(message.senderName)
-                ? getString(R.string.member_default) : message.senderName;
+        String name = isAiMessage(message)
+                ? AI_USERNAME
+                : (TextUtils.isEmpty(message.senderName)
+                ? getString(R.string.member_default) : message.senderName);
         insertMention(name);
+    }
+
+    private static boolean isAiMessage(Message message) {
+        if (message == null) {
+            return false;
+        }
+        if ("ai".equals(message.msgType)
+                || AI_USER_ID.equals(message.senderId)) {
+            return true;
+        }
+        return message.senderUsername != null
+                && AI_USERNAME.equalsIgnoreCase(
+                message.senderUsername.trim());
     }
 
     private void clearReply() {

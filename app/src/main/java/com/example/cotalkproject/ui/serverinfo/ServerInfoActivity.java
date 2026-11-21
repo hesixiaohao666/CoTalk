@@ -173,14 +173,9 @@ public class ServerInfoActivity extends AppCompatActivity
                 : session.announcement);
         tvServerIp.setText(TextUtils.isEmpty(session.host) ? "-" : session.host);
         tvPort.setText(String.valueOf(session.port));
-        if (session.aiEnabled && session.aiProEnabled) {
-            tvAiStatus.setText(R.string.server_info_ai_pro_enabled);
-        } else {
-            tvAiStatus.setText(session.aiEnabled
-                    ? R.string.server_info_ai_enabled
-                    : R.string.server_info_ai_disabled);
-        }
-        memberAdapter.setAiProEnabled(session.aiProEnabled);
+        tvAiStatus.setText(session.aiEnabled
+                ? R.string.server_info_ai_enabled
+                : R.string.server_info_ai_disabled);
 
         if (TextUtils.isEmpty(session.serverVersionName)) {
             tvServerVersion.setText(R.string.server_info_unknown_version);
