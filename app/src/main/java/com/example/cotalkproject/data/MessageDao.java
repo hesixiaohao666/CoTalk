@@ -193,6 +193,16 @@ public class MessageDao {
         );
     }
 
+    public int markReplyRecalled(long sessionId, String targetMsgId) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("reply_recalled", 1);
+        values.put("reply_preview", "原消息已撤回");
+        return db.update(TABLE, values,
+                "session_id = ? AND reply_to_msg_id = ?",
+                new String[]{String.valueOf(sessionId), targetMsgId});
+    }
+
     public void clearSession(long sessionId) {
         SQLiteDatabase db = helper.getWritableDatabase();
         db.delete(TABLE, "session_id = ?", new String[]{String.valueOf(sessionId)});

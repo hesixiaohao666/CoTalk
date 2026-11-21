@@ -154,6 +154,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private boolean kicked;
     private boolean muted;
     private String mutedDraft = "";
+    private Message replyTarget;
+    private View replyComposerBar;
+    private TextView tvComposerReply;
     private Message pendingImageSaveMessage;
     private File pendingSaveImageFile;
     private String playingVoiceKey = "";
@@ -292,6 +295,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         tvVoiceTimer = findViewById(R.id.tv_voice_timer);
         tvVoiceHint = findViewById(R.id.tv_voice_hint);
         inputActions = findViewById(R.id.ll_input_actions);
+        replyComposerBar = findViewById(R.id.reply_composer_bar);
+        tvComposerReply = findViewById(R.id.tv_composer_reply);
+        findViewById(R.id.btn_cancel_reply).setOnClickListener(
+                v -> clearReply());
         llEmptyActions = findViewById(R.id.ll_empty_actions);
         tvBanner = findViewById(R.id.tv_connection_banner);
         tvEmpty = findViewById(R.id.tv_chat_empty);
@@ -1574,7 +1581,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 && ("text".equals(type) || "ai".equals(type) || system);
         boolean canSaveImage = "image".equals(type) && !message.fileExpired;
         boolean canSaveEmoji = "emoji".equals(type) && !message.fileExpired;
-        boolean canReply = !system;
+        boolean canReply = !system && !TextUtils.isEmpty(message.msgId);
         boolean admin = sessionManager.isSelfAdmin() && !kicked;
         boolean canRecall = !system
                 && !TextUtils.isEmpty(message.msgId)
@@ -1602,7 +1609,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (canReply) {
             actions.add(new BottomSheetMenu.Action(
                     getString(R.string.message_reply),
-                    this::replyPlaceholder));
+                    () -> startReply(message)));
         }
         if (canRecall) {
             actions.add(new BottomSheetMenu.Action(
@@ -1620,9 +1627,76 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         }
     }
 
-    private void replyPlaceholder() {
-        Toast.makeText(this, R.string.reply_not_available,
-                Toast.LENGTH_SHORT).show();
+    private void startReply(Message message) {
+        if (message == null || TextUtils.isEmpty(message.msgId)
+                || kicked || muted) {
+            return;
+        }
+        replyTarget = message;
+        if (replyComposerBar != null) {
+            replyComposerBar.setVisibility(View.VISIBLE);
+        }
+        if (tvComposerReply != null) {
+            tvComposerReply.setText(replyLabel(message));
+        }
+        String name = TextUtils.isEmpty(message.senderName)
+                ? getString(R.string.member_default) : message.senderName;
+        insertMention(name);
+    }
+
+    private void clearReply() {
+        replyTarget = null;
+        if (replyComposerBar != null) {
+            replyComposerBar.setVisibility(View.GONE);
+        }
+        if (tvComposerReply != null) {
+            tvComposerReply.setText("");
+        }
+    }
+
+    private String replyLabel(Message message) {
+        String name = TextUtils.isEmpty(message.senderName)
+                ? getString(R.string.member_default) : message.senderName;
+        return name + "：" + replyPreview(message);
+    }
+
+    private static String replyPreview(Message message) {
+        if (message == null) {
+            return "";
+        }
+        String type = message.msgType == null ? "text" : message.msgType;
+        if ("image".equals(type)) {
+            return "[图片]";
+        }
+        if ("emoji".equals(type)) {
+            return "[表情]";
+        }
+        if ("voice".equals(type)) {
+            return "[语音]";
+        }
+        String content = message.content == null ? "" : message.content;
+        return content.length() > 200
+                ? content.substring(0, 200) + "…" : content;
+    }
+
+    private void applyReply(Message message) {
+        if (replyTarget == null || message == null) {
+            return;
+        }
+        message.replyToMsgId = replyTarget.msgId;
+        message.replySenderName = replyTarget.senderName;
+        message.replySenderUsername = replyTarget.senderUsername;
+        message.replyPreview = replyPreview(replyTarget);
+        message.replyType = replyTarget.msgType;
+        message.replyRecalled = false;
+    }
+
+    private static void putReply(JSONObject data, Message message)
+            throws JSONException {
+        if (message.replyToMsgId != null
+                && !message.replyToMsgId.isEmpty()) {
+            data.put("replyToMsgId", message.replyToMsgId);
+        }
     }
 
     private void saveImageMessage(Message message) {
@@ -1950,9 +2024,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.isSelf = true;
         message.status = online
                 ? Message.STATUS_SENDING : Message.STATUS_FAILED;
+        applyReply(message);
 
         etMessage.setText("");
         clearDraftNow();
+        clearReply();
         if (online) {
             pendingPreviews.put(clientMsgId, content);
         }
@@ -2032,6 +2108,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         message.localPath = file.getAbsolutePath();
         message.timestamp = System.currentTimeMillis();
         message.isSelf = true;
+        applyReply(message);
+        clearReply();
         message.status = online && featureEnabled
                 ? Message.STATUS_SENDING : Message.STATUS_FAILED;
         if (online && featureEnabled) {
@@ -2104,6 +2182,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 data.put("mime", message.fileMime);
                 data.put("fileName", message.fileName);
                 data.put("data", dataUri);
+                putReply(data, message);
                 JSONObject frame = Protocol.frame(Protocol.CHAT, data);
                 frame.put("reqId", "chat-" + message.clientMsgId);
                 sessionManager.sendFrame(frame, new SessionManager.SendCallback() {
@@ -2139,6 +2218,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             JSONObject data = new JSONObject();
             data.put("content", message.content);
             data.put("clientMsgId", message.clientMsgId);
+            putReply(data, message);
             JSONObject frame = Protocol.frame(Protocol.CHAT, data);
             frame.put("reqId", "chat-" + message.clientMsgId);
 
@@ -2502,6 +2582,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                 String msgId = data.optString("msgId", "");
                 String notice = data.optString("notice", "");
                 if (!msgId.isEmpty() && !notice.isEmpty()) {
+                    adapter.markReplyRecalled(msgId);
                     adapter.replaceWithSystem(
                             msgId,
                             notice,

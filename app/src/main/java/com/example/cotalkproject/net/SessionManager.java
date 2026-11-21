@@ -1696,6 +1696,7 @@ public class SessionManager {
         message.seq = object.optLong("seq", 0);
         message.senderId = object.optString("senderId", "");
         message.senderName = object.optString("senderName", "");
+        message.senderUsername = object.optString("senderUsername", "");
         message.senderAvatarVersion = object.optInt("senderAvatarVersion", 0);
         message.content = object.optString("content", "");
         message.msgType = object.optString("type", "text");
@@ -1705,6 +1706,16 @@ public class SessionManager {
         message.fileSize = object.optLong("fileSize", 0);
         message.fileExpired = object.optBoolean("fileExpired", false);
         message.senderAdmin = object.optBoolean("senderAdmin", false);
+        JSONObject reply = object.optJSONObject("reply");
+        if (reply != null) {
+            message.replyToMsgId = reply.optString("msgId", "");
+            message.replySenderName = reply.optString("senderName", "");
+            message.replySenderUsername = reply.optString(
+                    "senderUsername", "");
+            message.replyPreview = reply.optString("preview", "");
+            message.replyType = reply.optString("type", "text");
+            message.replyRecalled = reply.optBoolean("recalled", false);
+        }
         message.timestamp = object.optLong("ts", System.currentTimeMillis());
         message.isSelf = isSelf;
         message.status = Message.STATUS_SENT;
@@ -2027,6 +2038,7 @@ public class SessionManager {
         }
         long clearSeq = prefs.getHistoryClearSeq(sessionId);
         database.execute(() -> {
+            messageDao.markReplyRecalled(sessionId, msgId);
             int updated = messageDao.replaceWithSystem(
                     sessionId, msgId, notice, seq, ts);
             if (updated == 0 && (clearSeq < 0 || seq > clearSeq)) {

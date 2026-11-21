@@ -382,6 +382,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
                 && equals(left.fileId, right.fileId)
                 && equals(left.fileName, right.fileName)
                 && equals(left.fileMime, right.fileMime)
+                && equals(left.replyToMsgId, right.replyToMsgId)
+                && equals(left.replySenderName, right.replySenderName)
+                && equals(left.replyPreview, right.replyPreview)
+                && left.replyRecalled == right.replyRecalled
                 && equals(left.localPath, right.localPath);
     }
 
@@ -470,6 +474,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
     }
 
     private void bindContent(ContentHolder holder, Message message) {
+        bindReply(holder.tvReply, message);
         String type = message.msgType == null ? "text" : message.msgType;
         holder.ivMedia.setTag(null);
         holder.ivMedia.setImageDrawable(null);
@@ -547,6 +552,39 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
         holder.tvContent.setText(message.content);
         bindMessageLongClick(holder.tvContent, message);
+    }
+
+    private void bindReply(TextView view, Message message) {
+        if (view == null) {
+            return;
+        }
+        if (TextUtils.isEmpty(message.replyToMsgId)
+                || TextUtils.isEmpty(message.replyPreview)) {
+            view.setVisibility(View.GONE);
+            view.setText("");
+            return;
+        }
+        String preview = message.replyRecalled
+                ? "原消息已撤回" : message.replyPreview;
+        String sender = TextUtils.isEmpty(message.replySenderName)
+                ? "" : message.replySenderName + "：";
+        view.setText(sender + preview);
+        view.setVisibility(View.VISIBLE);
+    }
+
+    public void markReplyRecalled(String targetMsgId) {
+        if (TextUtils.isEmpty(targetMsgId)) {
+            return;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            if (targetMsgId.equals(message.replyToMsgId)
+                    && !message.replyRecalled) {
+                message.replyRecalled = true;
+                message.replyPreview = "原消息已撤回";
+                notifyItemChanged(i);
+            }
+        }
     }
 
     private void bindMessageLongClick(View view, Message message) {
@@ -664,11 +702,13 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.BaseHolder> {
 
     static class ContentHolder extends BaseHolder {
         final TextView tvContent;
+        final TextView tvReply;
         final ShapeableImageView ivMedia;
 
         ContentHolder(@NonNull View itemView) {
             super(itemView);
             tvContent = itemView.findViewById(R.id.tv_content);
+            tvReply = itemView.findViewById(R.id.tv_reply_quote);
             ivMedia = itemView.findViewById(R.id.iv_media);
         }
     }
