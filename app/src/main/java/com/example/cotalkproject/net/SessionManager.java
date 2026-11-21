@@ -135,6 +135,8 @@ public class SessionManager {
         void onAvatarFrame(JSONObject frame);
     }
 
+    private static final int SYNC_PAGE_SIZE = 200;
+
     private final AppDatabase database;
     private final Prefs prefs;
     private final ProfileDao profileDao;
@@ -161,6 +163,9 @@ public class SessionManager {
     private volatile boolean pushEnabled = true;
     private volatile boolean selfAdmin;
     private volatile boolean identityMode;
+    private volatile boolean syncRunning;
+    private volatile long syncSessionId = -1;
+    private volatile long syncAfterSeq;
     private volatile AdminAuthCallback pendingAdminAuthCallback;
     private volatile AdminAuthCallback pendingAdminUnbindCallback;
     private volatile String pendingAdminKey = "";
@@ -1454,7 +1459,11 @@ public class SessionManager {
                         : server.optInt("versionCode", 0);
                 if (serverVersionCode < Protocol.MIN_SERVER_VERSION_CODE
                         || serverVersionCode > Protocol.MAX_SERVER_VERSION_CODE) {
-                    throw new IllegalStateException("服务端版本不兼容");
+                    String version = serverVersionName.isEmpty()
+                            ? String.valueOf(serverVersionCode)
+                            : serverVersionName;
+                    throw new VersionMismatchException("服务端版本 " + version
+                            + "（" + serverVersionCode + "），当前客户端版本不兼容");
                 }
                 Session session = sessionDao.upsert(
                         host, port, roomName, announcement, lastSeq,
@@ -1495,6 +1504,7 @@ public class SessionManager {
                 reconnectSessionId = session.id;
                 reconnectAttempt = 0;
                 conn.start();
+                startSync(conn, session.id);
                 CoTalkApp app = CoTalkApp.getInstance();
                 if (app != null) {
                     NotificationHelper.updatePersistent(app, activeRoomName);
@@ -1528,11 +1538,13 @@ public class SessionManager {
                         ? "连接服务器失败"
                         : e.getMessage();
                 boolean authKeyError = e instanceof AuthKeyException;
-                if (reconnect && shouldReconnect && !authKeyError) {
+                boolean versionError = e instanceof VersionMismatchException;
+                boolean fatal = authKeyError || versionError;
+                if (reconnect && shouldReconnect && !fatal) {
                     scheduleReconnect();
                     database.runOnMain(this::notifySessionsChanged);
                 } else {
-                    if (authKeyError && reconnect) {
+                    if (fatal && reconnect) {
                         shouldReconnect = false;
                     }
                     database.runOnMain(() -> {
@@ -1542,8 +1554,10 @@ public class SessionManager {
                             } else {
                                 callback.onError(message);
                             }
-                        } else if (authKeyError && reconnect) {
-                            notifyConnectionError("连接密钥错误，请重新连接");
+                        } else if (fatal && reconnect) {
+                            notifyConnectionError(authKeyError
+                                    ? "连接密钥错误，请重新连接"
+                                    : message);
                         }
                         notifySessionsChanged();
                     });
@@ -1564,6 +1578,9 @@ public class SessionManager {
         selfUserId = "";
         selfAdmin = false;
         identityMode = false;
+        syncRunning = false;
+        syncSessionId = -1;
+        syncAfterSeq = 0L;
         activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");
@@ -1614,6 +1631,9 @@ public class SessionManager {
         selfAvatarVersion = 0;
         selfAdmin = false;
         identityMode = false;
+        syncRunning = false;
+        syncSessionId = -1;
+        syncAfterSeq = 0L;
         activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");
@@ -1681,6 +1701,102 @@ public class SessionManager {
                 messageDao.insertOrIgnore(message);
             }
         }
+    }
+
+    /**
+     * JOIN 后从 seq 0 开始分页同步 7 天消息，用于补齐全量与撤回覆盖。
+     */
+    private void startSync(ServerConnection conn, long sessionId) {
+        syncRunning = true;
+        syncSessionId = sessionId;
+        syncAfterSeq = 0L;
+        sendSyncRequest(conn);
+    }
+
+    private void sendSyncRequest(ServerConnection conn) {
+        if (!syncRunning || conn == null || conn != connection) {
+            return;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("afterSeq", syncAfterSeq);
+            data.put("limit", SYNC_PAGE_SIZE);
+            JSONObject frame = Protocol.frame(Protocol.SYNC_REQ, data);
+            frame.put("reqId", "sync-" + syncAfterSeq);
+            conn.send(frame);
+        } catch (Exception e) {
+            syncRunning = false;
+        }
+    }
+
+    private void handleSyncFrame(ServerConnection source, JSONObject frame) {
+        if (!syncRunning || source != connection) {
+            return;
+        }
+        JSONObject data = frame.optJSONObject("data");
+        if (data == null) {
+            syncRunning = false;
+            return;
+        }
+        long sessionId = syncSessionId;
+        if (sessionId <= 0) {
+            syncRunning = false;
+            return;
+        }
+        boolean hasMore = data.optBoolean("hasMore", false);
+        long lastSeq = Math.max(syncAfterSeq,
+                data.optLong("lastSeq", syncAfterSeq));
+        JSONArray array = data.optJSONArray("messages");
+        long clearSeq = prefs.getHistoryClearSeq(sessionId);
+        List<Message> messages = new ArrayList<>();
+        if (array != null) {
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject object = array.optJSONObject(i);
+                if (object == null) {
+                    continue;
+                }
+                long seq = object.optLong("seq", 0);
+                if (clearSeq >= 0 && seq <= clearSeq) {
+                    continue;
+                }
+                Message message = messageFromJson(
+                        object, sessionId, object.optBoolean("self", false));
+                if (message != null) {
+                    messages.add(message);
+                }
+            }
+        }
+        database.execute(() -> {
+            if (!syncRunning || syncSessionId != sessionId
+                    || source != connection) {
+                return;
+            }
+            // 读取与落库之间可能发生“清除聊天记录”，落库前再确认一次标记。
+            long latestClearSeq = prefs.getHistoryClearSeq(sessionId);
+            for (Message message : messages) {
+                if (latestClearSeq >= 0 && message.seq <= latestClearSeq) {
+                    continue;
+                }
+                messageDao.upsertSynced(message);
+            }
+            long next = Math.max(syncAfterSeq, lastSeq);
+            if (hasMore && next > syncAfterSeq) {
+                syncAfterSeq = next;
+                sendSyncRequest(source);
+                return;
+            }
+            syncRunning = false;
+            database.runOnMain(() -> {
+                JSONObject done = new JSONObject();
+                try {
+                    done.put("type", Protocol.SYNC_RES);
+                } catch (org.json.JSONException ignored) {
+                    return;
+                }
+                notifyChatFrame(done);
+                notifySessionsChanged();
+            });
+        });
     }
 
     private Message messageFromJson(JSONObject object,
@@ -1778,6 +1894,9 @@ public class SessionManager {
         selfUserId = "";
         selfAdmin = false;
         identityMode = false;
+        syncRunning = false;
+        syncSessionId = -1;
+        syncAfterSeq = 0L;
         failPendingOperations("连接已断开");
         if (old != null) {
             old.close();
@@ -1899,6 +2018,11 @@ public class SessionManager {
                     notifyChatFrame(frame);
                 });
             });
+            return;
+        }
+
+        if (Protocol.SYNC_RES.equals(type)) {
+            handleSyncFrame(source, frame);
             return;
         }
 
@@ -2077,6 +2201,9 @@ public class SessionManager {
         selfUserId = "";
         selfAdmin = false;
         identityMode = false;
+        syncRunning = false;
+        syncSessionId = -1;
+        syncAfterSeq = 0L;
         activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");

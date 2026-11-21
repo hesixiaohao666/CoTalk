@@ -2571,6 +2571,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             }
         } else if (Protocol.HISTORY_RES.equals(type)) {
             handleHistory(frame);
+        } else if (Protocol.SYNC_RES.equals(type)) {
+            // 后台 7 天同步已完成：从本地库重新合并，撤回与引用占位随之更新。
+            loadLocalMessages(adapter.getItemCount() == 0, -1);
         } else if (Protocol.FILE_RES.equals(type)) {
             JSONObject data = frame.optJSONObject("data");
             if (data != null) {

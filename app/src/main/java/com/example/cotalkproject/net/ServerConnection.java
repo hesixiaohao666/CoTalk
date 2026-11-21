@@ -258,6 +258,18 @@ public class ServerConnection {
         if (code == Protocol.ERR_AUTH_FAILED) {
             throw new AuthKeyException(message);
         }
+        if (data != null
+                && (code == Protocol.ERR_CLIENT_VERSION
+                || code == Protocol.ERR_PROTOCOL)) {
+            String name = data.optString("serverVersionName", "");
+            int versionCode = data.optInt("serverVersionCode", 0);
+            if (!name.isEmpty() || versionCode > 0) {
+                String version = name.isEmpty()
+                        ? String.valueOf(versionCode) : name;
+                throw new VersionMismatchException("服务端版本 " + version
+                        + "（" + versionCode + "），当前客户端版本不兼容");
+            }
+        }
         throw new IOException(message);
     }
 

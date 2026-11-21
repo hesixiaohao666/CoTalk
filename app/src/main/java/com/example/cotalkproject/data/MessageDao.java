@@ -34,6 +34,34 @@ public class MessageDao {
                 SQLiteDatabase.CONFLICT_IGNORE);
     }
 
+    /**
+     * 7 天同步按 msgId 合并：已存在则用服务端状态覆盖（撤回、引用占位等），
+     * 但保留本地缓存的附件路径；不存在则插入。
+     */
+    public int upsertSynced(Message message) {
+        if (message == null || message.msgId == null
+                || message.msgId.isEmpty()) {
+            return 0;
+        }
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = toValues(message);
+        // 同步记录不携带本地发送标识与本地文件缓存路径。
+        values.remove("client_msg_id");
+        values.remove("local_path");
+        int updated = db.update(
+                TABLE,
+                values,
+                "msg_id = ?",
+                new String[]{message.msgId}
+        );
+        if (updated > 0) {
+            return updated;
+        }
+        return (int) db.insertWithOnConflict(
+                TABLE, null, toValues(message),
+                SQLiteDatabase.CONFLICT_IGNORE);
+    }
+
     public List<Message> queryAll(long sessionId) {
         SQLiteDatabase db = helper.getReadableDatabase();
         List<Message> messages = new ArrayList<>();
