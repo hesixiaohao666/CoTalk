@@ -21,7 +21,9 @@ import com.example.cotalkproject.data.SessionDao;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
+import com.example.cotalkproject.MainActivity;
 import com.example.cotalkproject.ui.admin.RoomAdminActivity;
+import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 import com.example.cotalkproject.ui.contacts.MemberAdapter;
 import com.example.cotalkproject.ui.widget.AvatarView;
 import com.example.cotalkproject.util.UiUtil;
@@ -49,6 +51,7 @@ public class ServerInfoActivity extends AppCompatActivity
     private TextView tvMembersEmpty;
     private RecyclerView rvMembers;
     private View roomAdminButton;
+    private View exitRoomButton;
 
     private AppDatabase database;
     private SessionDao sessionDao;
@@ -87,6 +90,8 @@ public class ServerInfoActivity extends AppCompatActivity
 
         View actions = findViewById(R.id.ll_actions);
         actions.setVisibility(View.VISIBLE);
+        exitRoomButton = findViewById(R.id.btn_exit_room);
+        exitRoomButton.setOnClickListener(v -> confirmExitRoom());
         roomAdminButton = findViewById(R.id.btn_action_room_admin);
         roomAdminButton.setOnClickListener(v -> {
             if (!sessionManager.isActive(sessionId)
@@ -219,6 +224,10 @@ public class ServerInfoActivity extends AppCompatActivity
         boolean visible = sessionManager.isActive(sessionId)
                 && sessionManager.isSelfAdmin();
         roomAdminButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (exitRoomButton != null) {
+            exitRoomButton.setVisibility(sessionManager.isActive(sessionId)
+                    ? View.VISIBLE : View.GONE);
+        }
     }
 
     private void loadMembers() {
@@ -251,11 +260,86 @@ public class ServerInfoActivity extends AppCompatActivity
 
     private void showKickedInfo() {
         roomAdminButton.setVisibility(View.GONE);
+        if (exitRoomButton != null) {
+            exitRoomButton.setVisibility(View.GONE);
+        }
         memberAdapter.setMembers(new ArrayList<>());
         tvMemberTitle.setText(R.string.admin_moderation_members);
         tvMembersEmpty.setText(R.string.server_info_kicked);
         tvMembersEmpty.setVisibility(View.VISIBLE);
         rvMembers.setVisibility(View.GONE);
+    }
+
+    private void confirmExitRoom() {
+        if (!sessionManager.isActive(sessionId)) {
+            Toast.makeText(this, R.string.danger_connect_first,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        database.execute(() -> {
+            Session session = sessionDao.getById(sessionId);
+            String username = session == null ? ""
+                    : session.identityUsername;
+            if (TextUtils.isEmpty(username)) {
+                username = sessionManager.getActiveIdentityUsername();
+            }
+            if (TextUtils.isEmpty(username)) {
+                database.runOnMain(() -> Toast.makeText(this,
+                        R.string.danger_identity_missing,
+                        Toast.LENGTH_SHORT).show());
+                return;
+            }
+            final String identityUsername = username;
+            database.runOnMain(() -> BottomSheetMenu.showInput(
+                    this,
+                    getString(R.string.exit_room),
+                    getString(R.string.exit_room_confirm),
+                    getString(R.string.danger_password_hint),
+                    true,
+                    text -> {
+                        String password = text == null ? "" : text.trim();
+                        if (password.isEmpty()) {
+                            Toast.makeText(this,
+                                    R.string.danger_password_required,
+                                    Toast.LENGTH_SHORT).show();
+                            return false;
+                        }
+                        sessionManager.exitRoom(identityUsername, password,
+                                new SessionManager.AdminAuthCallback() {
+                                    @Override
+                                    public void onSuccess() {
+                                        if (isFinishing() || isDestroyed()) {
+                                            return;
+                                        }
+                                        Toast.makeText(
+                                                ServerInfoActivity.this,
+                                                R.string.exit_room_success,
+                                                Toast.LENGTH_SHORT).show();
+                                        Intent intent = new Intent(
+                                                ServerInfoActivity.this,
+                                                MainActivity.class);
+                                        intent.addFlags(
+                                                Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                                        startActivity(intent);
+                                        finish();
+                                    }
+
+                                    @Override
+                                    public void onError(String error, int code) {
+                                        if (!isFinishing() && !isDestroyed()) {
+                                            Toast.makeText(
+                                                    ServerInfoActivity.this,
+                                                    getString(
+                                                            R.string.exit_room_failed,
+                                                            error),
+                                                    Toast.LENGTH_LONG).show();
+                                        }
+                                    }
+                                });
+                        return true;
+                    }));
+        });
     }
 
     private void showOfflineMembers() {

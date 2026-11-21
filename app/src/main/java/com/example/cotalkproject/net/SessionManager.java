@@ -27,6 +27,7 @@ import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.NotificationHelper;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -168,6 +169,9 @@ public class SessionManager {
     private volatile JoinRequestsCallback pendingJoinRequestsCallback;
     private volatile AdminAuthCallback pendingJoinReviewCallback;
     private volatile AdminAuthCallback pendingKickCallback;
+    private volatile AdminAuthCallback pendingVerifyCallback;
+    private volatile AdminAuthCallback pendingExitCallback;
+    private volatile String activeIdentityUsername = "";
     private volatile boolean imageEnabled = true;
     private volatile boolean voiceEnabled = true;
     private volatile boolean emojiEnabled = true;
@@ -294,6 +298,182 @@ public class SessionManager {
                 }
             }
         });
+    }
+
+
+    public String getActiveIdentityUsername() {
+        return activeIdentityUsername;
+    }
+
+    /**
+     * 危险操作前在线校验最后一个活跃身份密码。
+     */
+    public void verifyIdentityPassword(String username,
+                                       String password,
+                                       AdminAuthCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        ServerConnection current = connection;
+        if (current == null || !current.isConnected()
+                || activeSessionId <= 0) {
+            postAdminError(callback, "请先连接群聊后再操作", 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingVerifyCallback != null) {
+                postAdminError(callback, "正在校验，请稍候", 0);
+                return;
+            }
+            pendingVerifyCallback = callback;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("username", username == null ? "" : username);
+            data.put("password", password == null ? "" : password);
+            JSONObject frame = Protocol.frame(
+                    Protocol.IDENTITY_VERIFY_REQ, data);
+            frame.put("reqId", "verify-" + System.currentTimeMillis());
+            sendFrame(frame, new SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String message) {
+                    AdminAuthCallback pending;
+                    synchronized (adminAuthLock) {
+                        pending = pendingVerifyCallback;
+                        pendingVerifyCallback = null;
+                    }
+                    if (pending != null) {
+                        postAdminError(pending, message, 0);
+                    }
+                }
+            });
+        } catch (JSONException e) {
+            AdminAuthCallback pending;
+            synchronized (adminAuthLock) {
+                pending = pendingVerifyCallback;
+                pendingVerifyCallback = null;
+            }
+            if (pending != null) {
+                postAdminError(pending, "身份密码校验失败", 0);
+            }
+        }
+    }
+
+    public void exitRoom(String username,
+                         String password,
+                         AdminAuthCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        ServerConnection current = connection;
+        if (current == null || !current.isConnected()
+                || activeSessionId <= 0) {
+            postAdminError(callback, "请先连接群聊", 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingExitCallback != null) {
+                postAdminError(callback, "正在退出，请稍候", 0);
+                return;
+            }
+            pendingExitCallback = callback;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("username", username == null ? "" : username);
+            data.put("password", password == null ? "" : password);
+            JSONObject frame = Protocol.frame(
+                    Protocol.EXIT_ROOM_REQ, data);
+            frame.put("reqId", "exit-" + System.currentTimeMillis());
+            sendFrame(frame, new SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String message) {
+                    AdminAuthCallback pending;
+                    synchronized (adminAuthLock) {
+                        pending = pendingExitCallback;
+                        pendingExitCallback = null;
+                    }
+                    if (pending != null) {
+                        postAdminError(pending, message, 0);
+                    }
+                }
+            });
+        } catch (JSONException e) {
+            AdminAuthCallback pending;
+            synchronized (adminAuthLock) {
+                pending = pendingExitCallback;
+                pendingExitCallback = null;
+            }
+            if (pending != null) {
+                postAdminError(pending, "退出群聊失败", 0);
+            }
+        }
+    }
+
+    private void handleIdentityVerifyResponse(JSONObject frame) {
+        JSONObject data = frame.optJSONObject("data");
+        boolean success = data != null && data.optBoolean("success", false);
+        String message = data == null ? "身份密码不正确"
+                : data.optString("message", "身份密码不正确");
+        AdminAuthCallback callback;
+        synchronized (adminAuthLock) {
+            callback = pendingVerifyCallback;
+            pendingVerifyCallback = null;
+        }
+        if (callback == null) {
+            return;
+        }
+        if (success) {
+            mainHandler.post(callback::onSuccess);
+        } else {
+            postAdminError(callback, message, 0);
+        }
+    }
+
+    private void handleExitRoomResponse(JSONObject frame) {
+        JSONObject data = frame.optJSONObject("data");
+        boolean success = data == null || data.optBoolean("success", false);
+        AdminAuthCallback callback;
+        synchronized (adminAuthLock) {
+            callback = pendingExitCallback;
+            pendingExitCallback = null;
+        }
+        if (!success) {
+            String message = data == null ? "退出群聊失败"
+                    : data.optString("message", "退出群聊失败");
+            if (callback != null) {
+                postAdminError(callback, message, 0);
+            }
+            return;
+        }
+        long sessionId = activeSessionId;
+        String host = reconnectHost;
+        int port = reconnectPort;
+        prefs.clearIdentityCredentials(host, port);
+        disconnect();
+        if (sessionId > 0) {
+            database.execute(() -> {
+                messageDao.clearSession(sessionId);
+                memberDao.deleteBySession(sessionId);
+                sessionDao.resetAfterExit(sessionId);
+                database.runOnMain(() -> {
+                    notifySessionsChanged();
+                    if (callback != null) {
+                        callback.onSuccess();
+                    }
+                });
+            });
+        } else if (callback != null) {
+            mainHandler.post(callback::onSuccess);
+        }
     }
 
     public void authenticateAdmin(String adminKey, AdminAuthCallback callback) {
@@ -983,6 +1163,7 @@ public class SessionManager {
                 JSONObject helloData = helloOk.optJSONObject("data");
                 boolean identityRequired = helloData != null
                         && helloData.optBoolean("identityRequired", false);
+                String verifiedIdentityUsername = "";
                 if (identityRequired) {
                     IdentityCredentials ephemeral =
                             takeEphemeralIdentity(host, port);
@@ -1002,7 +1183,7 @@ public class SessionManager {
                                     identityUsername, identityPassword);
                             String identityType = identity.optString("type", "");
                             if (Protocol.IDENTITY_OK.equals(identityType)) {
-                                // 已完成身份验证，继续 JOIN
+                                verifiedIdentityUsername = identityUsername;
                             } else if (Protocol.IDENTITY_PENDING.equals(identityType)) {
                                 conn.close();
                                 promptIdentity(callback, host, port, authKey,
@@ -1110,6 +1291,11 @@ public class SessionManager {
                     throw new IllegalStateException("保存会话失败");
                 }
                 sessionDao.setIdentityRequired(session.id, identityRequired);
+                if (!verifiedIdentityUsername.isEmpty()) {
+                    sessionDao.setIdentityUsername(
+                            session.id, verifiedIdentityUsername);
+                }
+                activeIdentityUsername = verifiedIdentityUsername;
 
                 List<Member> members = parseMembers(membersArray, session.id);
                 memberDao.replaceAll(session.id, members);
@@ -1157,6 +1343,7 @@ public class SessionManager {
                 selfUserId = "";
                 selfAdmin = false;
                 identityMode = false;
+                activeIdentityUsername = "";
                 connecting = false;
                 failPendingOperations("连接服务器失败");
                 String message = e.getMessage() == null
@@ -1199,6 +1386,7 @@ public class SessionManager {
         selfUserId = "";
         selfAdmin = false;
         identityMode = false;
+        activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");
         if (old != null) {
@@ -1248,6 +1436,7 @@ public class SessionManager {
         selfAvatarVersion = 0;
         selfAdmin = false;
         identityMode = false;
+        activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");
         if (old != null) {
@@ -1469,6 +1658,16 @@ public class SessionManager {
             return;
         }
 
+        if (Protocol.IDENTITY_VERIFY_RES.equals(type)) {
+            handleIdentityVerifyResponse(frame);
+            return;
+        }
+
+        if (Protocol.EXIT_ROOM_RES.equals(type)) {
+            handleExitRoomResponse(frame);
+            return;
+        }
+
         if (Protocol.KICKED.equals(type)) {
             handleKicked(frame);
             return;
@@ -1670,6 +1869,7 @@ public class SessionManager {
         selfUserId = "";
         selfAdmin = false;
         identityMode = false;
+        activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");
         updatePersistentRoom("");

@@ -389,11 +389,9 @@ public class SettingsActivity extends AppCompatActivity
     }
 
     private void confirmClearHistory() {
-        BottomSheetMenu.showConfirm(
-                this,
+        requireIdentityPassword(
                 getString(R.string.clear_history),
                 getString(R.string.clear_history_confirm),
-                getString(R.string.confirm),
                 () -> {
                     sessionManager.clearAllHistory();
                     Toast.makeText(this, R.string.clear_history_done,
@@ -402,11 +400,9 @@ public class SettingsActivity extends AppCompatActivity
     }
 
     private void confirmRemoveAllServers() {
-        BottomSheetMenu.showConfirm(
-                this,
+        requireIdentityPassword(
                 getString(R.string.remove_all_servers),
                 getString(R.string.remove_all_servers_confirm),
-                getString(R.string.confirm),
                 () -> {
                     sessionManager.removeAllSessions();
                     database.execute(() -> {
@@ -415,6 +411,64 @@ public class SettingsActivity extends AppCompatActivity
                     });
                     Toast.makeText(this, R.string.remove_all_servers_done,
                             Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    /**
+     * 危险操作必须在线连接最后一个活跃房间，并校验其身份密码。
+     */
+    private void requireIdentityPassword(String title,
+                                         String message,
+                                         Runnable action) {
+        long sessionId = sessionManager.getActiveSessionId();
+        if (sessionId <= 0) {
+            Toast.makeText(this, R.string.danger_connect_first,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String username = sessionManager.getActiveIdentityUsername();
+        if (username == null || username.trim().isEmpty()) {
+            Toast.makeText(this, R.string.danger_identity_missing,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String identityUsername = username;
+        BottomSheetMenu.showInput(
+                this,
+                title,
+                message,
+                getString(R.string.danger_password_hint),
+                true,
+                text -> {
+                    String password = text == null ? "" : text.trim();
+                    if (password.isEmpty()) {
+                        Toast.makeText(this,
+                                R.string.danger_password_required,
+                                Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
+                    sessionManager.verifyIdentityPassword(
+                            identityUsername, password,
+                            new SessionManager.AdminAuthCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    if (!isFinishing() && !isDestroyed()) {
+                                        action.run();
+                                    }
+                                }
+
+                                @Override
+                                public void onError(String error, int code) {
+                                    if (!isFinishing() && !isDestroyed()) {
+                                        Toast.makeText(SettingsActivity.this,
+                                                getString(
+                                                        R.string.danger_password_failed,
+                                                        error),
+                                                Toast.LENGTH_LONG).show();
+                                    }
+                                }
+                            });
+                    return true;
                 });
     }
 }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/server_info_root"
     android:layout_width="match_parent"
@@ -241,6 +242,24 @@
                     android:nestedScrollingEnabled="false"
                     android:overScrollMode="never" />
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_exit_room"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="16dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/exit_room"
+                android:textColor="@color/danger"
+                android:textSize="15sp"
+                app:backgroundTint="@color/surface"
+                app:cornerRadius="12dp"
+                app:rippleColor="@color/blue_ty"
+                app:strokeColor="@color/danger"
+                app:strokeWidth="1dp"
+                android:visibility="gone" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>

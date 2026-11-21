@@ -102,6 +102,15 @@
     <string name="remove_all_servers_done">已移除所有服务器</string>
     <string name="logout_confirm">退出后需要重新登录本地账号，已保存的聊天记录会保留。</string>
     <string name="logout_done">已退出登录</string>
+    <string name="danger_connect_first">请先连接群聊后再操作</string>
+    <string name="danger_identity_missing">当前群聊缺少身份信息，请重新登录</string>
+    <string name="danger_password_hint">输入群聊身份密码</string>
+    <string name="danger_password_required">请输入身份密码</string>
+    <string name="danger_password_failed">身份密码校验失败：%1$s</string>
+    <string name="exit_room">退出群聊</string>
+    <string name="exit_room_confirm">退出后将删除服务端身份并清空当前房间的本地聊天记录，此操作不可撤销。</string>
+    <string name="exit_room_success">已退出群聊</string>
+    <string name="exit_room_failed">退出失败：%1$s</string>
     <string name="reset_password_hint">输入本地账号密码确认</string>
     <string name="reset_password_wrong">密码错误，未注销</string>
     <string name="reset_local_account">注销账号</string>

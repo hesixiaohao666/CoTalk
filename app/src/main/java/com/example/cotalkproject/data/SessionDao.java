@@ -133,6 +133,26 @@ public class SessionDao {
                 new String[]{String.valueOf(sessionId)});
     }
 
+    /**
+     * 退出群聊后保留服务器条目，但清空房间状态与身份。
+     */
+    public void resetAfterExit(long sessionId) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("last_seq", 0);
+        values.put("last_read_seq", 0);
+        values.putNull("last_message");
+        values.put("last_time", 0);
+        values.put("unread", 0);
+        values.put("identity_username", "");
+        values.put("kicked", 0);
+        values.put("mute_all", 0);
+        values.put("self_muted", 0);
+        values.put("announcement_last_id", 0);
+        db.update(TABLE, values, "id = ?",
+                new String[]{String.valueOf(sessionId)});
+    }
+
     public void setAnnouncementLastId(long sessionId, long announcementId) {
         SQLiteDatabase db = helper.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -187,6 +207,14 @@ public class SessionDao {
         SQLiteDatabase db = helper.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put("kicked", kicked ? 1 : 0);
+        db.update(TABLE, values, "id = ?",
+                new String[]{String.valueOf(sessionId)});
+    }
+
+    public void setIdentityUsername(long sessionId, String username) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("identity_username", username == null ? "" : username);
         db.update(TABLE, values, "id = ?",
                 new String[]{String.valueOf(sessionId)});
     }
