@@ -1,7 +1,7 @@
 [versions]
 agp = "9.3.0"
-appVersionCode = "3300"
-appVersionName = "0.3.7(beta)"
+appVersionCode = "4000"
+appVersionName = "0.4.0(beta)"
 junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"

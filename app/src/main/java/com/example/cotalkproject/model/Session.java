@@ -27,6 +27,9 @@ public class Session {
     public boolean identityRequired;
     public boolean kicked;
     public String identityUsername = "";
+    public boolean muteAll;
+    public boolean selfMuted;
+    public long announcementLastId;
 
     public String endpoint() {
         return host + ":" + port;

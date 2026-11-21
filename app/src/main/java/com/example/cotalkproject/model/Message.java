@@ -16,6 +16,7 @@ public class Message {
     public long seq;
     public String senderId;
     public String senderName;
+    public String senderUsername = "";
     public int senderAvatarVersion;
     public String content;
     public String msgType = "text";
@@ -25,6 +26,12 @@ public class Message {
     public long fileSize;
     public boolean fileExpired;
     public boolean senderAdmin;
+    public String replyToMsgId;
+    public String replySenderName;
+    public String replySenderUsername;
+    public String replyPreview;
+    public String replyType;
+    public boolean replyRecalled;
     public String localPath;
     public long timestamp;
     public boolean isSelf;

@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 public class AppDatabase extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "cotalk.db";
-    private static final int DB_VERSION = 3300;
+    private static final int DB_VERSION = 4000;
 
     private static volatile AppDatabase instance;
 
@@ -72,6 +72,17 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "last_login INTEGER"
                 + ")");
 
+        db.execSQL("CREATE TABLE IF NOT EXISTS t_profile ("
+                + "id INTEGER PRIMARY KEY CHECK (id = 1), "
+                + "username TEXT NOT NULL, "
+                + "nickname TEXT NOT NULL, "
+                + "signature TEXT, "
+                + "avatar_path TEXT, "
+                + "client_tag TEXT NOT NULL, "
+                + "created_at INTEGER NOT NULL, "
+                + "updated_at INTEGER NOT NULL"
+                + ")");
+
         db.execSQL("CREATE TABLE IF NOT EXISTS t_session ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "host TEXT NOT NULL, "
@@ -95,6 +106,9 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "identity_required INTEGER NOT NULL DEFAULT 0, "
                 + "kicked INTEGER NOT NULL DEFAULT 0, "
                 + "identity_username TEXT NOT NULL DEFAULT '', "
+                + "mute_all INTEGER NOT NULL DEFAULT 0, "
+                + "self_muted INTEGER NOT NULL DEFAULT 0, "
+                + "announcement_last_id INTEGER NOT NULL DEFAULT 0, "
                 + "UNIQUE(host, port)"
                 + ")");
 
@@ -106,6 +120,7 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "seq INTEGER NOT NULL DEFAULT 0, "
                 + "sender_id TEXT NOT NULL, "
                 + "sender_name TEXT, "
+                + "sender_username TEXT NOT NULL DEFAULT '', "
                 + "sender_avatar_version INTEGER NOT NULL DEFAULT 0, "
                 + "content TEXT NOT NULL, "
                 + "msg_type TEXT NOT NULL DEFAULT 'text', "
@@ -119,6 +134,12 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "file_expired INTEGER NOT NULL DEFAULT 0, "
                 + "local_path TEXT, "
                 + "sender_admin INTEGER NOT NULL DEFAULT 0, "
+                + "reply_to_msg_id TEXT, "
+                + "reply_sender_name TEXT, "
+                + "reply_sender_username TEXT, "
+                + "reply_preview TEXT, "
+                + "reply_type TEXT, "
+                + "reply_recalled INTEGER NOT NULL DEFAULT 0, "
                 + "FOREIGN KEY(session_id) REFERENCES t_session(id) ON DELETE CASCADE"
                 + ")");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_message_session_seq "
@@ -135,6 +156,7 @@ public class AppDatabase extends SQLiteOpenHelper {
                 + "online INTEGER NOT NULL DEFAULT 1, "
                 + "is_ai INTEGER NOT NULL DEFAULT 0, "
                 + "is_admin INTEGER NOT NULL DEFAULT 0, "
+                + "muted INTEGER NOT NULL DEFAULT 0, "
                 + "last_seen INTEGER, "
                 + "PRIMARY KEY(session_id, user_id), "
                 + "FOREIGN KEY(session_id) REFERENCES t_session(id) ON DELETE CASCADE"
@@ -163,6 +185,43 @@ public class AppDatabase extends SQLiteOpenHelper {
         if (!hasColumn(db, "t_member", "username")) {
             db.execSQL("ALTER TABLE t_member ADD COLUMN "
                     + "username TEXT NOT NULL DEFAULT ''");
+        }
+        db.execSQL("CREATE TABLE IF NOT EXISTS t_profile ("
+                + "id INTEGER PRIMARY KEY CHECK (id = 1), "
+                + "username TEXT NOT NULL, "
+                + "nickname TEXT NOT NULL, "
+                + "signature TEXT, "
+                + "avatar_path TEXT, "
+                + "client_tag TEXT NOT NULL, "
+                + "created_at INTEGER NOT NULL, "
+                + "updated_at INTEGER NOT NULL"
+                + ")");
+        ensureColumn(db, "t_session", "mute_all",
+                "INTEGER NOT NULL DEFAULT 0");
+        ensureColumn(db, "t_session", "self_muted",
+                "INTEGER NOT NULL DEFAULT 0");
+        ensureColumn(db, "t_session", "announcement_last_id",
+                "INTEGER NOT NULL DEFAULT 0");
+        ensureColumn(db, "t_message", "sender_username",
+                "TEXT NOT NULL DEFAULT ''");
+        ensureColumn(db, "t_message", "reply_to_msg_id", "TEXT");
+        ensureColumn(db, "t_message", "reply_sender_name", "TEXT");
+        ensureColumn(db, "t_message", "reply_sender_username", "TEXT");
+        ensureColumn(db, "t_message", "reply_preview", "TEXT");
+        ensureColumn(db, "t_message", "reply_type", "TEXT");
+        ensureColumn(db, "t_message", "reply_recalled",
+                "INTEGER NOT NULL DEFAULT 0");
+        ensureColumn(db, "t_member", "muted",
+                "INTEGER NOT NULL DEFAULT 0");
+    }
+
+    private static void ensureColumn(SQLiteDatabase db,
+                                     String table,
+                                     String column,
+                                     String definition) {
+        if (!hasColumn(db, table, column)) {
+            db.execSQL("ALTER TABLE " + table + " ADD COLUMN "
+                    + column + " " + definition);
         }
     }
 
@@ -232,6 +291,40 @@ public class AppDatabase extends SQLiteOpenHelper {
                     + "identity_username TEXT NOT NULL DEFAULT ''");
             db.execSQL("ALTER TABLE t_member ADD COLUMN "
                     + "username TEXT NOT NULL DEFAULT ''");
+        }
+        if (oldVersion < 4000) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS t_profile ("
+                    + "id INTEGER PRIMARY KEY CHECK (id = 1), "
+                    + "username TEXT NOT NULL, "
+                    + "nickname TEXT NOT NULL, "
+                    + "signature TEXT, "
+                    + "avatar_path TEXT, "
+                    + "client_tag TEXT NOT NULL, "
+                    + "created_at INTEGER NOT NULL, "
+                    + "updated_at INTEGER NOT NULL"
+                    + ")");
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "mute_all INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "self_muted INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_session ADD COLUMN "
+                    + "announcement_last_id INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "sender_username TEXT NOT NULL DEFAULT ''");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "reply_to_msg_id TEXT");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "reply_sender_name TEXT");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "reply_sender_username TEXT");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "reply_preview TEXT");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "reply_type TEXT");
+            db.execSQL("ALTER TABLE t_message ADD COLUMN "
+                    + "reply_recalled INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE t_member ADD COLUMN "
+                    + "muted INTEGER NOT NULL DEFAULT 0");
         }
     }
 

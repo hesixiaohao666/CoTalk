@@ -13,5 +13,6 @@ public class Member {
     public boolean online;
     public boolean ai;
     public boolean admin;
+    public boolean muted;
     public long lastSeen;
 }

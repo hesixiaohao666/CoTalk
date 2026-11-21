@@ -123,6 +123,24 @@ public class SessionDao {
         return sessions;
     }
 
+    public void setMuteState(long sessionId, boolean muteAll,
+                             boolean selfMuted) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("mute_all", muteAll ? 1 : 0);
+        values.put("self_muted", selfMuted ? 1 : 0);
+        db.update(TABLE, values, "id = ?",
+                new String[]{String.valueOf(sessionId)});
+    }
+
+    public void setAnnouncementLastId(long sessionId, long announcementId) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("announcement_last_id", Math.max(0, announcementId));
+        db.update(TABLE, values, "id = ?",
+                new String[]{String.valueOf(sessionId)});
+    }
+
     public void updateRoomInfo(long sessionId,
                                String roomName,
                                String announcement,
@@ -239,6 +257,12 @@ public class SessionDao {
                 cursor.getColumnIndexOrThrow("kicked")) == 1;
         session.identityUsername = cursor.getString(
                 cursor.getColumnIndexOrThrow("identity_username"));
+        session.muteAll = cursor.getInt(
+                cursor.getColumnIndexOrThrow("mute_all")) == 1;
+        session.selfMuted = cursor.getInt(
+                cursor.getColumnIndexOrThrow("self_muted")) == 1;
+        session.announcementLastId = cursor.getLong(
+                cursor.getColumnIndexOrThrow("announcement_last_id"));
         return session;
     }
 }

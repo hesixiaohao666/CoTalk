@@ -211,6 +211,8 @@ public class MessageDao {
         values.put("seq", message.seq);
         values.put("sender_id", message.senderId);
         values.put("sender_name", message.senderName);
+        values.put("sender_username",
+                message.senderUsername == null ? "" : message.senderUsername);
         values.put("sender_avatar_version", message.senderAvatarVersion);
         values.put("content", message.content);
         values.put("msg_type", message.msgType);
@@ -221,6 +223,12 @@ public class MessageDao {
         values.put("file_expired", message.fileExpired ? 1 : 0);
         values.put("local_path", message.localPath);
         values.put("sender_admin", message.senderAdmin ? 1 : 0);
+        values.put("reply_to_msg_id", message.replyToMsgId);
+        values.put("reply_sender_name", message.replySenderName);
+        values.put("reply_sender_username", message.replySenderUsername);
+        values.put("reply_preview", message.replyPreview);
+        values.put("reply_type", message.replyType);
+        values.put("reply_recalled", message.replyRecalled ? 1 : 0);
         values.put("timestamp", message.timestamp);
         values.put("is_self", message.isSelf ? 1 : 0);
         values.put("status", message.status);
@@ -236,6 +244,8 @@ public class MessageDao {
         message.seq = cursor.getLong(cursor.getColumnIndexOrThrow("seq"));
         message.senderId = cursor.getString(cursor.getColumnIndexOrThrow("sender_id"));
         message.senderName = cursor.getString(cursor.getColumnIndexOrThrow("sender_name"));
+        message.senderUsername = cursor.getString(
+                cursor.getColumnIndexOrThrow("sender_username"));
         message.senderAvatarVersion = cursor.getInt(
                 cursor.getColumnIndexOrThrow("sender_avatar_version"));
         message.content = cursor.getString(cursor.getColumnIndexOrThrow("content"));
@@ -248,6 +258,18 @@ public class MessageDao {
                 cursor.getColumnIndexOrThrow("file_expired")) == 1;
         message.senderAdmin = cursor.getInt(
                 cursor.getColumnIndexOrThrow("sender_admin")) == 1;
+        message.replyToMsgId = cursor.getString(
+                cursor.getColumnIndexOrThrow("reply_to_msg_id"));
+        message.replySenderName = cursor.getString(
+                cursor.getColumnIndexOrThrow("reply_sender_name"));
+        message.replySenderUsername = cursor.getString(
+                cursor.getColumnIndexOrThrow("reply_sender_username"));
+        message.replyPreview = cursor.getString(
+                cursor.getColumnIndexOrThrow("reply_preview"));
+        message.replyType = cursor.getString(
+                cursor.getColumnIndexOrThrow("reply_type"));
+        message.replyRecalled = cursor.getInt(
+                cursor.getColumnIndexOrThrow("reply_recalled")) == 1;
         message.localPath = cursor.getString(cursor.getColumnIndexOrThrow("local_path"));
         message.timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("timestamp"));
         message.isSelf = cursor.getInt(cursor.getColumnIndexOrThrow("is_self")) == 1;
