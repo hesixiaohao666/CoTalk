@@ -22,6 +22,7 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Base64;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -151,6 +152,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     private Message pendingVoicePlayback;
     private Message pendingEmojiSave;
     private boolean kicked;
+    private boolean muted;
+    private String mutedDraft = "";
     private Message pendingImageSaveMessage;
     private File pendingSaveImageFile;
     private String playingVoiceKey = "";
@@ -383,7 +386,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             @Override
             public void afterTextChanged(Editable s) {
                 updateComposerState();
-                scheduleDraftSave();
+                if (!muted) {
+                    scheduleDraftSave();
+                }
             }
         });
 
@@ -803,7 +808,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             handler.removeCallbacks(draftSaveRunnable);
             draftSaveRunnable = null;
         }
-        if (!prefs.isAutoSaveDraft()) {
+        if (!prefs.isAutoSaveDraft() || muted) {
             return;
         }
         draftSaveRunnable = () -> {
@@ -821,7 +826,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         if (!prefs.isAutoSaveDraft()) {
             return;
         }
-        prefs.setDraft(sessionId, etMessage.getText().toString());
+        prefs.setDraft(sessionId, muted
+                ? mutedDraft : etMessage.getText().toString());
     }
 
     private void clearDraftNow() {
@@ -1086,9 +1092,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
                         adapter.setAiProEnabled(session.aiProEnabled);
                     }
                     kicked = session.kicked;
+                    muted = !kicked && (session.selfMuted
+                            || (session.muteAll
+                            && !sessionManager.isSelfAdmin()));
                 }
                 tvTitle.setText(roomName);
                 applyKickedState();
+                applyMuteState();
             });
         });
     }
@@ -1846,9 +1856,72 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         btnVoice.setEnabled(false);
     }
 
+    private void applyMuteState() {
+        if (kicked) {
+            return;
+        }
+        if (muted) {
+            if (etMessage != null && etMessage.isEnabled()) {
+                mutedDraft = etMessage.getText().toString();
+            }
+            showBanner(getString(sessionManager.isMuteAll()
+                    ? R.string.mute_all_banner : R.string.muted_banner));
+            if (etMessage != null) {
+                etMessage.setEnabled(false);
+                etMessage.setGravity(Gravity.CENTER);
+                etMessage.setText(R.string.muted_placeholder);
+            }
+            if (btnSend != null) {
+                btnSend.setEnabled(false);
+            }
+            if (btnEmoji != null) {
+                btnEmoji.setEnabled(false);
+            }
+            if (btnMore != null) {
+                btnMore.setEnabled(false);
+            }
+            if (btnVoice != null) {
+                btnVoice.setEnabled(false);
+            }
+            return;
+        }
+        if (!sessionManager.isActive(sessionId)) {
+            return;
+        }
+        hideBanner();
+        if (etMessage != null) {
+            etMessage.setEnabled(true);
+            etMessage.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            if (etMessage.getText().toString().equals(
+                    getString(R.string.muted_placeholder))) {
+                etMessage.setText(mutedDraft);
+                mutedDraft = "";
+                etMessage.setSelection(etMessage.getText().length());
+            }
+        }
+        if (btnSend != null) {
+            btnSend.setEnabled(true);
+        }
+        if (btnEmoji != null) {
+            btnEmoji.setEnabled(true);
+        }
+        if (btnMore != null) {
+            btnMore.setEnabled(true);
+        }
+        if (btnVoice != null) {
+            btnVoice.setEnabled(true);
+        }
+        updateComposerState();
+    }
+
     private void sendMessage() {
         if (kicked) {
             Toast.makeText(this, R.string.kicked_send,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (muted) {
+            Toast.makeText(this, R.string.muted_send,
                     Toast.LENGTH_SHORT).show();
             return;
         }
@@ -1911,6 +1984,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     }
 
     private void sendMediaFile(File file, String type) {
+        if (muted) {
+            Toast.makeText(this, R.string.muted_send,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
         String mime = file != null && GifUtil.isGifFile(file)
                 ? "image/gif" : "image/jpeg";
         sendMediaFile(file, type, mime, "", file == null
@@ -2436,6 +2514,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
             Toast.makeText(this, R.string.admin_revoked_message,
                     Toast.LENGTH_SHORT).show();
         } else if (Protocol.ROOM_UPDATE.equals(type)) {
+            loadSessionTitle();
+        } else if (Protocol.MEMBER_LIST.equals(type)) {
             loadSessionTitle();
         } else if (Protocol.SYSTEM.equals(type)) {
             JSONObject data = frame.optJSONObject("data");

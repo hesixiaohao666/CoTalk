@@ -170,8 +170,12 @@ public class SessionManager {
     private volatile AdminAuthCallback pendingJoinReviewCallback;
     private volatile AdminAuthCallback pendingKickCallback;
     private volatile AdminAuthCallback pendingVerifyCallback;
+    private volatile AdminAuthCallback pendingMuteCallback;
+    private volatile AdminAuthCallback pendingMuteAllCallback;
     private volatile AdminAuthCallback pendingExitCallback;
     private volatile String activeIdentityUsername = "";
+    private volatile boolean selfMuted;
+    private volatile boolean muteAll;
     private volatile boolean imageEnabled = true;
     private volatile boolean voiceEnabled = true;
     private volatile boolean emojiEnabled = true;
@@ -562,6 +566,170 @@ public class SessionManager {
                 postAdminError(callback, "解除管理员绑定请求失败", 0);
             }
         }
+    }
+
+
+    public boolean isSelfMuted() {
+        return selfMuted;
+    }
+
+    public boolean isMuteAll() {
+        return muteAll;
+    }
+
+    public void muteMember(String identityId,
+                           boolean muted,
+                           AdminAuthCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        if (!canModerate()) {
+            postAdminError(callback, moderationError(), 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingMuteCallback != null) {
+                postAdminError(callback, "正在处理禁言，请稍候", 0);
+                return;
+            }
+            pendingMuteCallback = callback;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("identityId", identityId);
+            data.put("muted", muted);
+            JSONObject frame = Protocol.frame(
+                    Protocol.ADMIN_MUTE_REQ, data);
+            frame.put("reqId", "mute-" + System.currentTimeMillis());
+            sendFrame(frame, new SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String message) {
+                    AdminAuthCallback pending;
+                    synchronized (adminAuthLock) {
+                        pending = pendingMuteCallback;
+                        pendingMuteCallback = null;
+                    }
+                    if (pending != null) {
+                        postAdminError(pending, message, 0);
+                    }
+                }
+            });
+        } catch (JSONException e) {
+            AdminAuthCallback pending;
+            synchronized (adminAuthLock) {
+                pending = pendingMuteCallback;
+                pendingMuteCallback = null;
+            }
+            if (pending != null) {
+                postAdminError(pending, "禁言操作失败", 0);
+            }
+        }
+    }
+
+    public void setMuteAll(boolean muteAll, AdminAuthCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        if (!canModerate()) {
+            postAdminError(callback, moderationError(), 0);
+            return;
+        }
+        synchronized (adminAuthLock) {
+            if (pendingMuteAllCallback != null) {
+                postAdminError(callback, "正在处理全员禁言，请稍候", 0);
+                return;
+            }
+            pendingMuteAllCallback = callback;
+        }
+        try {
+            JSONObject data = new JSONObject();
+            data.put("muteAll", muteAll);
+            JSONObject frame = Protocol.frame(
+                    Protocol.ROOM_MUTE_ALL_REQ, data);
+            frame.put("reqId", "mute-all-" + System.currentTimeMillis());
+            sendFrame(frame, new SendCallback() {
+                @Override
+                public void onSuccess() {
+                }
+
+                @Override
+                public void onError(String message) {
+                    AdminAuthCallback pending;
+                    synchronized (adminAuthLock) {
+                        pending = pendingMuteAllCallback;
+                        pendingMuteAllCallback = null;
+                    }
+                    if (pending != null) {
+                        postAdminError(pending, message, 0);
+                    }
+                }
+            });
+        } catch (JSONException e) {
+            AdminAuthCallback pending;
+            synchronized (adminAuthLock) {
+                pending = pendingMuteAllCallback;
+                pendingMuteAllCallback = null;
+            }
+            if (pending != null) {
+                postAdminError(pending, "全员禁言失败", 0);
+            }
+        }
+    }
+
+    private void handleAdminMuteResponse(JSONObject frame) {
+        JSONObject data = frame.optJSONObject("data");
+        boolean success = data != null && data.optBoolean("success", false);
+        AdminAuthCallback callback;
+        synchronized (adminAuthLock) {
+            callback = pendingMuteCallback;
+            pendingMuteCallback = null;
+        }
+        if (callback == null) {
+            return;
+        }
+        if (success) {
+            mainHandler.post(callback::onSuccess);
+        } else {
+            postAdminError(callback, data == null ? "禁言操作失败"
+                    : data.optString("message", "禁言操作失败"), 0);
+        }
+    }
+
+    private void handleRoomMuteAllResponse(JSONObject frame) {
+        JSONObject data = frame.optJSONObject("data");
+        boolean success = data != null && data.optBoolean("success", false);
+        if (success) {
+            muteAll = data.optBoolean("muteAll", muteAll);
+        }
+        AdminAuthCallback callback;
+        synchronized (adminAuthLock) {
+            callback = pendingMuteAllCallback;
+            pendingMuteAllCallback = null;
+        }
+        if (callback == null) {
+            return;
+        }
+        if (success) {
+            mainHandler.post(callback::onSuccess);
+        } else {
+            postAdminError(callback, data == null ? "全员禁言失败"
+                    : data.optString("message", "全员禁言失败"), 0);
+        }
+    }
+
+    /**
+     * 直接由房间更新帧刷新禁言状态。
+     */
+    public void refreshMuteState(long sessionId, boolean roomMuteAll,
+                                 boolean selfMuted) {
+        muteAll = roomMuteAll;
+        this.selfMuted = selfMuted;
+        database.execute(() -> sessionDao.setMuteState(
+                sessionId, roomMuteAll, selfMuted));
     }
 
     public void requestJoinRequests(JoinRequestsCallback callback) {
@@ -992,6 +1160,8 @@ public class SessionManager {
         String announcement = data.optString("announcement", "");
         String avatarId = data.optString("avatarId", "");
         int avatarVersion = data.optInt("avatarVersion", 0);
+        boolean newMuteAll = data.optBoolean("muteAll", muteAll);
+        muteAll = newMuteAll;
         RoomUpdateCallback callback;
         synchronized (adminAuthLock) {
             callback = pendingRoomUpdateCallback;
@@ -1006,6 +1176,7 @@ public class SessionManager {
             if (sessionId > 0) {
                 sessionDao.updateRoomInfo(
                         sessionId, name, announcement, avatarId, avatarVersion);
+                sessionDao.setMuteState(sessionId, newMuteAll, selfMuted);
             }
             database.runOnMain(() -> {
                 notifySessionsChanged();
@@ -1239,6 +1410,10 @@ public class SessionManager {
                         ? "" : room.optString("avatarId", "");
                 int roomAvatarVersion = room == null
                         ? 0 : room.optInt("avatarVersion", 0);
+                boolean roomMuteAll = room != null
+                        && room.optBoolean("muteAll", false);
+                boolean selfMuted = self != null
+                        && self.optBoolean("muted", false);
                 boolean adminEnabled = server != null
                         && server.optBoolean("adminEnabled", false);
                 boolean pushEnabled = server == null
@@ -1291,6 +1466,9 @@ public class SessionManager {
                     throw new IllegalStateException("保存会话失败");
                 }
                 sessionDao.setIdentityRequired(session.id, identityRequired);
+                sessionDao.setMuteState(session.id, roomMuteAll, selfMuted);
+                this.muteAll = roomMuteAll;
+                this.selfMuted = selfMuted;
                 if (!verifiedIdentityUsername.isEmpty()) {
                     sessionDao.setIdentityUsername(
                             session.id, verifiedIdentityUsername);
@@ -1658,6 +1836,16 @@ public class SessionManager {
             return;
         }
 
+        if (Protocol.ADMIN_MUTE_RES.equals(type)) {
+            handleAdminMuteResponse(frame);
+            return;
+        }
+
+        if (Protocol.ROOM_MUTE_ALL_RES.equals(type)) {
+            handleRoomMuteAllResponse(frame);
+            return;
+        }
+
         if (Protocol.IDENTITY_VERIFY_RES.equals(type)) {
             handleIdentityVerifyResponse(frame);
             return;
@@ -1681,16 +1869,24 @@ public class SessionManager {
             JSONObject data = frame.optJSONObject("data");
             JSONArray membersArray = data == null ? null : data.optJSONArray("members");
             List<Member> members = parseMembers(membersArray, sessionId);
+            boolean listedSelfMuted = selfMuted;
             for (Member member : members) {
                 if (!selfUserId.isEmpty() && selfUserId.equals(member.userId)) {
                     selfAvatarVersion = member.avatarVersion;
                     selfAdmin = member.admin;
+                    listedSelfMuted = member.muted;
                     break;
                 }
             }
+            selfMuted = listedSelfMuted;
+            final boolean memberMuted = listedSelfMuted;
             database.execute(() -> {
                 memberDao.replaceAll(sessionId, members);
-                database.runOnMain(() -> notifyMembersChanged(sessionId));
+                sessionDao.setMuteState(sessionId, muteAll, memberMuted);
+                database.runOnMain(() -> {
+                    notifyMembersChanged(sessionId);
+                    notifyChatFrame(frame);
+                });
             });
             return;
         }
@@ -1920,6 +2116,7 @@ public class SessionManager {
             member.online = object.optBoolean("online", true);
             member.ai = object.optBoolean("ai", false);
             member.admin = object.optBoolean("admin", false);
+            member.muted = object.optBoolean("muted", false);
             members.add(member);
         }
         return members;

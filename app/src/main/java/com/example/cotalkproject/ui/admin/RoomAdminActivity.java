@@ -16,6 +16,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
@@ -39,6 +40,8 @@ public class RoomAdminActivity extends AppCompatActivity {
     private EditText etName;
     private EditText etAnnouncement;
     private Button btnSave;
+    private SwitchCompat muteAllSwitch;
+    private boolean updatingMuteAll;
 
     private AppDatabase database;
     private SessionDao sessionDao;
@@ -79,6 +82,7 @@ public class RoomAdminActivity extends AppCompatActivity {
         etName = findViewById(R.id.et_room_admin_name);
         etAnnouncement = findViewById(R.id.et_room_admin_announcement);
         btnSave = findViewById(R.id.btn_room_admin_save);
+        muteAllSwitch = findViewById(R.id.switch_room_mute_all);
 
         database = CoTalkApp.getInstance().getDatabase();
         sessionDao = new SessionDao(database);
@@ -94,6 +98,38 @@ public class RoomAdminActivity extends AppCompatActivity {
         findViewById(R.id.btn_room_admin_avatar).setOnClickListener(
                 v -> pickImage.launch("image/*"));
         btnSave.setOnClickListener(v -> save());
+        muteAllSwitch.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (updatingMuteAll) {
+                return;
+            }
+            if (!sessionManager.isActive(sessionId)
+                    || !sessionManager.isSelfAdmin()) {
+                return;
+            }
+            muteAllSwitch.setEnabled(false);
+            sessionManager.setMuteAll(checked,
+                    new SessionManager.AdminAuthCallback() {
+                        @Override
+                        public void onSuccess() {
+                            if (!isFinishing() && !isDestroyed()) {
+                                muteAllSwitch.setEnabled(true);
+                            }
+                        }
+
+                        @Override
+                        public void onError(String message, int code) {
+                            if (isFinishing() || isDestroyed()) {
+                                return;
+                            }
+                            muteAllSwitch.setEnabled(true);
+                            muteAllSwitch.setChecked(!checked);
+                            Toast.makeText(RoomAdminActivity.this,
+                                    getString(R.string.room_admin_mute_failed,
+                                            message),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+        });
         findViewById(R.id.btn_room_admin_members).setOnClickListener(v ->
                 startActivity(AdminModerationActivity.createIntent(
                         this, sessionId)));
@@ -127,6 +163,9 @@ public class RoomAdminActivity extends AppCompatActivity {
                 etName.setText(session.displayName());
                 etAnnouncement.setText(session.announcement == null
                         ? "" : session.announcement);
+                updatingMuteAll = true;
+                muteAllSwitch.setChecked(session.muteAll);
+                updatingMuteAll = false;
                 bindRoomAvatar(session);
             });
         });

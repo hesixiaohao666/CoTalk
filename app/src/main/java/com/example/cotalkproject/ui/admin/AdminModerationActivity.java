@@ -201,6 +201,10 @@ public class AdminModerationActivity extends AppCompatActivity {
         String state = member.online
                 ? getString(R.string.admin_moderation_online)
                 : getString(R.string.admin_moderation_offline);
+        if (member.muted) {
+            state = state + " · " + getString(
+                    R.string.admin_moderation_muted);
+        }
         info.setText(member.nickname + username + " · " + state);
         info.setTextSize(15);
         info.setTextColor(getColor(R.color.text_primary));
@@ -209,6 +213,14 @@ public class AdminModerationActivity extends AppCompatActivity {
 
         boolean self = !TextUtils.isEmpty(selfId)
                 && selfId.equals(member.userId);
+        if (!self && !member.ai && !member.admin
+                && !TextUtils.isEmpty(member.userId)) {
+            Button mute = smallButton(getString(member.muted
+                    ? R.string.admin_moderation_unmute
+                    : R.string.admin_moderation_mute), false);
+            mute.setOnClickListener(v -> toggleMute(member));
+            row.addView(mute);
+        }
         if (!self && !member.ai && !TextUtils.isEmpty(member.userId)) {
             Button kick = smallButton(getString(
                     R.string.admin_moderation_kick), false);
@@ -217,6 +229,25 @@ public class AdminModerationActivity extends AppCompatActivity {
             row.addView(kick);
         }
         membersCard.addView(row);
+    }
+
+    private void toggleMute(Member member) {
+        sessionManager.muteMember(member.userId, !member.muted,
+                new SessionManager.AdminAuthCallback() {
+                    @Override
+                    public void onSuccess() {
+                        if (!isFinishing() && !isDestroyed()) {
+                            refresh();
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message, int code) {
+                        toast(getString(
+                                R.string.admin_moderation_action_failed,
+                                message));
+                    }
+                });
     }
 
     private void confirmKick(Member member) {

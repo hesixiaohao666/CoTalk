@@ -323,6 +323,15 @@
     <string name="identity_failed">身份验证失败：%1$s</string>
     <string name="identity_cancelled">已取消身份验证</string>
 
+    <string name="room_admin_mute_all">全员禁言</string>
+    <string name="room_admin_mute_failed">全员禁言设置失败：%1$s</string>
+    <string name="admin_moderation_mute">禁言</string>
+    <string name="admin_moderation_unmute">解除禁言</string>
+    <string name="admin_moderation_muted">已禁言</string>
+    <string name="muted_banner">您已被禁言</string>
+    <string name="mute_all_banner">全员禁言中</string>
+    <string name="muted_placeholder">禁言中</string>
+    <string name="muted_send">您已被禁言，无法发送消息</string>
     <string name="room_admin_members">成员管理</string>
     <string name="admin_moderation_title">成员管理</string>
     <string name="admin_moderation_pending">入群申请</string>
