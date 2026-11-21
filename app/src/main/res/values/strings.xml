@@ -111,7 +111,7 @@
     <string name="cancel">取消</string>
     <string name="reset_success">账号已注销</string>
 
-    <string name="profile_local_account">本地账号：%1$s</string>
+    <string name="profile_local_account">@%1$s</string>
     <string name="signature_empty">这个人很懒，什么都没留下</string>
     <string name="edit_profile">编辑资料</string>
     <string name="edit_profile_title">编辑资料</string>
@@ -123,7 +123,16 @@
     <string name="avatar_save_failed">头像保存失败</string>
     <string name="profile_saved">资料已保存</string>
     <string name="signature_too_long">个性签名最多 40 个字</string>
-    <string name="profile_section_account">本地账号与设置</string>
+    <string name="profile_setup_subtitle">首次使用，请完善你的资料</string>
+    <string name="profile_setup_choose_avatar">选择头像</string>
+    <string name="label_local_username">本地用户名</string>
+    <string name="hint_local_username">3–16 位，字母开头，仅字母和数字</string>
+    <string name="profile_setup_username_note">作为连接房间时注册群聊身份的默认用户名</string>
+    <string name="profile_setup_start">开始使用</string>
+    <string name="profile_setup_avatar_required">请选择头像</string>
+    <string name="profile_setup_username_invalid">本地用户名需为 3–16 位，字母开头，仅字母和数字</string>
+    <string name="profile_setup_save_failed">保存资料失败，请稍后重试</string>
+    <string name="profile_section_account">资料与设置</string>
     <string name="profile_settings_entry">设置</string>
     <string name="profile_about_entry">关于 CoTalk</string>
 
@@ -133,7 +142,7 @@
     <string name="about_tech_title">技术栈</string>
     <string name="about_tech_body">客户端：Android Java / XML\n服务端：Java / Swing / Headless\n数据存储：SQLite\n网络通信：TCP Socket (NDJSON)</string>
     <string name="about_identity_title">隐私与安全</string>
-    <string name="about_identity_body">本地账号信息保存在本机并加密存储。\n启用身份验证的房间使用独立的群聊账号，密码仅保存加密校验值，不会明文存储。</string>
+    <string name="about_identity_body">本机资料保存在本机；身份密码仅保存加密校验值。\n启用身份验证的房间使用独立的群聊账号，密码仅保存加密校验值，不会明文存储。</string>
     <string name="about_ai_title">AI 功能</string>
     <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 智能群友，由服务端 AI 接口驱动。\n- 被 @ 或拍一拍时会尝试回复；\n- 其他消息会结合上下文判断是否参与；\n- 若服务端未启用 AI 功能或未配置 API Key，AI 群友将不会出现在房间中。</string>
     <string name="about_changelog_title">更新日志</string>
@@ -301,7 +310,7 @@
     <string name="identity_password_invalid">密码需为 8–16 位，且至少包含两类字符</string>
     <string name="identity_confirm_empty">请再次输入密码</string>
     <string name="identity_password_mismatch">两次输入的密码不一致</string>
-    <string name="identity_local_missing">本地账号不存在</string>
+    <string name="identity_local_missing">本地资料不存在</string>
     <string name="identity_failed">身份验证失败：%1$s</string>
     <string name="identity_cancelled">已取消身份验证</string>
 

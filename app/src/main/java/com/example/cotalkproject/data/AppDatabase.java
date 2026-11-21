@@ -12,7 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 客户端 SQLite：本地账号、会话、消息与成员缓存。
+ * 客户端 SQLite：本机资料、会话、消息与成员缓存。
  */
 public class AppDatabase extends SQLiteOpenHelper {
 
@@ -59,19 +59,6 @@ public class AppDatabase extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(@NonNull SQLiteDatabase db) {
-        db.execSQL("CREATE TABLE IF NOT EXISTS t_local_user ("
-                + "id INTEGER PRIMARY KEY CHECK (id = 1), "
-                + "username TEXT NOT NULL UNIQUE, "
-                + "password_hash TEXT NOT NULL, "
-                + "salt TEXT NOT NULL, "
-                + "nickname TEXT NOT NULL, "
-                + "signature TEXT, "
-                + "avatar_path TEXT, "
-                + "client_tag TEXT NOT NULL, "
-                + "created_at INTEGER NOT NULL, "
-                + "last_login INTEGER"
-                + ")");
-
         db.execSQL("CREATE TABLE IF NOT EXISTS t_profile ("
                 + "id INTEGER PRIMARY KEY CHECK (id = 1), "
                 + "username TEXT NOT NULL, "
@@ -338,7 +325,6 @@ public class AppDatabase extends SQLiteOpenHelper {
             db.delete("t_message", null, null);
             db.delete("t_member", null, null);
             db.delete("t_session", null, null);
-            db.delete("t_local_user", null, null);
             db.setTransactionSuccessful();
         } finally {
             db.endTransaction();

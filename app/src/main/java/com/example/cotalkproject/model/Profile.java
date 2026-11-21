@@ -1,18 +1,15 @@
 package com.example.cotalkproject.model;
 
 /**
- * 本地账号。只保存在本机 SQLite，不是服务端账号。
+ * 本机资料。只保存展示与连接所需的本地信息，不包含登录密码。
  */
-public class LocalUser {
+public class Profile {
 
-    public long id;
     public String username;
-    public String passwordHash;
-    public String salt;
     public String nickname;
     public String signature;
     public String avatarPath;
     public String clientTag;
     public long createdAt;
-    public long lastLogin;
+    public long updatedAt;
 }

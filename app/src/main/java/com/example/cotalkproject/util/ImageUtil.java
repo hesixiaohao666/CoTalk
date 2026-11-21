@@ -161,6 +161,16 @@ public final class ImageUtil {
         return BitmapFactory.decodeFile(file.getAbsolutePath(), options);
     }
 
+    public static Bitmap decodeUriSampled(Context context,
+                                          Uri uri,
+                                          int maxDimension) {
+        try {
+            return decodeSampled(context, uri, maxDimension);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public static Bitmap loadBitmap(String path) {
         if (path == null || path.isEmpty()) {
             return null;

@@ -25,18 +25,13 @@ import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
-import com.example.cotalkproject.data.LocalUserDao;
 import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
-import com.example.cotalkproject.model.LocalUser;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.service.CoTalkConnectionService;
-import com.example.cotalkproject.ui.login.LoginActivity;
-import com.example.cotalkproject.ui.login.RegisterActivity;
 import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.NotificationHelper;
-import com.example.cotalkproject.util.SecurityUtil;
 import com.example.cotalkproject.util.UiUtil;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
@@ -46,7 +41,6 @@ public class SettingsActivity extends AppCompatActivity
         implements SessionManager.Listener {
 
     private AppDatabase database;
-    private LocalUserDao userDao;
     private MessageDao messageDao;
     private Prefs prefs;
     private SessionManager sessionManager;
@@ -111,7 +105,6 @@ public class SettingsActivity extends AppCompatActivity
                 R.string.version_format, BuildConfig.VERSION_NAME));
 
         database = CoTalkApp.getInstance().getDatabase();
-        userDao = new LocalUserDao(database);
         messageDao = new MessageDao(database);
         prefs = CoTalkApp.getInstance().getPrefs();
         sessionManager = CoTalkApp.getInstance().getSessionManager();
@@ -239,8 +232,6 @@ public class SettingsActivity extends AppCompatActivity
 
         findViewById(R.id.btn_clear_history).setOnClickListener(v -> confirmClearHistory());
         findViewById(R.id.btn_remove_all_servers).setOnClickListener(v -> confirmRemoveAllServers());
-        findViewById(R.id.btn_reset_account).setOnClickListener(v -> showResetDialog());
-        findViewById(R.id.btn_logout).setOnClickListener(v -> confirmLogout());
     }
 
     @Override
@@ -424,78 +415,6 @@ public class SettingsActivity extends AppCompatActivity
                     });
                     Toast.makeText(this, R.string.remove_all_servers_done,
                             Toast.LENGTH_SHORT).show();
-                });
-    }
-
-    private void showResetDialog() {
-        BottomSheetMenu.showInput(
-                this,
-                getString(R.string.reset_confirm_title),
-                getString(R.string.reset_confirm_message),
-                getString(R.string.reset_password_hint),
-                true,
-                new BottomSheetMenu.InputCallback() {
-                    @Override
-                    public boolean onInput(String text) {
-                        verifyAndReset(text);
-                        return true;
-                    }
-                });
-    }
-
-    private void verifyAndReset(String password) {
-        database.execute(() -> {
-            LocalUser user = userDao.get();
-            boolean valid = user != null
-                    && SecurityUtil.verifyPassword(password, user.salt, user.passwordHash);
-            if (!valid) {
-                database.runOnMain(() -> Toast.makeText(this,
-                        R.string.reset_password_wrong, Toast.LENGTH_SHORT).show());
-                return;
-            }
-
-            sessionManager.removeAllSessions();
-            CoTalkConnectionService.stop(this);
-            database.clearAllLocalData();
-            ImageUtil.deleteAllAvatarCache(this);
-            CoTalkApp.getInstance().setAuthenticated(false);
-            prefs.logout();
-            prefs.clearRemembered();
-            prefs.setAutoLogin(false);
-            prefs.clearDrafts();
-
-            database.runOnMain(() -> {
-                Toast.makeText(this, R.string.reset_success,
-                        Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(this, RegisterActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                        | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finishAffinity();
-            });
-        });
-    }
-
-    private void confirmLogout() {
-        BottomSheetMenu.showConfirm(
-                this,
-                getString(R.string.logout),
-                getString(R.string.logout_confirm),
-                getString(R.string.confirm),
-                () -> {
-                    sessionManager.disconnect();
-                    CoTalkConnectionService.stop(this);
-                    CoTalkApp.getInstance().setAuthenticated(false);
-                    prefs.logout();
-                    prefs.setAutoLogin(false);
-                    prefs.clearDrafts();
-                    Toast.makeText(this, R.string.logout_done,
-                            Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(this, LoginActivity.class);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                            | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                    finishAffinity();
                 });
     }
 }

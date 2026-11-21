@@ -23,7 +23,6 @@ public class CoTalkApp extends Application {
     private Prefs prefs;
     private SessionManager sessionManager;
     private AvatarLoader avatarLoader;
-    private boolean authenticated;
 
     @Override
     public void onCreate() {
@@ -104,16 +103,5 @@ public class CoTalkApp extends Application {
 
     public AvatarLoader getAvatarLoader() {
         return avatarLoader;
-    }
-
-    /**
-     * 仅存在于进程内：切后台保持登录，进程重建后必须重新登录。
-     */
-    public boolean isAuthenticated() {
-        return authenticated;
-    }
-
-    public void setAuthenticated(boolean authenticated) {
-        this.authenticated = authenticated;
     }
 }

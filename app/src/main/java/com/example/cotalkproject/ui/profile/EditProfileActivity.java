@@ -18,8 +18,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
-import com.example.cotalkproject.data.LocalUserDao;
-import com.example.cotalkproject.model.LocalUser;
+import com.example.cotalkproject.data.ProfileDao;
+import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.net.Protocol;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.widget.AvatarView;
@@ -37,7 +37,7 @@ public class EditProfileActivity extends AppCompatActivity {
     private Button btnSave;
 
     private AppDatabase database;
-    private LocalUserDao userDao;
+    private ProfileDao userDao;
     private SessionManager sessionManager;
 
     private ActivityResultLauncher<String> pickImage;
@@ -69,7 +69,7 @@ public class EditProfileActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btn_save_profile);
 
         database = CoTalkApp.getInstance().getDatabase();
-        userDao = new LocalUserDao(database);
+        userDao = new ProfileDao(database);
         sessionManager = CoTalkApp.getInstance().getSessionManager();
 
         pickImage = registerForActivityResult(
@@ -88,7 +88,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
     private void loadUser() {
         database.execute(() -> {
-            LocalUser user = userDao.get();
+            Profile user = userDao.get();
             if (user == null) {
                 return;
             }

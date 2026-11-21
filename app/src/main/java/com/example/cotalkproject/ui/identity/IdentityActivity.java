@@ -19,9 +19,9 @@ import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
-import com.example.cotalkproject.data.LocalUserDao;
+import com.example.cotalkproject.data.ProfileDao;
 import com.example.cotalkproject.data.Prefs;
-import com.example.cotalkproject.model.LocalUser;
+import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.net.Protocol;
 import com.example.cotalkproject.net.ServerConnection;
 import com.example.cotalkproject.net.SessionManager;
@@ -145,14 +145,14 @@ public class IdentityActivity extends AppCompatActivity {
             cbRemember.setChecked(prefs.isIdentityRemember(host, port));
             cbAuto.setChecked(prefs.isIdentityAutoLogin(host, port));
         }
-        loadLocalUser();
+        loadProfile();
         updateMode();
     }
 
-    private void loadLocalUser() {
+    private void loadProfile() {
         AppDatabase database = CoTalkApp.getInstance().getDatabase();
         database.execute(() -> {
-            LocalUser user = new LocalUserDao(database).get();
+            Profile user = new ProfileDao(database).get();
             database.runOnMain(() -> {
                 if (isFinishing() || isDestroyed()) {
                     return;

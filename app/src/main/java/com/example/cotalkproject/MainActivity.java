@@ -22,7 +22,9 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.Prefs;
+import com.example.cotalkproject.data.ProfileDao;
 import com.example.cotalkproject.data.SessionDao;
+import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.service.CoTalkConnectionService;
@@ -30,8 +32,8 @@ import com.example.cotalkproject.ui.chat.ChatActivity;
 import com.example.cotalkproject.ui.contacts.ContactsFragment;
 import com.example.cotalkproject.ui.home.HomeFragment;
 import com.example.cotalkproject.ui.identity.IdentityActivity;
-import com.example.cotalkproject.ui.login.LoginActivity;
 import com.example.cotalkproject.ui.profile.ProfileFragment;
+import com.example.cotalkproject.ui.setup.ProfileSetupActivity;
 import com.example.cotalkproject.util.UiUtil;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
@@ -90,12 +92,27 @@ public class MainActivity extends AppCompatActivity {
         CoTalkApp app = CoTalkApp.getInstance();
         prefs = app.getPrefs();
         sessionManager = app.getSessionManager();
-        if (prefs.getCurrentUserId() <= 0 || !app.isAuthenticated()) {
-            startActivity(new Intent(this, LoginActivity.class));
-            finish();
-            return;
-        }
+        AppDatabase database = app.getDatabase();
+        database.execute(() -> {
+            ProfileDao profileDao = new ProfileDao(database);
+            profileDao.ensureMigrated();
+            Profile profile = profileDao.get();
+            database.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (profile == null) {
+                    startActivity(new Intent(this,
+                            ProfileSetupActivity.class));
+                    finish();
+                    return;
+                }
+                startMain(savedInstanceState);
+            });
+        });
+    }
 
+    private void startMain(Bundle savedInstanceState) {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
@@ -107,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
 
         titleView = findViewById(R.id.tv_title);
         BottomNavigationView navigation = findViewById(R.id.navigation_bar);
-        sessionDao = new SessionDao(app.getDatabase());
+        sessionDao = new SessionDao(CoTalkApp.getInstance().getDatabase());
         autoConnectStarted = savedInstanceState != null
                 && savedInstanceState.getBoolean(KEY_AUTO_CONNECT_ATTEMPTED, false);
 

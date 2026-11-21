@@ -11,12 +11,12 @@ import androidx.annotation.NonNull;
 import com.example.cotalkproject.BuildConfig;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.data.AppDatabase;
-import com.example.cotalkproject.data.LocalUserDao;
+import com.example.cotalkproject.data.ProfileDao;
 import com.example.cotalkproject.data.MemberDao;
 import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
-import com.example.cotalkproject.model.LocalUser;
+import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.model.JoinRequest;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Message;
@@ -136,7 +136,7 @@ public class SessionManager {
 
     private final AppDatabase database;
     private final Prefs prefs;
-    private final LocalUserDao localUserDao;
+    private final ProfileDao profileDao;
     private final SessionDao sessionDao;
     private final MemberDao memberDao;
     private final MessageDao messageDao;
@@ -202,7 +202,7 @@ public class SessionManager {
     public SessionManager(AppDatabase database, Prefs prefs) {
         this.database = database;
         this.prefs = prefs;
-        this.localUserDao = new LocalUserDao(database);
+        this.profileDao = new ProfileDao(database);
         this.sessionDao = new SessionDao(database);
         this.memberDao = new MemberDao(database);
         this.messageDao = new MessageDao(database);
@@ -946,12 +946,12 @@ public class SessionManager {
         notifySessionsChanged();
 
         connectExecutor.execute(() -> {
-            LocalUser user = localUserDao.get();
+            Profile user = profileDao.get();
             if (user == null) {
                 connecting = false;
                 database.runOnMain(() -> {
                     if (callback != null) {
-                        callback.onError("本地账号不存在");
+                        callback.onError("请先完成资料初始化");
                     }
                     notifySessionsChanged();
                 });

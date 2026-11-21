@@ -16,8 +16,8 @@ import androidx.fragment.app.Fragment;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
-import com.example.cotalkproject.data.LocalUserDao;
-import com.example.cotalkproject.model.LocalUser;
+import com.example.cotalkproject.data.ProfileDao;
+import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.ui.about.AboutActivity;
 import com.example.cotalkproject.ui.settings.SettingsActivity;
 import com.example.cotalkproject.ui.widget.AvatarView;
@@ -29,7 +29,7 @@ public class ProfileFragment extends Fragment {
     private TextView tvNickname;
     private TextView tvLocalAccount;
     private TextView tvSignature;
-    private LocalUserDao userDao;
+    private ProfileDao userDao;
 
     @Nullable
     @Override
@@ -47,7 +47,7 @@ public class ProfileFragment extends Fragment {
         tvNickname = view.findViewById(R.id.tv_nickname);
         tvLocalAccount = view.findViewById(R.id.tv_local_account);
         tvSignature = view.findViewById(R.id.tv_signature);
-        userDao = new LocalUserDao(CoTalkApp.getInstance().getDatabase());
+        userDao = new ProfileDao(CoTalkApp.getInstance().getDatabase());
 
         view.findViewById(R.id.btn_edit_profile).setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), EditProfileActivity.class)));
@@ -68,7 +68,7 @@ public class ProfileFragment extends Fragment {
     private void loadProfile() {
         AppDatabase database = CoTalkApp.getInstance().getDatabase();
         database.execute(() -> {
-            LocalUser user = userDao.get();
+            Profile user = userDao.get();
             database.runOnMain(() -> {
                 if (!isAdded() || getView() == null) {
                     return;

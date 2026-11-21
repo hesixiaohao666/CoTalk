@@ -48,11 +48,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.cotalkproject.CoTalkApp;
 import com.example.cotalkproject.R;
 import com.example.cotalkproject.data.AppDatabase;
-import com.example.cotalkproject.data.LocalUserDao;
+import com.example.cotalkproject.data.ProfileDao;
 import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
-import com.example.cotalkproject.model.LocalUser;
+import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.Protocol;
@@ -1061,9 +1061,9 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     }
 
     private void loadSelfNickname() {
-        LocalUserDao userDao = new LocalUserDao(database);
+        ProfileDao userDao = new ProfileDao(database);
         database.execute(() -> {
-            LocalUser user = userDao.get();
+            Profile user = userDao.get();
             if (user != null) {
                 String nickname = user.nickname;
                 database.runOnMain(() -> selfNickname = nickname);
