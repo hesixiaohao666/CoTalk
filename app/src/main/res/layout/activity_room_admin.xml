@@ -113,6 +113,23 @@
                     android:textSize="16sp" />
             </LinearLayout>
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_room_admin_members"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="16dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/room_admin_members"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                app:backgroundTint="@color/surface"
+                app:cornerRadius="12dp"
+                app:rippleColor="@color/blue_ty"
+                app:strokeColor="@color/blue_ty"
+                app:strokeWidth="2dp" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -135,23 +152,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
             </LinearLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_room_admin_members"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:layout_marginTop="8dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:stateListAnimator="@null"
-                android:text="@string/room_admin_members"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                app:backgroundTint="@color/surface"
-                app:cornerRadius="12dp"
-                app:rippleColor="@color/blue_ty"
-                app:strokeColor="@color/blue_ty"
-                app:strokeWidth="2dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_room_admin_save"
