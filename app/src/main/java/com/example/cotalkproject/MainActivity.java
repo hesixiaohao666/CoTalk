@@ -24,7 +24,6 @@ import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.ProfileDao;
 import com.example.cotalkproject.data.SessionDao;
-import com.example.cotalkproject.model.Announcement;
 import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
@@ -41,8 +40,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayDeque;
 
-public class MainActivity extends AppCompatActivity
-        implements SessionManager.AnnouncementListener {
+public class MainActivity extends AppCompatActivity {
 
     private static final String TAG_HOME = "home";
     private static final String TAG_CONTACTS = "contacts";
@@ -149,15 +147,8 @@ public class MainActivity extends AppCompatActivity
         showTab(initialItem);
         CoTalkConnectionService.sync(this, prefs);
         maybeRequestNotificationPermission();
-        sessionManager.addAnnouncementListener(this);
         maybeShowVersionAnnouncement();
         maybeAutoConnect();
-    }
-
-    @Override
-    protected void onDestroy() {
-        sessionManager.removeAnnouncementListener(this);
-        super.onDestroy();
     }
 
     private void maybeShowVersionAnnouncement() {
@@ -172,23 +163,6 @@ public class MainActivity extends AppCompatActivity
                 () -> {
                     prefs.markVersionAnnouncementShown(
                             BuildConfig.VERSION_CODE);
-                    finishAnnouncement();
-                }));
-    }
-
-    @Override
-    public void onAnnouncement(Announcement announcement) {
-        if (announcement == null || announcement.id <= 0) {
-            return;
-        }
-        enqueueAnnouncement(() -> AnnouncementDialog.show(
-                this,
-                TextUtils.isEmpty(announcement.title)
-                        ? getString(R.string.about_changelog_title)
-                        : announcement.title,
-                announcement.content,
-                () -> {
-                    sessionManager.ackAnnouncement(announcement.id);
                     finishAnnouncement();
                 }));
     }

@@ -52,12 +52,14 @@ import com.example.cotalkproject.data.ProfileDao;
 import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
+import com.example.cotalkproject.model.Announcement;
 import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.Protocol;
 import com.example.cotalkproject.net.SessionManager;
 import com.example.cotalkproject.ui.serverinfo.ServerInfoActivity;
+import com.example.cotalkproject.ui.widget.AnnouncementDialog;
 import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 import com.example.cotalkproject.ui.widget.ZoomImageView;
 import com.example.cotalkproject.util.ChatFileStore;
@@ -78,6 +80,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -87,7 +90,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public class ChatActivity extends AppCompatActivity implements SessionManager.ChatListener {
+public class ChatActivity extends AppCompatActivity
+        implements SessionManager.ChatListener,
+        SessionManager.AnnouncementListener {
 
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_ROOM_NAME = "room_name";
@@ -136,6 +141,11 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, Runnable> pendingTimeouts = new HashMap<>();
+    private final ArrayDeque<Announcement> announcementQueue =
+            new ArrayDeque<>();
+    private boolean announcementShowing;
+    private long showingAnnouncementId = -1;
+    private Dialog announcementDialog;
     private final Map<String, String> pendingPreviews = new HashMap<>();
     private final Set<String> pendingFileRequests = new HashSet<>();
     private final Set<String> failedFileRequests = new HashSet<>();
@@ -1010,6 +1020,7 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     @Override
     protected void onStart() {
         super.onStart();
+        sessionManager.addAnnouncementListener(this);
         sessionManager.setChatListener(this);
         sessionManager.setOpenChatSession(sessionId);
         NotificationHelper.cancelMessage(this, sessionId);
@@ -1029,6 +1040,10 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     @Override
     protected void onStop() {
+        if (sessionManager != null) {
+            sessionManager.removeAnnouncementListener(this);
+        }
+        dismissAnnouncementDialog();
         cancelVoiceRecording();
         stopVoicePlayback();
         gifPlayback.stop();
@@ -1050,6 +1065,8 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
     protected void onDestroy() {
         gifPlayback.release();
         sessionManager.clearChatListener(this);
+        sessionManager.removeAnnouncementListener(this);
+        dismissAnnouncementDialog();
         if (draftSaveRunnable != null) {
             handler.removeCallbacks(draftSaveRunnable);
             draftSaveRunnable = null;
@@ -2560,6 +2577,62 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
 
     private void hideBanner() {
         tvBanner.setVisibility(View.GONE);
+    }
+
+    @Override
+    public void onAnnouncement(Announcement announcement) {
+        if (announcement == null || announcement.id <= 0
+                || !sessionManager.isActive(sessionId)
+                || isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (announcement.id == showingAnnouncementId) {
+            return;
+        }
+        for (Announcement pending : announcementQueue) {
+            if (pending.id == announcement.id) {
+                return;
+            }
+        }
+        announcementQueue.add(announcement);
+        showNextAnnouncement();
+    }
+
+    private void showNextAnnouncement() {
+        if (announcementShowing || announcementQueue.isEmpty()
+                || !sessionManager.isActive(sessionId)
+                || isFinishing() || isDestroyed()) {
+            return;
+        }
+        Announcement announcement = announcementQueue.poll();
+        if (announcement == null) {
+            return;
+        }
+        announcementShowing = true;
+        showingAnnouncementId = announcement.id;
+        announcementDialog = AnnouncementDialog.show(
+                this,
+                TextUtils.isEmpty(announcement.title)
+                        ? getString(R.string.announcement_default_title)
+                        : announcement.title,
+                announcement.content,
+                () -> {
+                    sessionManager.ackAnnouncement(announcement.id);
+                    announcementDialog = null;
+                    announcementShowing = false;
+                    showingAnnouncementId = -1;
+                    showNextAnnouncement();
+                });
+    }
+
+    private void dismissAnnouncementDialog() {
+        if (announcementDialog != null) {
+            announcementDialog.dismiss();
+            announcementDialog = null;
+        }
+        announcementQueue.clear();
+        announcementShowing = false;
+        showingAnnouncementId = -1;
     }
 
     @Override

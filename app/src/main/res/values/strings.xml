@@ -156,6 +156,7 @@
     <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 智能群友，由服务端 AI 接口驱动。\n- 被 @ 或拍一拍时会尝试回复；\n- 其他消息会结合上下文判断是否参与；\n- 若服务端未启用 AI 功能或未配置 API Key，AI 群友将不会出现在房间中。</string>
     <string name="about_changelog_title">更新日志</string>
     <string name="announcement_confirm">我知道了</string>
+    <string name="announcement_default_title">公告</string>
     <string name="version_announcement_title">CoTalk %1$s 更新内容</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
