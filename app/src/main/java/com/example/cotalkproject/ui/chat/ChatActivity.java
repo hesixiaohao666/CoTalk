@@ -2680,9 +2680,6 @@ public class ChatActivity extends AppCompatActivity
                     toggleEmpty();
                 }
             }
-        } else if (Protocol.ADMIN_REVOKED.equals(type)) {
-            Toast.makeText(this, R.string.admin_revoked_message,
-                    Toast.LENGTH_SHORT).show();
         } else if (Protocol.ROOM_UPDATE.equals(type)) {
             loadSessionTitle();
         } else if (Protocol.MEMBER_LIST.equals(type)) {

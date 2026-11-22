@@ -22,7 +22,6 @@ import com.example.cotalkproject.model.JoinRequest;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.model.Message;
 import com.example.cotalkproject.model.Session;
-import com.example.cotalkproject.util.AdminKeyUtil;
 import com.example.cotalkproject.util.AppForegroundTracker;
 import com.example.cotalkproject.util.ImageUtil;
 import com.example.cotalkproject.util.NotificationHelper;
@@ -160,7 +159,6 @@ public class SessionManager {
     private final Object adminAuthLock = new Object();
     // 连接/join 会阻塞最多数秒，不能占用单线程的数据库队列。
     private final ExecutorService connectExecutor = Executors.newSingleThreadExecutor();
-    private final ExecutorService cryptoExecutor = Executors.newSingleThreadExecutor();
 
     private volatile ServerConnection connection;
     private volatile long activeSessionId = -1;
@@ -176,10 +174,6 @@ public class SessionManager {
     private volatile long announcementLastId;
     private volatile long pendingAnnouncementId = -1;
     private volatile Announcement pendingAnnouncement;
-    private volatile AdminAuthCallback pendingAdminAuthCallback;
-    private volatile AdminAuthCallback pendingAdminUnbindCallback;
-    private volatile String pendingAdminKey = "";
-    private volatile ServerConnection pendingAdminConnection;
     private volatile RoomUpdateCallback pendingRoomUpdateCallback;
     private volatile JoinRequestsCallback pendingJoinRequestsCallback;
     private volatile AdminAuthCallback pendingJoinReviewCallback;
@@ -508,95 +502,6 @@ public class SessionManager {
             mainHandler.post(callback::onSuccess);
         }
     }
-
-    public void authenticateAdmin(String adminKey, AdminAuthCallback callback) {
-        if (callback == null) {
-            return;
-        }
-        ServerConnection current = connection;
-        if (current == null || !current.isConnected() || activeSessionId <= 0) {
-            postAdminError(callback, "请先连接启用了管理员模式的房间", 0);
-            return;
-        }
-        if (adminKey == null || adminKey.trim().isEmpty()) {
-            postAdminError(callback, "请输入管理员密钥", 0);
-            return;
-        }
-        synchronized (adminAuthLock) {
-            if (pendingAdminAuthCallback != null
-                    || pendingAdminUnbindCallback != null) {
-                postAdminError(callback, "正在处理管理员身份，请稍候", 0);
-                return;
-            }
-            pendingAdminAuthCallback = callback;
-            pendingAdminKey = adminKey.trim();
-            pendingAdminConnection = current;
-        }
-
-        try {
-            JSONObject data = new JSONObject();
-            JSONObject frame = Protocol.frame(Protocol.ADMIN_AUTH_BEGIN, data);
-            frame.put("reqId", "admin-begin-" + System.currentTimeMillis());
-            sendFrame(frame, new SendCallback() {
-                @Override
-                public void onSuccess() {
-                }
-
-                @Override
-                public void onError(String message) {
-                    if (clearPendingAdmin(callback)) {
-                        postAdminError(callback, message, 0);
-                    }
-                }
-            });
-        } catch (Exception e) {
-            if (clearPendingAdmin(callback)) {
-                postAdminError(callback, "管理员认证请求失败", 0);
-            }
-        }
-    }
-
-    public void unbindAdmin(AdminAuthCallback callback) {
-        if (callback == null) {
-            return;
-        }
-        ServerConnection current = connection;
-        if (current == null || !current.isConnected() || activeSessionId <= 0) {
-            postAdminError(callback, "请先连接房间", 0);
-            return;
-        }
-        synchronized (adminAuthLock) {
-            if (pendingAdminAuthCallback != null
-                    || pendingAdminUnbindCallback != null) {
-                postAdminError(callback, "正在处理管理员身份，请稍候", 0);
-                return;
-            }
-            pendingAdminUnbindCallback = callback;
-        }
-
-        try {
-            JSONObject data = new JSONObject();
-            JSONObject frame = Protocol.frame(Protocol.ADMIN_UNBIND, data);
-            frame.put("reqId", "admin-unbind-" + System.currentTimeMillis());
-            sendFrame(frame, new SendCallback() {
-                @Override
-                public void onSuccess() {
-                }
-
-                @Override
-                public void onError(String message) {
-                    if (clearPendingAdminUnbind(callback)) {
-                        postAdminError(callback, message, 0);
-                    }
-                }
-            });
-        } catch (Exception e) {
-            if (clearPendingAdminUnbind(callback)) {
-                postAdminError(callback, "解除管理员绑定请求失败", 0);
-            }
-        }
-    }
-
 
     public boolean isSelfMuted() {
         return selfMuted;
@@ -971,28 +876,6 @@ public class SessionManager {
         }
     }
 
-    private boolean clearPendingAdmin(AdminAuthCallback callback) {
-        synchronized (adminAuthLock) {
-            if (pendingAdminAuthCallback != callback) {
-                return false;
-            }
-            pendingAdminAuthCallback = null;
-            pendingAdminKey = "";
-            pendingAdminConnection = null;
-            return true;
-        }
-    }
-
-    private boolean clearPendingAdminUnbind(AdminAuthCallback callback) {
-        synchronized (adminAuthLock) {
-            if (pendingAdminUnbindCallback != callback) {
-                return false;
-            }
-            pendingAdminUnbindCallback = null;
-            return true;
-        }
-    }
-
     private boolean clearPendingRoom(RoomUpdateCallback callback) {
         synchronized (adminAuthLock) {
             if (pendingRoomUpdateCallback != callback) {
@@ -1016,167 +899,14 @@ public class SessionManager {
     }
 
     private void failPendingOperations(String message) {
-        AdminAuthCallback adminCallback;
-        AdminAuthCallback unbindCallback;
         RoomUpdateCallback roomCallback;
         synchronized (adminAuthLock) {
-            adminCallback = pendingAdminAuthCallback;
-            unbindCallback = pendingAdminUnbindCallback;
             roomCallback = pendingRoomUpdateCallback;
-            pendingAdminAuthCallback = null;
-            pendingAdminUnbindCallback = null;
-            pendingAdminKey = "";
-            pendingAdminConnection = null;
             pendingRoomUpdateCallback = null;
-        }
-        if (adminCallback != null) {
-            postAdminError(adminCallback, message, 0);
-        }
-        if (unbindCallback != null) {
-            postAdminError(unbindCallback, message, 0);
         }
         if (roomCallback != null) {
             postRoomError(roomCallback, message, 0);
         }
-    }
-
-    private void handleAdminChallenge(ServerConnection source, JSONObject frame) {
-        AdminAuthCallback callback;
-        String adminKey;
-        ServerConnection expected;
-        synchronized (adminAuthLock) {
-            callback = pendingAdminAuthCallback;
-            adminKey = pendingAdminKey;
-            expected = pendingAdminConnection;
-        }
-        if (callback == null || adminKey.isEmpty()
-                || expected == null || source != expected) {
-            return;
-        }
-
-        JSONObject data = frame.optJSONObject("data");
-        if (data == null) {
-            if (clearPendingAdmin(callback)) {
-                postAdminError(callback, "管理员挑战为空", 0);
-            }
-            return;
-        }
-        String salt = data.optString("salt", "");
-        String nonce = data.optString("nonce", "");
-        int iterations = data.optInt("iterations", 0);
-        if (salt.isEmpty() || nonce.isEmpty() || iterations <= 0) {
-            if (clearPendingAdmin(callback)) {
-                postAdminError(callback, "管理员挑战格式错误", 0);
-            }
-            return;
-        }
-
-        cryptoExecutor.execute(() -> {
-            String proof;
-            try {
-                proof = AdminKeyUtil.createProof(
-                        adminKey, salt, iterations, nonce);
-            } catch (Exception e) {
-                if (clearPendingAdmin(callback)) {
-                    postAdminError(callback, "管理员密钥处理失败", 0);
-                }
-                return;
-            }
-
-            synchronized (adminAuthLock) {
-                if (pendingAdminAuthCallback != callback) {
-                    return;
-                }
-                if (connection != expected) {
-                    if (clearPendingAdmin(callback)) {
-                        postAdminError(callback, "连接已断开", 0);
-                    }
-                    return;
-                }
-                pendingAdminKey = "";
-            }
-
-            try {
-                JSONObject responseData = new JSONObject();
-                responseData.put("proof", proof);
-                JSONObject response = Protocol.frame(
-                        Protocol.ADMIN_AUTH_RESPONSE, responseData);
-                response.put("reqId",
-                        "admin-response-" + System.currentTimeMillis());
-                sendFrame(response, new SendCallback() {
-                    @Override
-                    public void onSuccess() {
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        if (clearPendingAdmin(callback)) {
-                            postAdminError(callback, message, 0);
-                        }
-                    }
-                });
-            } catch (Exception e) {
-                if (clearPendingAdmin(callback)) {
-                    postAdminError(callback, "管理员认证响应失败", 0);
-                }
-            }
-        });
-    }
-
-    private void handleAdminAuthOk() {
-        AdminAuthCallback callback;
-        synchronized (adminAuthLock) {
-            callback = pendingAdminAuthCallback;
-            pendingAdminAuthCallback = null;
-            pendingAdminKey = "";
-            pendingAdminConnection = null;
-        }
-        selfAdmin = true;
-        if (callback != null) {
-            mainHandler.post(callback::onSuccess);
-        }
-        notifySessionsChanged();
-    }
-
-    private void handleAdminUnbindOk() {
-        AdminAuthCallback callback;
-        synchronized (adminAuthLock) {
-            callback = pendingAdminUnbindCallback;
-            pendingAdminUnbindCallback = null;
-        }
-        selfAdmin = false;
-        notifySessionsChanged();
-        if (callback != null) {
-            mainHandler.post(callback::onSuccess);
-        }
-    }
-
-    private void handleAdminRevoked(JSONObject frame) {
-        AdminAuthCallback authCallback;
-        AdminAuthCallback unbindCallback;
-        RoomUpdateCallback roomCallback;
-        synchronized (adminAuthLock) {
-            authCallback = pendingAdminAuthCallback;
-            unbindCallback = pendingAdminUnbindCallback;
-            roomCallback = pendingRoomUpdateCallback;
-            pendingAdminAuthCallback = null;
-            pendingAdminUnbindCallback = null;
-            pendingRoomUpdateCallback = null;
-            pendingAdminKey = "";
-            pendingAdminConnection = null;
-        }
-        selfAdmin = false;
-        if (authCallback != null) {
-            postAdminError(authCallback, "管理员身份已被解除", 0);
-        }
-        if (unbindCallback != null) {
-            mainHandler.post(unbindCallback::onSuccess);
-        }
-        if (roomCallback != null) {
-            postRoomError(roomCallback, "管理员身份已被解除", 0);
-        }
-        notifySessionsChanged();
-        notifyChatFrame(frame);
     }
 
     private void handleRoomUpdate(JSONObject frame) {
@@ -1218,31 +948,15 @@ public class SessionManager {
     }
 
     private void handleServerError(JSONObject frame, JSONObject data) {
-        AdminAuthCallback adminCallback;
-        AdminAuthCallback unbindCallback;
         RoomUpdateCallback roomCallback;
         synchronized (adminAuthLock) {
-            adminCallback = pendingAdminAuthCallback;
-            unbindCallback = pendingAdminUnbindCallback;
             roomCallback = pendingRoomUpdateCallback;
-            pendingAdminAuthCallback = null;
-            pendingAdminUnbindCallback = null;
-            pendingAdminKey = "";
-            pendingAdminConnection = null;
             pendingRoomUpdateCallback = null;
         }
         String message = data == null
                 ? "服务器错误"
                 : data.optString("message", "服务器错误");
         int code = data == null ? 0 : data.optInt("code", 0);
-        if (adminCallback != null) {
-            postAdminError(adminCallback, message, code);
-            return;
-        }
-        if (unbindCallback != null) {
-            postAdminError(unbindCallback, message, code);
-            return;
-        }
         if (roomCallback != null) {
             postRoomError(roomCallback, message, code);
             return;
@@ -1944,26 +1658,6 @@ public class SessionManager {
             return;
         }
         String type = frame.optString("type", "");
-
-        if (Protocol.ADMIN_AUTH_CHALLENGE.equals(type)) {
-            handleAdminChallenge(source, frame);
-            return;
-        }
-
-        if (Protocol.ADMIN_AUTH_OK.equals(type)) {
-            handleAdminAuthOk();
-            return;
-        }
-
-        if (Protocol.ADMIN_UNBIND_OK.equals(type)) {
-            handleAdminUnbindOk();
-            return;
-        }
-
-        if (Protocol.ADMIN_REVOKED.equals(type)) {
-            handleAdminRevoked(frame);
-            return;
-        }
 
         if (Protocol.ROOM_UPDATE.equals(type)) {
             handleRoomUpdate(frame);

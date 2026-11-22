@@ -60,7 +60,6 @@
     <string name="dark_follow_system">深色跟随系统</string>
     <string name="dark_mode">深色模式</string>
     <string name="admin_badge">管理员</string>
-    <string name="admin_revoked_message">管理员身份已被服务器解除</string>
     <string name="room_admin_title">房间管理</string>
     <string name="room_admin_avatar">房间头像</string>
     <string name="room_admin_change_avatar">更换房间头像</string>
@@ -203,7 +202,6 @@
     <string name="remove_server_message">将删除本机保存的会话、消息和成员缓存，不影响服务器数据。</string>
     <string name="me_suffix">（我）</string>
     <string name="ai_badge">AI</string>
-    <string name="experimental_badge">实验性</string>
     <string name="server_supports_ai">支持 AI</string>
     <string name="chat_title_default">聊天</string>
     <string name="server_info">房间信息</string>
