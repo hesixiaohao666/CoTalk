@@ -123,12 +123,26 @@ public final class BottomSheetMenu {
                                                 String message,
                                                 String positive,
                                                 Runnable onPositive) {
+        return showConfirm(context, title, message, positive, false,
+                onPositive);
+    }
+
+    public static BottomSheetDialog showConfirm(Context context,
+                                                String title,
+                                                String message,
+                                                String positive,
+                                                boolean danger,
+                                                Runnable onPositive) {
         BottomSheetDialog dialog = new BottomSheetDialog(context);
         View content = inflate(context);
         dialog.setContentView(content);
 
         TextView titleView = content.findViewById(R.id.tv_sheet_title);
         titleView.setText(title);
+        if (danger) {
+            titleView.setTextColor(ContextCompat.getColor(
+                    context, R.color.danger));
+        }
         TextView messageView = content.findViewById(R.id.tv_sheet_message);
         messageView.setText(message);
         messageView.setVisibility(View.VISIBLE);
@@ -139,6 +153,10 @@ public final class BottomSheetMenu {
         secondary.setOnClickListener(v -> dialog.dismiss());
         TextView primary = content.findViewById(R.id.btn_sheet_primary);
         primary.setText(positive);
+        if (danger) {
+            primary.setTextColor(ContextCompat.getColor(
+                    context, R.color.danger));
+        }
         primary.setOnClickListener(v -> {
             dialog.dismiss();
             if (onPositive != null) {

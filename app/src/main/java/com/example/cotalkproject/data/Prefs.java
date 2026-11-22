@@ -29,6 +29,8 @@ public class Prefs {
     private static final String KEY_IDENTITY_REMEMBER_PREFIX = "identity_remember_";
     private static final String KEY_IDENTITY_AUTO_PREFIX = "identity_auto_";
     private static final String KEY_DRAFT_PREFIX = "draft_";
+    private static final String KEY_VERSION_ANNOUNCEMENT =
+            "version_announcement_shown";
 
     private final SharedPreferences preferences;
 
@@ -213,6 +215,16 @@ public class Prefs {
                 .remove(identityKey(KEY_IDENTITY_PASSWORD_PREFIX, host, port))
                 .remove(identityKey(KEY_IDENTITY_REMEMBER_PREFIX, host, port))
                 .remove(identityKey(KEY_IDENTITY_AUTO_PREFIX, host, port))
+                .apply();
+    }
+
+    public boolean shouldShowVersionAnnouncement(int versionCode) {
+        return preferences.getInt(KEY_VERSION_ANNOUNCEMENT, 0) < versionCode;
+    }
+
+    public void markVersionAnnouncementShown(int versionCode) {
+        preferences.edit()
+                .putInt(KEY_VERSION_ANNOUNCEMENT, Math.max(0, versionCode))
                 .apply();
     }
 

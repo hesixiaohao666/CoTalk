@@ -1,6 +1,5 @@
 package com.example.cotalkproject.ui.admin;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -22,6 +21,7 @@ import com.example.cotalkproject.data.MemberDao;
 import com.example.cotalkproject.model.JoinRequest;
 import com.example.cotalkproject.model.Member;
 import com.example.cotalkproject.net.SessionManager;
+import com.example.cotalkproject.ui.widget.BottomSheetMenu;
 import com.example.cotalkproject.util.UiUtil;
 import androidx.appcompat.widget.AppCompatButton;
 
@@ -251,15 +251,14 @@ public class AdminModerationActivity extends AppCompatActivity {
     }
 
     private void confirmKick(Member member) {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.admin_moderation_kick_title)
-                .setMessage(getString(
-                        R.string.admin_moderation_kick_message,
-                        member.nickname))
-                .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton(R.string.admin_moderation_kick,
-                        (dialog, which) -> kick(member))
-                .show();
+        BottomSheetMenu.showConfirm(
+                this,
+                getString(R.string.admin_moderation_kick_title),
+                getString(R.string.admin_moderation_kick_message,
+                        member.nickname),
+                getString(R.string.admin_moderation_kick),
+                true,
+                () -> kick(member));
     }
 
     private void kick(Member member) {

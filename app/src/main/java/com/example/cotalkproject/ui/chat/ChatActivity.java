@@ -38,7 +38,6 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -1805,13 +1804,13 @@ public class ChatActivity extends AppCompatActivity implements SessionManager.Ch
         String sender = TextUtils.isEmpty(message.senderName)
                 ? getString(R.string.admin_recall_unknown_sender)
                 : message.senderName;
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.admin_recall_title)
-                .setMessage(getString(R.string.admin_recall_message, sender))
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.admin_recall_action,
-                        (dialog, which) -> requestRecall(message))
-                .show();
+        BottomSheetMenu.showConfirm(
+                this,
+                getString(R.string.admin_recall_title),
+                getString(R.string.admin_recall_message, sender),
+                getString(R.string.admin_recall_action),
+                true,
+                () -> requestRecall(message));
     }
 
     private void requestRecall(Message message) {

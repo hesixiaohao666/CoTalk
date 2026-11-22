@@ -155,10 +155,12 @@
     <string name="about_ai_title">AI 功能</string>
     <string name="about_ai_body">“大肥鱼”是服务端可选配置的 AI 智能群友，由服务端 AI 接口驱动。\n- 被 @ 或拍一拍时会尝试回复；\n- 其他消息会结合上下文判断是否参与；\n- 若服务端未启用 AI 功能或未配置 API Key，AI 群友将不会出现在房间中。</string>
     <string name="about_changelog_title">更新日志</string>
+    <string name="announcement_confirm">我知道了</string>
+    <string name="version_announcement_title">CoTalk %1$s 更新内容</string>
     <string name="about_changelog_version_format">版本：%1$s</string>
     <string name="about_changelog_date_format">更新时间：%1$s</string>
-    <string name="about_changelog_body">更新内容：\n【常规更新】\n- 支持添加和发送 GIF 动图表情包，聊天页面点击即可播放\n- 添加表情包时支持多选，单次最多可添加 9 张\n- 正式实装深色模式，位于设置的显示分区\n- 修复了一些已知问题\n- 此次更新不兼容旧版本的客户端与服务端，请及时进行更新\n【实验性功能更新】\n- 新增身份验证系统：在开启管理员模式的群聊自动启用，支持服务端独立账号登录与注册\n- 增强管理员权限：支持客户端强制撤回消息，新增成员管理页面，支持入群审核与移除用户\n- 成员列表将同步展示用户名区分身份，新增离线成员展示\n- 移除了设置中的管理员模式入口</string>
-    <string name="about_changelog_date">2026-11-19</string>
+    <string name="about_changelog_body">更新内容：\n【启动与身份】\n- 全新启动流程：首次设置头像、昵称与本地用户名，无需本地账号登录\n- 每个服务器独立注册或登录群聊身份，支持入群审核\n- 支持退出群聊，退出后会清理当前房间数据\n【聊天与管理】\n- 支持消息回复与引用，引用目标撤回后显示“[原消息已撤回]”\n- 断线重连后自动同步最近 7 天聊天记录\n- 管理员新增禁言、全员禁言、成员管理与公告推送\n【AI 群友】\n- 统一为“AI”群友，支持 @AI、上下文理解、记忆与表情\n- AI 可理解引用消息，并区分自己与其他成员\n【其他】\n- 新增服务端公告与版本更新提示\n- 修复已知问题，优化聊天流畅度\n- 本版本与 0.3.x 不兼容，请同步更新客户端与服务端</string>
+    <string name="about_changelog_date">2026-11-22</string>
     <string name="about_author_title">开发信息</string>
     <string name="about_author_name">作者：何似小浩</string>
     <string name="about_author_github">GitHub 开源仓库：\n- CoTalk 客户端：https://github.com/hesixiaohao666/CoTalk\n- CoTalk 服务端：https://github.com/hesixiaohao666/CoTalk-Server</string>

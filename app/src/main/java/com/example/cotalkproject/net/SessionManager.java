@@ -16,6 +16,7 @@ import com.example.cotalkproject.data.MemberDao;
 import com.example.cotalkproject.data.MessageDao;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.SessionDao;
+import com.example.cotalkproject.model.Announcement;
 import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.model.JoinRequest;
 import com.example.cotalkproject.model.Member;
@@ -107,6 +108,10 @@ public class SessionManager {
         void onChatReconnected();
     }
 
+    public interface AnnouncementListener {
+        void onAnnouncement(Announcement announcement);
+    }
+
     public interface SendCallback {
         void onSuccess();
 
@@ -149,6 +154,8 @@ public class SessionManager {
             new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<AvatarListener> avatarListeners =
             new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<AnnouncementListener>
+            announcementListeners = new CopyOnWriteArrayList<>();
     private final AtomicLong connectGeneration = new AtomicLong();
     private final Object adminAuthLock = new Object();
     // 连接/join 会阻塞最多数秒，不能占用单线程的数据库队列。
@@ -166,6 +173,9 @@ public class SessionManager {
     private volatile boolean syncRunning;
     private volatile long syncSessionId = -1;
     private volatile long syncAfterSeq;
+    private volatile long announcementLastId;
+    private volatile long pendingAnnouncementId = -1;
+    private volatile Announcement pendingAnnouncement;
     private volatile AdminAuthCallback pendingAdminAuthCallback;
     private volatile AdminAuthCallback pendingAdminUnbindCallback;
     private volatile String pendingAdminKey = "";
@@ -257,6 +267,20 @@ public class SessionManager {
 
     public void removeAvatarListener(AvatarListener listener) {
         avatarListeners.remove(listener);
+    }
+
+    public void addAnnouncementListener(AnnouncementListener listener) {
+        if (listener != null && !announcementListeners.contains(listener)) {
+            announcementListeners.add(listener);
+            Announcement pending = pendingAnnouncement;
+            if (pending != null) {
+                mainHandler.post(() -> listener.onAnnouncement(pending));
+            }
+        }
+    }
+
+    public void removeAnnouncementListener(AnnouncementListener listener) {
+        announcementListeners.remove(listener);
     }
 
     public void setChatListener(ChatListener listener) {
@@ -1490,6 +1514,9 @@ public class SessionManager {
                 selfAdmin = self != null && self.optBoolean("admin", false);
                 identityMode = identityRequired;
                 activeSessionId = session.id;
+                announcementLastId = session.announcementLastId;
+                pendingAnnouncementId = -1;
+                pendingAnnouncement = null;
                 activeRoomName = roomName;
                 this.pushEnabled = pushEnabled;
                 connection = conn;
@@ -1578,6 +1605,9 @@ public class SessionManager {
         syncRunning = false;
         syncSessionId = -1;
         syncAfterSeq = 0L;
+        announcementLastId = 0L;
+        pendingAnnouncementId = -1;
+        pendingAnnouncement = null;
         activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");
@@ -1631,6 +1661,9 @@ public class SessionManager {
         syncRunning = false;
         syncSessionId = -1;
         syncAfterSeq = 0L;
+        announcementLastId = 0L;
+        pendingAnnouncementId = -1;
+        pendingAnnouncement = null;
         activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");
@@ -1894,6 +1927,9 @@ public class SessionManager {
         syncRunning = false;
         syncSessionId = -1;
         syncAfterSeq = 0L;
+        announcementLastId = 0L;
+        pendingAnnouncementId = -1;
+        pendingAnnouncement = null;
         failPendingOperations("连接已断开");
         if (old != null) {
             old.close();
@@ -2023,6 +2059,11 @@ public class SessionManager {
             return;
         }
 
+        if (Protocol.SERVER_ANNOUNCEMENT.equals(type)) {
+            handleServerAnnouncement(frame);
+            return;
+        }
+
         if (Protocol.MESSAGE.equals(type)) {
             JSONObject data = frame.optJSONObject("data");
             long sessionId = activeSessionId;
@@ -2144,6 +2185,68 @@ public class SessionManager {
         notifyChatDisconnected("您已被移出群聊");
     }
 
+    private void handleServerAnnouncement(JSONObject frame) {
+        JSONObject data = frame.optJSONObject("data");
+        long sessionId = activeSessionId;
+        if (data == null || sessionId <= 0) {
+            return;
+        }
+        long id = data.optLong("id", 0);
+        if (id <= 0) {
+            return;
+        }
+        if (id <= announcementLastId) {
+            sendAnnouncementAck(id);
+            return;
+        }
+        if (id == pendingAnnouncementId) {
+            return;
+        }
+        pendingAnnouncementId = id;
+        final Announcement announcement = new Announcement();
+        announcement.id = id;
+        announcement.title = data.optString("title", "");
+        announcement.content = data.optString("content", "");
+        announcement.createdAt = data.optLong("createdAt",
+                System.currentTimeMillis());
+        pendingAnnouncement = announcement;
+        mainHandler.post(() -> {
+            for (AnnouncementListener listener : announcementListeners) {
+                listener.onAnnouncement(announcement);
+            }
+        });
+    }
+
+    /**
+     * 用户确认公告后回执，服务端不再补发。
+     */
+    public void ackAnnouncement(long announcementId) {
+        if (announcementId <= 0) {
+            return;
+        }
+        announcementLastId = Math.max(announcementLastId, announcementId);
+        if (pendingAnnouncementId == announcementId) {
+            pendingAnnouncementId = -1;
+            pendingAnnouncement = null;
+        }
+        long sessionId = activeSessionId;
+        if (sessionId > 0) {
+            database.execute(() -> sessionDao.setAnnouncementLastId(
+                    sessionId, announcementId));
+        }
+        sendAnnouncementAck(announcementId);
+    }
+
+    private void sendAnnouncementAck(long announcementId) {
+        try {
+            JSONObject data = new JSONObject();
+            data.put("id", announcementId);
+            sendFrame(Protocol.frame(Protocol.ANNOUNCEMENT_ACK, data), null);
+        } catch (JSONException ignored) {
+            // 回执失败时服务端会在下次连接补发
+        }
+    }
+
     private void handleMessageRecall(JSONObject frame) {
         JSONObject data = frame.optJSONObject("data");
         long sessionId = activeSessionId;
@@ -2201,6 +2304,9 @@ public class SessionManager {
         syncRunning = false;
         syncSessionId = -1;
         syncAfterSeq = 0L;
+        announcementLastId = 0L;
+        pendingAnnouncementId = -1;
+        pendingAnnouncement = null;
         activeIdentityUsername = "";
         connecting = false;
         failPendingOperations("连接已断开");

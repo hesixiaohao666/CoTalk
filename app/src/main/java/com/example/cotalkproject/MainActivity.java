@@ -24,6 +24,7 @@ import com.example.cotalkproject.data.AppDatabase;
 import com.example.cotalkproject.data.Prefs;
 import com.example.cotalkproject.data.ProfileDao;
 import com.example.cotalkproject.data.SessionDao;
+import com.example.cotalkproject.model.Announcement;
 import com.example.cotalkproject.model.Profile;
 import com.example.cotalkproject.model.Session;
 import com.example.cotalkproject.net.SessionManager;
@@ -34,10 +35,14 @@ import com.example.cotalkproject.ui.home.HomeFragment;
 import com.example.cotalkproject.ui.identity.IdentityActivity;
 import com.example.cotalkproject.ui.profile.ProfileFragment;
 import com.example.cotalkproject.ui.setup.ProfileSetupActivity;
+import com.example.cotalkproject.ui.widget.AnnouncementDialog;
 import com.example.cotalkproject.util.UiUtil;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-public class MainActivity extends AppCompatActivity {
+import java.util.ArrayDeque;
+
+public class MainActivity extends AppCompatActivity
+        implements SessionManager.AnnouncementListener {
 
     private static final String TAG_HOME = "home";
     private static final String TAG_CONTACTS = "contacts";
@@ -58,6 +63,8 @@ public class MainActivity extends AppCompatActivity {
     private int pendingIdentityPort;
     private String pendingIdentityAuthKey;
     private SessionManager.ConnectCallback pendingIdentityCallback;
+    private final ArrayDeque<Runnable> announcementQueue = new ArrayDeque<>();
+    private boolean announcementShowing;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,7 +149,70 @@ public class MainActivity extends AppCompatActivity {
         showTab(initialItem);
         CoTalkConnectionService.sync(this, prefs);
         maybeRequestNotificationPermission();
+        sessionManager.addAnnouncementListener(this);
+        maybeShowVersionAnnouncement();
         maybeAutoConnect();
+    }
+
+    @Override
+    protected void onDestroy() {
+        sessionManager.removeAnnouncementListener(this);
+        super.onDestroy();
+    }
+
+    private void maybeShowVersionAnnouncement() {
+        if (!prefs.shouldShowVersionAnnouncement(BuildConfig.VERSION_CODE)) {
+            return;
+        }
+        enqueueAnnouncement(() -> AnnouncementDialog.show(
+                this,
+                getString(R.string.version_announcement_title,
+                        BuildConfig.VERSION_NAME),
+                getString(R.string.about_changelog_body),
+                () -> {
+                    prefs.markVersionAnnouncementShown(
+                            BuildConfig.VERSION_CODE);
+                    finishAnnouncement();
+                }));
+    }
+
+    @Override
+    public void onAnnouncement(Announcement announcement) {
+        if (announcement == null || announcement.id <= 0) {
+            return;
+        }
+        enqueueAnnouncement(() -> AnnouncementDialog.show(
+                this,
+                TextUtils.isEmpty(announcement.title)
+                        ? getString(R.string.about_changelog_title)
+                        : announcement.title,
+                announcement.content,
+                () -> {
+                    sessionManager.ackAnnouncement(announcement.id);
+                    finishAnnouncement();
+                }));
+    }
+
+    private void enqueueAnnouncement(Runnable show) {
+        announcementQueue.add(show);
+        showNextAnnouncement();
+    }
+
+    private void showNextAnnouncement() {
+        if (announcementShowing || isFinishing() || isDestroyed()) {
+            return;
+        }
+        Runnable next = announcementQueue.poll();
+        if (next == null) {
+            return;
+        }
+        announcementShowing = true;
+        next.run();
+    }
+
+    private void finishAnnouncement() {
+        announcementShowing = false;
+        showNextAnnouncement();
     }
 
     @Override
