@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CoTalk Project"
+rootProject.name = "CoTalk"
 include ':app'
